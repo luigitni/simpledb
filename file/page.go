@@ -81,7 +81,6 @@ func (p *Page) GetInt(offset int) int {
 // String methods
 
 func (p *Page) SetString(offset int, v string) {
-	p.assertSize(offset, len(v))
 	p.SetBytes(offset, []byte(v))
 }
 
