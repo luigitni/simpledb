@@ -12,16 +12,16 @@ import (
 
 func TestLog(t *testing.T) {
 
-	const testDataFolder = "../test_data"
+	const dbFolder = "../test_data"
 	const logfile = "testlog"
 	const blockSize = 400
 
 	t.Cleanup(func() {
-		path := path.Join(testDataFolder, logfile)
+		path := path.Join(dbFolder, logfile)
 		os.Remove(path)
 	})
 
-	fman := file.NewFileManager(testDataFolder, blockSize)
+	fman := file.NewFileManager(dbFolder, blockSize)
 
 	lm := log.NewLogManager(fman, logfile)
 
