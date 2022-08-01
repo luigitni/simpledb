@@ -1,6 +1,7 @@
 package file
 
 import (
+	"io"
 	"os"
 	"path"
 	"strings"
@@ -80,7 +81,9 @@ func (manager *Manager) Read(blk BlockID, p *Page) {
 	defer manager.Unlock()
 
 	f := manager.getFile(blk.Filename())
-	if _, err := f.ReadAt(p.contents(), int64(blk.BlockNumber())*int64(manager.blockSize)); err != nil {
+
+	// io.EOF is returned if we are reading too far into the file. This is ok, as we can read an empty block into the page
+	if _, err := f.ReadAt(p.contents(), int64(blk.BlockNumber())*int64(manager.blockSize)); err != io.EOF && err != nil {
 		panic(err)
 	}
 }
