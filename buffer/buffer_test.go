@@ -10,24 +10,35 @@ import (
 	"github.com/luigitni/simpledb/log"
 )
 
-func TestBuffer(t *testing.T) {
-	const dbFolder = "../test_data"
-	const logfile = "testlog"
-	const blockfile = "testfile"
-	const blockSize = 400
-	const buffersAvaialble = 3
+const dbFolder = "../test_data"
+const logfile = "testlog"
+const blockfile = "testfile"
+const blockSize = 400
+const buffersAvaialble = 3
 
-	t.Cleanup(func() {
-		p := path.Join(dbFolder, blockfile)
-		os.Remove(p)
-		p = path.Join(dbFolder, logfile)
-		os.Remove(p)
-	})
+var clearTestFolder = func() {
+	p := path.Join(dbFolder, blockfile)
+	os.Remove(p)
+	p = path.Join(dbFolder, logfile)
+	os.Remove(p)
+}
 
+func makeManagers() (*file.Manager, *log.Manager, *buffer.Manager) {
 	fm := file.NewFileManager(dbFolder, blockSize)
 	lm := log.NewLogManager(fm, logfile)
 
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
+
+	return fm, lm, bm
+}
+
+func TestBuffer(t *testing.T) {
+
+	t.Cleanup(func() {
+		clearTestFolder()
+	})
+
+	fm, _, bm := makeManagers()
 
 	buff1, err := bm.Pin(file.NewBlockID(blockfile, 1))
 	if err != nil {
@@ -97,5 +108,56 @@ func TestBuffer(t *testing.T) {
 
 	if v != n+1 {
 		t.Fatalf("expected contents of block1 to be %d. Found %d", n+1, v)
+	}
+}
+
+func TestBufferManager(t *testing.T) {
+
+	t.Cleanup(func() {
+		clearTestFolder()
+	})
+
+	_, _, bm := makeManagers()
+
+	buffers := make([]*buffer.Buffer, 6)
+
+	var err error
+	for i := 0; i < 3; i++ {
+		// assign all buffers to blocks
+		buffers[i], err = bm.Pin(file.NewBlockID(blockfile, i))
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	bm.Unpin(buffers[1])
+	buffers[1] = nil
+
+	if buffers[3], err = bm.Pin(file.NewBlockID(blockfile, 0)); err != nil {
+		t.Fatal(err)
+	}
+
+	if buffers[4], err = bm.Pin(file.NewBlockID(blockfile, 1)); err != nil {
+		t.Fatal(err)
+	}
+
+	// expect this buffer to timeout
+	buffers[5], err = bm.Pin(file.NewBlockID(blockfile, 3))
+	if err != buffer.ErrClientTimeout {
+		t.Fatalf("expected pin on buffer 5 to timeount. Got %v", err)
+	} else {
+		t.Log("buffer 5 has timed out")
+	}
+
+	bm.Unpin(buffers[2])
+	buffers[2] = nil
+	if buffers[5], err = bm.Pin(file.NewBlockID(blockfile, 3)); err != nil {
+		t.Fatalf("expected client not to time out. Got %v", err)
+	}
+
+	for i, buf := range buffers {
+		if buf != nil {
+			t.Logf("buffer %d at %p pinned to block %s", i, buffers[i], buf.BlockID())
+		}
 	}
 }

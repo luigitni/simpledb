@@ -8,7 +8,7 @@ import (
 	"github.com/luigitni/simpledb/log"
 )
 
-const maxTimeSeconds = 10 * time.Second
+const maxTimeSeconds = 5 * time.Second
 
 type Manager struct {
 	pool      []*Buffer
