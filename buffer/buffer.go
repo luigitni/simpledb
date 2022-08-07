@@ -32,8 +32,8 @@ func (buf *Buffer) Contents() *file.Page {
 	return buf.contents
 }
 
-func (buf *Buffer) BlockID() *file.BlockID {
-	return &buf.block
+func (buf *Buffer) BlockID() file.BlockID {
+	return buf.block
 }
 
 func (buf *Buffer) SetModified(txnum int, lsn int) {
