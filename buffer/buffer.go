@@ -5,6 +5,15 @@ import (
 	"github.com/luigitni/simpledb/log"
 )
 
+// A Buffer stores pages status information, such as if it's pinned
+// and if that's the case, what block it is assigned to.
+// Each buffer observes the changes done to its page and it is responsible
+// for writing its modifications to disk.
+// A Buffer can reduce disk access by delaying flushing:
+// for example, if a page is modified several times , then it is more
+// efficient to write the page once, after all modifications.
+// The Buffer will flush its underlying page only in case the page is
+// assigned to a different block, or if the recovery manager needs to write to disk to guard agains a crash.
 type Buffer struct {
 	fm       *file.Manager
 	lm       *log.Manager

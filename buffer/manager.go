@@ -10,6 +10,18 @@ import (
 
 const maxTimeSeconds = 5 * time.Second
 
+// Manager is the BufferManager of the system.
+// The buffer manager is the component of the engine which is responsible
+// for the pages that hold user data.
+// The buffer manager allocates a fixed set of pages, called the buffer pool.
+// In order to access a block, a client interacts with the Buffer Manager as follows:
+// 1. The client asks the BM to pin a page from the buffer pool to that block
+// 2. The client accesses the contents of that page as much as it desires.
+// 3. When the client is done with the buffer, it requests the BM to unpin it
+//
+// Each page in the buffer pool has associated status information, such as
+// whether it is pinned and, if, so, what block it is assigned to.
+// A buffer it the object that contains this information.
 type Manager struct {
 	pool      []*Buffer
 	available int

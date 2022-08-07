@@ -42,7 +42,7 @@ type TransactionImpl struct {
 	// todo: add recovery and concurrency managers
 	bufMan     *buffer.Manager
 	fileMan    *file.Manager
-	recoverMan Manager
+	recoverMan RecoveryManager
 	num        int
 	buffers    []*buffer.Buffer
 }

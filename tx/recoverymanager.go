@@ -5,11 +5,11 @@ import (
 	"github.com/luigitni/simpledb/log"
 )
 
-// Manager is the Recovery manager.
+// RecoveryManager is the Recovery manager.
 // It can be seen as a wrapper around a transaction
 // (and its method could be implemented within the tx implementation tbh, out of a Java design)
 // As the name indicates, it manages transaction recovery from the WAL
-type Manager struct {
+type RecoveryManager struct {
 	lm    *log.Manager
 	bm    *buffer.Manager
 	tx    Transaction
@@ -17,8 +17,8 @@ type Manager struct {
 }
 
 // RecoveryManagerForTx returns a recovery manager for the given transaction and txnum
-func NewRecoveryManagerForTx(tx Transaction, txnum int, lm *log.Manager, bm *buffer.Manager) Manager {
-	man := Manager{
+func NewRecoveryManagerForTx(tx Transaction, txnum int, lm *log.Manager, bm *buffer.Manager) RecoveryManager {
+	man := RecoveryManager{
 		lm:    lm,
 		bm:    bm,
 		tx:    tx,
@@ -33,7 +33,7 @@ func NewRecoveryManagerForTx(tx Transaction, txnum int, lm *log.Manager, bm *buf
 // offset is the offset of the value within the page
 // val is the value to be written
 // todo: why is the actual implementation passing the oldval?
-func (man Manager) SetInt(buff *buffer.Buffer, offset int, val int) int {
+func (man RecoveryManager) SetInt(buff *buffer.Buffer, offset int, val int) int {
 	oldval := buff.Contents().GetInt(offset)
 	block := buff.BlockID()
 	return LogSetInt(man.lm, man.txnum, block, offset, oldval)
@@ -44,21 +44,21 @@ func (man Manager) SetInt(buff *buffer.Buffer, offset int, val int) int {
 // offset is the offset of the value within the page
 // newval is the value to be written.
 // WHY IS IT PASSING OLDVAL??
-func (man Manager) SetString(buff *buffer.Buffer, offset int, val string) int {
+func (man RecoveryManager) SetString(buff *buffer.Buffer, offset int, val string) int {
 	oldval := buff.Contents().GetString(offset)
 	block := buff.BlockID()
 	return LogSetString(man.lm, man.txnum, block, offset, oldval)
 }
 
 // Write a commit record to the log and flushes it to disk
-func (man Manager) Commit() {
+func (man RecoveryManager) Commit() {
 	man.bm.FlushAll(man.txnum)
 	lsn := LogCommit(man.lm, man.txnum)
 	man.lm.Flush(lsn)
 }
 
 // Rollback writes a rollback record to the log and flushes it to disk
-func (man Manager) Rollback() {
+func (man RecoveryManager) Rollback() {
 	man.doRollback()
 	man.bm.FlushAll(man.txnum)
 	lsn := LogRollback(man.lm, man.txnum)
@@ -67,7 +67,7 @@ func (man Manager) Rollback() {
 
 // doRollback rolls the transaction back by iterating through log records
 // until it finds the transaction's START record, calling tx.Undo() for each of the TX log records.
-func (man Manager) doRollback() {
+func (man RecoveryManager) doRollback() {
 	reader := man.lm.Iterator()
 	for {
 		if !reader.HasNext() {
@@ -88,7 +88,7 @@ func (man Manager) doRollback() {
 
 // Recover recovers uncompleted transactions from the log
 // and then writes a quiescent checkpoint record to the log and flushes it
-func (man Manager) Recover() {
+func (man RecoveryManager) Recover() {
 	man.doRecover()
 	man.bm.FlushAll(man.txnum)
 	lsn := LogCheckpoint(man.lm)
@@ -100,7 +100,7 @@ func (man Manager) Recover() {
 // Whenever it finds a log record for an unfinished transaction,
 // it calls undo() on that record.
 // The method stops when it encounters a CHECKPOINT record or the end of the log file
-func (man Manager) doRecover() {
+func (man RecoveryManager) doRecover() {
 	finishedTxs := map[int]struct{}{}
 	reader := man.lm.Iterator()
 	for {
