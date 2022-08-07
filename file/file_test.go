@@ -1,26 +1,21 @@
 package file_test
 
 import (
-	"os"
-	"path"
 	"testing"
 
 	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/test"
 )
 
 func TestFile(t *testing.T) {
 
-	const dbfolder = "../test_data"
-	const blockfile = "testblock"
-	const blockSize = 400
-
 	t.Cleanup(func() {
-		p := path.Join(dbfolder, blockfile)
-		os.Remove(p)
+		test.ClearTestFolder()
 	})
-	fman := file.NewFileManager(dbfolder, blockSize)
 
-	block := file.NewBlockID(blockfile, 2)
+	fman := file.NewFileManager(test.DefaultConfig.DbFolder, test.DefaultConfig.BlockSize)
+
+	block := file.NewBlockID(test.DefaultConfig.BlockFile, 2)
 	page := file.NewPageWithSize(fman.BlockSize())
 
 	pos := 88

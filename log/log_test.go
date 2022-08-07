@@ -2,23 +2,21 @@ package log_test
 
 import (
 	"fmt"
-	"os"
-	"path"
 	"testing"
 
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/log"
+	"github.com/luigitni/simpledb/test"
 )
 
 func TestLog(t *testing.T) {
 
-	const dbFolder = "../test_data"
-	const logfile = "testlog"
-	const blockSize = 400
+	dbFolder := test.DefaultConfig.DbFolder
+	logfile := test.DefaultConfig.LogFile
+	blockSize := test.DefaultConfig.BlockSize
 
 	t.Cleanup(func() {
-		path := path.Join(dbFolder, logfile)
-		os.Remove(path)
+		test.ClearTestFolder()
 	})
 
 	fman := file.NewFileManager(dbFolder, blockSize)
