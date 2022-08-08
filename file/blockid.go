@@ -5,10 +5,15 @@ import "fmt"
 type BlockID struct {
 	filename    string
 	blockNumber int
+	stringId    string
 }
 
 func NewBlockID(filename string, blockNumber int) BlockID {
-	return BlockID{filename: filename, blockNumber: blockNumber}
+	return BlockID{
+		filename:    filename,
+		blockNumber: blockNumber,
+		stringId:    fmt.Sprintf("f:%sb:%d", filename, blockNumber),
+	}
 }
 
 func (bid BlockID) Filename() string {
@@ -24,5 +29,5 @@ func (bid BlockID) Equals(other BlockID) bool {
 }
 
 func (bid BlockID) String() string {
-	return fmt.Sprintf("[file %s, block %d]", bid.filename, bid.blockNumber)
+	return bid.stringId
 }
