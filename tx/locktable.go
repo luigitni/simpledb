@@ -190,3 +190,8 @@ func (lt LockTable) XLock(block file.BlockID) error {
 func (lt LockTable) Unlock(block file.BlockID) {
 	lt.unlockRequestChan <- makeUnlockRequest(block)
 }
+
+// Unlock releases a lock on the specified block using the block string identifier (String())
+func (lt LockTable) UnlockByBlockId(id string) {
+	lt.unlockRequestChan <- unlockRequest(id)
+}

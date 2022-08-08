@@ -2,6 +2,8 @@ package file
 
 import "fmt"
 
+const EOF = -1
+
 type BlockID struct {
 	filename    string
 	blockNumber int
