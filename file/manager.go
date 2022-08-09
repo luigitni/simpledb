@@ -97,6 +97,7 @@ func (manager *Manager) Write(blk BlockID, p *Page) {
 	f.WriteAt(p.contents(), int64(blk.BlockNumber())*int64(manager.blockSize))
 }
 
+// Size returns the size, in blocks, of the given file
 func (manager *Manager) Size(filename string) int {
 	f := manager.getFile(filename)
 	finfo, err := f.Stat()
