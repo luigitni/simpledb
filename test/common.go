@@ -4,7 +4,6 @@ package test
 
 import (
 	"os"
-	"path"
 
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/file"
@@ -34,10 +33,7 @@ var DefaultConfig = Conf{
 }
 
 func ClearTestFolder() {
-	p := path.Join(dbFolder, blockfile)
-	os.Remove(p)
-	p = path.Join(dbFolder, logfile)
-	os.Remove(p)
+	os.RemoveAll(dbFolder)
 }
 
 func MakeManagers() (*file.Manager, *log.Manager, *buffer.Manager) {
