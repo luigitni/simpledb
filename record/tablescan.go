@@ -1,6 +1,8 @@
 package record
 
 import (
+	"io"
+
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
 )
@@ -22,6 +24,7 @@ func NewTableScan(tx tx.Transaction, tablename string, layout Layout) *TableScan
 	ts := &TableScan{
 		tx:     tx,
 		layout: layout,
+		fname:  fname,
 	}
 
 	size, err := tx.Size(fname)
@@ -52,10 +55,10 @@ func (ts *TableScan) Close() {
 // If there are no more records in that page, then moves to the next block of the file
 // and gets its next record.
 // It then continues until either a next record is found or the end of the file is encountered, in which case returns false
-func (ts *TableScan) Next() (bool, error) {
+func (ts *TableScan) Next() error {
 	slot, err := ts.rp.NextAfter(ts.currentSlot)
 	if err != nil {
-		return false, err
+		return err
 	}
 
 	ts.currentSlot = slot
@@ -68,24 +71,24 @@ func (ts *TableScan) Next() (bool, error) {
 		// return false if the record page is pointing to the last block
 		lb, err := ts.isAtLastBlock()
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		if lb {
-			return false, nil
+			return io.EOF
 		}
 
 		// move to block next to the one the record page is pointing to
 		ts.moveToBlock(ts.rp.Block().BlockNumber() + 1)
 		slot, err := ts.rp.NextAfter(ts.currentSlot)
 		if err != nil {
-			return false, err
+			return err
 		}
 
 		ts.currentSlot = slot
 	}
 
-	return true, nil
+	return nil
 }
 
 func (ts *TableScan) GetInt(fieldname string) (int, error) {
