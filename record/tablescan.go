@@ -5,9 +5,9 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-// TableScan is a facade over record pages.
-// It holds the record page for the block the slot is pointing to belongs to.
-//
+// TableScan store arbitrarily many records in multiple blocks of a file.
+// The TableScan manages the records in a table: it hides the block structure
+// from its clients, which will not know or care which block is currently being accessed.
 type TableScan struct {
 	tx          tx.Transaction
 	layout      Layout
@@ -52,16 +52,14 @@ func (ts *TableScan) Close() {
 // If there are no more records in that page, then moves to the next block of the file
 // and gets its next record.
 // It then continues until either a next record is found or the end of the file is encountered, in which case returns false
-// todo: can remove the boolean component and make the method more go-like
 func (ts *TableScan) Next() (bool, error) {
 	slot, err := ts.rp.NextAfter(ts.currentSlot)
-	if err != nil && err != ErrNoFreeSlot {
+	if err != nil {
 		return false, err
 	}
 
 	ts.currentSlot = slot
 
-	//
 	for {
 		if ts.currentSlot >= 0 {
 			break
@@ -80,7 +78,7 @@ func (ts *TableScan) Next() (bool, error) {
 		// move to block next to the one the record page is pointing to
 		ts.moveToBlock(ts.rp.Block().BlockNumber() + 1)
 		slot, err := ts.rp.NextAfter(ts.currentSlot)
-		if err != nil && err != ErrNoFreeSlot {
+		if err != nil {
 			return false, err
 		}
 
@@ -142,7 +140,7 @@ func (ts *TableScan) SetVal(fieldname string, val interface{}) error {
 // If the next block is at the end of the file, appends a new block and start scanning from there.
 func (ts *TableScan) Insert() error {
 	slot, err := ts.rp.InsertAfter(ts.currentSlot)
-	if err != nil && err != ErrNoFreeSlot {
+	if err != nil {
 		return err
 	}
 
@@ -169,7 +167,7 @@ func (ts *TableScan) Insert() error {
 		}
 
 		slot, err := ts.rp.InsertAfter(ts.currentSlot)
-		if err != nil && err != ErrNoFreeSlot {
+		if err != nil {
 			return err
 		}
 

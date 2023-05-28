@@ -49,6 +49,10 @@ func (man *Manager) flush() {
 	man.lastSavedLSN = man.latestLSN
 }
 
+// Flush compares the requested Log Sequence Number
+// with the latest that has been flushed to disk.
+// If the requested LSN is greater than the latest dumped
+// we need to access the disk and flush.
 func (man *Manager) Flush(lsn int) {
 	if lsn >= man.lastSavedLSN {
 		man.flush()

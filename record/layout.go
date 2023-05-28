@@ -23,7 +23,7 @@ func NewLayout(schema Schema) Layout {
 
 	return Layout{
 		schema:   schema,
-		offsets:  map[string]int{},
+		offsets:  offsets,
 		slotsize: s,
 	}
 }

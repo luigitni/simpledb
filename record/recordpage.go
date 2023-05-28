@@ -1,8 +1,6 @@
 package record
 
 import (
-	"errors"
-
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
 )
@@ -109,8 +107,6 @@ func (p RecordPage) setFlag(slot int, flag int) error {
 	return p.tx.SetInt(p.block, p.offset(slot), flag, true)
 }
 
-var ErrNoFreeSlot = errors.New("could not find valid slot in block")
-
 // NextAfter returns the next used slot after the provided one.
 // Returns ErrNoFreeSlot if such slot cannot be found within the transaction's block
 func (p RecordPage) NextAfter(slot int) (int, error) {
@@ -120,12 +116,16 @@ func (p RecordPage) NextAfter(slot int) (int, error) {
 // InsertAfter returns the next empty slot after the provided one.
 // If such a slot is found, it flags it as USED, otherwise an ErrNoFreeSlot is returned
 func (p RecordPage) InsertAfter(slot int) (int, error) {
-	goal, err := p.searchAfter(slot, EMPTY)
+	newslot, err := p.searchAfter(slot, EMPTY)
 	if err != nil {
 		return 0, err
 	}
-	p.setFlag(goal, USED)
-	return goal, nil
+
+	if newslot >= 0 {
+		p.setFlag(newslot, USED)
+	}
+
+	return newslot, nil
 }
 
 func (p RecordPage) Block() file.BlockID {
@@ -138,11 +138,7 @@ func (p RecordPage) Block() file.BlockID {
 // returns the slot index otherwise.
 func (p RecordPage) searchAfter(slot int, flag int) (int, error) {
 	slot++
-	for {
-		if !p.isValidSlot(slot) {
-			break
-		}
-
+	for p.isValidSlot(slot) {
 		v, err := p.tx.GetInt(p.block, p.offset(slot))
 		if err != nil {
 			return 0, err
@@ -154,7 +150,7 @@ func (p RecordPage) searchAfter(slot int, flag int) (int, error) {
 
 		slot++
 	}
-	return -1, ErrNoFreeSlot
+	return -1, nil
 }
 
 func (p RecordPage) isValidSlot(slot int) bool {

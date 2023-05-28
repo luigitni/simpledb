@@ -84,7 +84,6 @@ func incrTxNum() int {
 }
 
 type TransactionImpl struct {
-	// todo: add recovery and concurrency managers
 	bufMan     *buffer.Manager
 	fileMan    *file.Manager
 	recoverMan RecoveryManager

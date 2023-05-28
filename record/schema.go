@@ -22,7 +22,7 @@ type Schema struct {
 
 func MakeSchema() Schema {
 	return Schema{
-		fields: make([]string, 8),
+		fields: make([]string, 0),
 		info:   map[string]FieldInfo{},
 	}
 }
