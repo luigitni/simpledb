@@ -1,6 +1,7 @@
 package file
 
 import (
+	"encoding/binary"
 	"fmt"
 	"unsafe"
 )
@@ -43,9 +44,7 @@ func (p *Page) contents() []byte {
 func (p *Page) SetBytes(offset int, data []byte) {
 	p.assertSize(offset, len(data))
 	// append the byte array with size, using the first 4 bytes
-	l := len(data)
-	lb := (*[IntBytes]byte)(unsafe.Pointer(&l))
-	copy(p.buf[offset:], lb[:])
+	copy(p.buf[offset:], intToBytes(int64(len(data))))
 	// copy the payload
 	copy(p.buf[offset+IntBytes:], data)
 }
@@ -58,24 +57,24 @@ func (p *Page) GetBytes(offset int) []byte {
 	// because of slices.
 	// todo: return on this once it is clear what this method is used for
 	// at the moment, implement it by the book
-	size := (*int32)(unsafe.Pointer(&p.buf[offset]))
+	size := bytesToInt(p.buf[offset : offset+IntBytes])
 	from := offset + IntBytes
-	to := offset + IntBytes + int(*size)
+	to := offset + IntBytes + int(size)
 	return p.buf[from:to]
 }
 
 // Int methods
 
 func (p *Page) SetInt(offset int, val int) {
-	p.assertSize(offset, int(unsafe.Sizeof(val)))
+	p.assertSize(offset, IntBytes)
 
-	lb := (*[IntBytes]byte)(unsafe.Pointer(&val))
+	lb := intToBytes(int64(val))
 	copy(p.buf[offset:], lb[:])
 }
 
 func (p *Page) GetInt(offset int) int {
-	v := (*int32)(unsafe.Pointer(&p.buf[offset]))
-	return int(*v)
+	v := bytesToInt(p.buf[offset : offset+IntBytes])
+	return int(v)
 }
 
 // String methods
@@ -87,6 +86,17 @@ func (p *Page) SetString(offset int, v string) {
 func (p *Page) GetString(offset int) string {
 	buf := p.GetBytes(offset)
 	return string(buf)
+}
+
+func intToBytes(v int64) []byte {
+	buf := make([]byte, IntBytes)
+	binary.LittleEndian.PutUint64(buf, uint64(v))
+	return buf
+}
+
+func bytesToInt(b []byte) int64 {
+	v := binary.LittleEndian.Uint64(b)
+	return int64(v)
 }
 
 // MaxLength returns the size of an encoded string
