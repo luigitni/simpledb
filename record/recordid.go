@@ -6,17 +6,17 @@ import "fmt"
 // A RID consists of the block number in the file,
 // and the location of the record in that block.
 type RID struct {
-	blocknum int
-	slot     int
+	Blocknum int
+	Slot     int
 }
 
 func NewRID(blocknum int, slot int) RID {
 	return RID{
-		blocknum: blocknum,
-		slot:     slot,
+		Blocknum: blocknum,
+		Slot:     slot,
 	}
 }
 
 func (r RID) String() string {
-	return fmt.Sprintf("n:%ds:%d", r.blocknum, r.slot)
+	return fmt.Sprintf("n:%ds:%d", r.Blocknum, r.Slot)
 }

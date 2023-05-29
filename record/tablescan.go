@@ -187,9 +187,9 @@ func (ts *TableScan) Delete() error {
 //
 func (ts *TableScan) MoveToRID(rid RID) {
 	ts.Close()
-	block := file.NewBlockID(ts.fname, rid.blocknum)
+	block := file.NewBlockID(ts.fname, rid.Blocknum)
 	ts.rp = NewRecordPage(ts.tx, block, ts.layout)
-	ts.currentSlot = rid.slot
+	ts.currentSlot = rid.Slot
 }
 
 func (ts *TableScan) GetRID() RID {
