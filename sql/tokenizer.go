@@ -275,7 +275,7 @@ func (t *tokenizer) identifierType() tokenType {
 	case 'i':
 		if t.isKeyword(1, 5, "nsert") {
 			return TokenInsert
-		} else if t.isKeyword(1, 4, "nto") {
+		} else if t.isKeyword(1, 3, "nto") {
 			return TokenInto
 		} else if t.isKeyword(1, 4, "ndex") {
 			return TokenIndex

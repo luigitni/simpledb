@@ -17,6 +17,62 @@ func TestIsKeyword(t *testing.T) {
 	}
 }
 
+func TestKeywords(t *testing.T) {
+	type test struct {
+		src string
+		exp tokenType
+	}
+
+	for _, tc := range []test{
+		{
+			src: "CREATE",
+			exp: TokenCreate,
+		},
+		{
+			src: "DELETE",
+			exp: TokenDelete,
+		},
+		{
+			src: "FROM",
+			exp: TokenFrom,
+		},
+		{
+			src: "INSERT",
+			exp: TokenInsert,
+		},
+		{
+			src: "INTO",
+			exp: TokenInto,
+		},
+		{
+			src: "INDEX",
+			exp: TokenIndex,
+		},
+		{
+			src: "SELECT",
+			exp: TokenSelect,
+		},
+		{
+			src: "UPDATE",
+			exp: TokenUpdate,
+		},
+		{
+			src: "WHERE",
+			exp: TokenWhere,
+		},
+	} {
+		tokenizer := initTokenizer(tc.src)
+		tkn, err := tokenizer.scanToken()
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		if tkn.TokenType != tc.exp {
+			t.Fatalf("expected token of type %+v for keyword %q. Got %+v", tc.exp, tc.src, tkn.TokenType)
+		}
+	}
+}
+
 func TestTokenizer(t *testing.T) {
 
 	const src = "SELECT * FROM table"
