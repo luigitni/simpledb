@@ -20,7 +20,7 @@ type Schema struct {
 	info   map[string]FieldInfo
 }
 
-func MakeSchema() Schema {
+func NewSchema() Schema {
 	return Schema{
 		fields: make([]string, 0),
 		info:   map[string]FieldInfo{},

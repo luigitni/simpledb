@@ -45,7 +45,7 @@ func (pr Product) GetString(fname string) (string, error) {
 }
 
 // GetVal implements Scan.
-func (pr Product) GetVal(fname string) (interface{}, error) {
+func (pr Product) GetVal(fname string) (Constant, error) {
 	if pr.first.HasField(fname) {
 		return pr.first.GetVal(fname)
 	}

@@ -9,7 +9,7 @@ type Scan interface {
 
 	GetString(fname string) (string, error)
 
-	GetVal(fname string) (interface{}, error)
+	GetVal(fname string) (Constant, error)
 
 	HasField(fname string) bool
 
@@ -23,7 +23,7 @@ type UpdateScan interface {
 
 	SetString(fname string, v string) error
 
-	SetVal(fname string, v interface{}) error
+	SetVal(fname string, v Constant) error
 
 	Insert() error
 

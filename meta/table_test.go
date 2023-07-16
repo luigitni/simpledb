@@ -17,7 +17,7 @@ func TestTableManager(t *testing.T) {
 	tm := NewTableManager()
 	tm.Init(trans)
 
-	schema := record.MakeSchema()
+	schema := record.NewSchema()
 	schema.AddIntField("A")
 	schema.AddStringField("B", 9)
 

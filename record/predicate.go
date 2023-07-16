@@ -1,58 +1,83 @@
 package record
 
-import "fmt"
-
-type Expression struct {
-	val   interface{}
-	fname string
+type Predicate struct {
+	terms []Term
 }
 
-func NewExpressionWithVal(v interface{}) Expression {
-	return Expression{val: v}
+func NewPredicate() Predicate {
+	return Predicate{
+		terms: make([]Term, 0),
+	}
 }
 
-func NewExpressionWithField(fname string) Expression {
-	return Expression{fname: fname}
+func NewPredicateWithTerm(t Term) Predicate {
+	var ts []Term
+	ts = append(ts, t)
+	return Predicate{terms: ts}
 }
 
-func (exp Expression) IsFieldName() bool {
-	return exp.fname != ""
+func (p *Predicate) CojoinWith(other Predicate) {
+	p.terms = append(p.terms, other.terms...)
 }
 
-func (exp Expression) AsConstant() interface{} {
-	return exp.val
-}
-
-func (exp Expression) AsFieldName() string {
-	return exp.fname
-}
-
-func (exp Expression) Evaluate(scan Scan) (interface{}, error) {
-	if exp.val != nil {
-		return exp.val, nil
+func (p Predicate) IsSatisfied(s Scan) (bool, error) {
+	for _, t := range p.terms {
+		ok, err := t.IsSatisfied(s)
+		if err != nil {
+			return false, err
+		}
+		if !ok {
+			return false, nil
+		}
 	}
 
-	return scan.GetVal(exp.fname)
+	return true, nil
 }
 
-func (exp Expression) AppliesTo(schema Schema) bool {
-	if exp.val != nil {
-		return true
+func (p Predicate) SelectSubPredicate(schema Schema) (bool, Predicate) {
+	result := Predicate{}
+	for _, t := range p.terms {
+		if t.AppliesTo(schema) {
+			result.terms = append(result.terms, t)
+		}
 	}
 
-	return schema.HasField(exp.fname)
+	return len(result.terms) > 0, result
 }
 
-func (exp Expression) String() string {
-	if exp.val != nil {
-		return fmt.Sprintf("%v", exp.val)
+func (p Predicate) JoinSubPredicate(first Schema, second Schema) (bool, Predicate) {
+	out := Predicate{}
+	schema := NewSchema()
+	schema.AddAll(first)
+	schema.AddAll(second)
+
+	for _, t := range p.terms {
+		if !t.AppliesTo(first) && !t.AppliesTo(second) && t.AppliesTo(schema) {
+			out.terms = append(out.terms, t)
+		}
 	}
 
-	return exp.fname
+	return len(out.terms) > 0, out
 }
 
-type Predicate struct{}
+func (p Predicate) EquatesWithConstant(fieldName string) (bool, Constant) {
+	for _, t := range p.terms {
+		ok, c := t.EquatesWithConstant(fieldName)
+		if ok {
+			return true, c
+		}
+	}
 
-func (p Predicate) IsSatisfied(s Scan) bool {
-	return true
+	return false, Constant{}
+}
+
+func (p Predicate) EquatesWithField(fieldname string) (bool, string) {
+	for _, t := range p.terms {
+		ok, v := t.EquatesWithField(fieldname)
+		if ok {
+			return true, v
+		}
+	}
+
+	return false, ""
 }

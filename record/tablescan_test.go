@@ -13,7 +13,7 @@ import (
 func TestTableScan(t *testing.T) {
 	t.Cleanup(test.ClearTestFolder)
 
-	schema := MakeSchema()
+	schema := NewSchema()
 	schema.AddIntField("A")
 	schema.AddStringField("B", 9)
 

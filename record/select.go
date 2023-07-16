@@ -61,10 +61,9 @@ func (sel Select) Next() error {
 			return err
 		}
 
-		if sel.predicate.IsSatisfied(sel.scan) {
-			return nil
+		if ok, err := sel.predicate.IsSatisfied(sel.scan); ok {
+			return err
 		}
-
 	}
 
 	return io.EOF
@@ -132,7 +131,7 @@ func (sel Select) SetString(fname string, v string) error {
 }
 
 // SetVal implements UpdateScan.
-func (sel Select) SetVal(fname string, v interface{}) error {
+func (sel Select) SetVal(fname string, v Constant) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot update over anon update scan")

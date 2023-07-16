@@ -20,7 +20,7 @@ func NewViewManager(tm *TableManager) *ViewManager {
 }
 
 func (vm ViewManager) Init(trans tx.Transaction) {
-	schema := record.MakeSchema()
+	schema := record.NewSchema()
 	schema.AddStringField("viewname", NameMaxLen)
 	schema.AddStringField("viewdef", maxViewDefinition)
 	vm.CreateTable("viewcat", schema, trans)

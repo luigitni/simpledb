@@ -14,7 +14,7 @@ func TestRecord(t *testing.T) {
 
 	fm, lm, bm := test.MakeManagers()
 
-	schema := MakeSchema()
+	schema := NewSchema()
 	schema.AddIntField("A")
 	schema.AddStringField("B", 9)
 	// slot has size 33

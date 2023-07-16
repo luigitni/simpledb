@@ -19,12 +19,12 @@ type TableManager struct {
 }
 
 func NewTableManager() *TableManager {
-	tcats := record.MakeSchema()
+	tcats := record.NewSchema()
 	tcats.AddStringField("tblname", NameMaxLen)
 	tcats.AddIntField("slotsize")
 	tcat := record.NewLayout(tcats)
 
-	fcats := record.MakeSchema()
+	fcats := record.NewSchema()
 	fcats.AddStringField("tblname", NameMaxLen)
 	fcats.AddStringField("fldname", NameMaxLen)
 	fcats.AddIntField("type")
@@ -122,7 +122,7 @@ func (tm TableManager) Layout(tblname string, trans tx.Transaction) (record.Layo
 		return empty, fmt.Errorf("could not find table %q in table catalog", tblname)
 	}
 
-	schema := record.MakeSchema()
+	schema := record.NewSchema()
 	offsets := map[string]int{}
 	fcat := record.NewTableScan(trans, "fldcat", tm.fcat)
 	for {
