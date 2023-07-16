@@ -70,12 +70,12 @@ func (lexer Lexer) eatKeyword(kw string) error {
 	return nil
 }
 
-func (lexer Lexer) eatID() error {
+func (lexer Lexer) eatIdentifier() (string, error) {
 	if !lexer.matchIdentifier() {
-		return ErrInvalidSyntax
+		return "", ErrInvalidSyntax
 	}
-	lexer.nextToken()
-	return nil
+	defer lexer.nextToken()
+	return tokenToString(lexer.tokenizer.src, lexer.current), nil
 }
 
 func (lexer *Lexer) nextToken() error {
