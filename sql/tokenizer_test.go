@@ -60,9 +60,45 @@ func TestKeywords(t *testing.T) {
 			src: "WHERE",
 			exp: TokenWhere,
 		},
+		{
+			src: "AND",
+			exp: TokenAnd,
+		},
+		{
+			src: "VALUES",
+			exp: TokenValues,
+		},
+		{
+			src: "SET",
+			exp: TokenSet,
+		},
+		{
+			src: "TABLE",
+			exp: TokenTable,
+		},
+		{
+			src: "VARCHAR",
+			exp: TokenVarchar,
+		},
+		{
+			src: "INT",
+			exp: TokenInt,
+		},
+		{
+			src: "VIEW",
+			exp: TokenView,
+		},
+		{
+			src: "AS",
+			exp: TokenAs,
+		},
+		{
+			src: "ON",
+			exp: TokenOn,
+		},
 	} {
-		tokenizer := initTokenizer(tc.src)
-		tkn, err := tokenizer.scanToken()
+		tokenizer := newTokenizer(tc.src)
+		tkn, err := tokenizer.nextToken()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -75,9 +111,9 @@ func TestKeywords(t *testing.T) {
 
 func TestTokenizer(t *testing.T) {
 
-	const src = "SELECT * FROM table"
+	const src = "SELECT * FROM identifier"
 
-	tokenizer := initTokenizer(src)
+	tokenizer := newTokenizer(src)
 	tkns, err := tokenize(src, tokenizer)
 	if err != nil {
 		t.Fatal(err)
@@ -87,7 +123,7 @@ func TestTokenizer(t *testing.T) {
 		"select",
 		"*",
 		"from",
-		"table",
+		"identifier",
 	} {
 		if vv := tokenToString(tokenizer.src, tkns[i]); vv != v {
 			t.Fatalf("expected token to be %q, got %v", v, vv)
@@ -116,7 +152,7 @@ func TestTokenizer(t *testing.T) {
 		{
 			TokenType: TokenIdentifier,
 			start:     14,
-			lenght:    len("table"),
+			lenght:    len("itentifier"),
 			line:      0,
 		},
 	}

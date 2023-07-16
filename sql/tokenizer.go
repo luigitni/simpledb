@@ -3,6 +3,7 @@ package sql
 import (
 	"errors"
 	"io"
+	"strconv"
 	"strings"
 )
 
@@ -27,6 +28,9 @@ const (
 	TokenNumber
 
 	TokenIdentifier
+
+	// keyword tokens
+	keywordTokens
 	TokenCreate
 	TokenFrom
 	TokenDelete
@@ -36,6 +40,16 @@ const (
 	TokenSelect
 	TokenUpdate
 	TokenWhere
+
+	TokenAnd
+	TokenValues
+	TokenSet
+	TokenTable
+	TokenVarchar
+	TokenInt
+	TokenView
+	TokenAs
+	TokenOn
 )
 
 type Token struct {
@@ -52,23 +66,23 @@ type tokenizer struct {
 	line    int
 }
 
-func initTokenizer(src string) tokenizer {
+func newTokenizer(src string) *tokenizer {
 	src = strings.ToLower(src)
-	return tokenizer{
+	return &tokenizer{
 		src: src,
 	}
 }
 
 func Tokenize(src string) ([]Token, error) {
-	t := initTokenizer(src)
+	t := newTokenizer(src)
 	return tokenize(src, t)
 }
 
-func tokenize(src string, t tokenizer) ([]Token, error) {
+func tokenize(src string, t *tokenizer) ([]Token, error) {
 	var tokens []Token
 
 	for {
-		tkn, err := t.scanToken()
+		tkn, err := t.nextToken()
 		if err == io.EOF {
 			break
 		}
@@ -87,7 +101,16 @@ func tokenToString(src string, tkn Token) string {
 	return src[tkn.start : tkn.start+tkn.lenght]
 }
 
-func (t *tokenizer) scanToken() (Token, error) {
+func tokenToIntVal(src string, tkn Token) (int, error) {
+	if tkn.TokenType != TokenNumber {
+		return 0, ErrInvalidSyntax
+	}
+
+	sv := tokenToString(src, tkn)
+	return strconv.Atoi(sv)
+}
+
+func (t *tokenizer) nextToken() (Token, error) {
 	t.skipWhitespace()
 	t.start = t.current
 
@@ -260,6 +283,13 @@ func isKeyword(src string, from int, to int, start int, l int, keyword string) b
 
 func (t *tokenizer) identifierType() tokenType {
 	switch t.src[t.start] {
+	case 'a':
+		if t.isKeyword(1, 1, "s") {
+			return TokenAs
+		}
+		if t.isKeyword(1, 2, "nd") {
+			return TokenAnd
+		}
 	case 'c':
 		if t.isKeyword(1, 5, "reate") {
 			return TokenCreate
@@ -275,14 +305,30 @@ func (t *tokenizer) identifierType() tokenType {
 	case 'i':
 		if t.isKeyword(1, 5, "nsert") {
 			return TokenInsert
-		} else if t.isKeyword(1, 3, "nto") {
+		}
+		if t.isKeyword(1, 2, "nt") {
+			return TokenInt
+		}
+		if t.isKeyword(1, 3, "nto") {
 			return TokenInto
-		} else if t.isKeyword(1, 4, "ndex") {
+		}
+		if t.isKeyword(1, 4, "ndex") {
 			return TokenIndex
 		}
+	case 'o':
+		if t.isKeyword(1, 1, "n") {
+			return TokenOn
+		}
 	case 's':
+		if t.isKeyword(1, 2, "et") {
+			return TokenSet
+		}
 		if t.isKeyword(1, 5, "elect") {
 			return TokenSelect
+		}
+	case 't':
+		if t.isKeyword(1, 4, "able") {
+			return TokenTable
 		}
 	case 'u':
 		if t.isKeyword(1, 5, "pdate") {
@@ -291,6 +337,16 @@ func (t *tokenizer) identifierType() tokenType {
 	case 'w':
 		if t.isKeyword(1, 4, "here") {
 			return TokenWhere
+		}
+	case 'v':
+		if t.isKeyword(1, 3, "iew") {
+			return TokenView
+		}
+		if t.isKeyword(1, 5, "alues") {
+			return TokenValues
+		}
+		if t.isKeyword(1, 6, "archar") {
+			return TokenVarchar
 		}
 	}
 	return TokenIdentifier
