@@ -1,5 +1,7 @@
 package record
 
+import "strings"
+
 type Predicate struct {
 	terms []Term
 }
@@ -80,4 +82,15 @@ func (p Predicate) EquatesWithField(fieldname string) (bool, string) {
 	}
 
 	return false, ""
+}
+
+func (p Predicate) String() string {
+	var sb strings.Builder
+	for i, t := range p.terms {
+		sb.WriteString(t.String())
+		if i != len(p.terms)-1 {
+			sb.WriteString(" AND ")
+		}
+	}
+	return sb.String()
 }

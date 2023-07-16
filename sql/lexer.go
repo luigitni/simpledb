@@ -9,43 +9,43 @@ type Lexer struct {
 	current   Token
 }
 
-func NewLexer(tokenizer *tokenizer) Lexer {
-	lx := Lexer{
+func NewLexer(tokenizer *tokenizer) *Lexer {
+	lx := &Lexer{
 		tokenizer: tokenizer,
 	}
 	lx.nextToken()
 	return lx
 }
 
-func (lexer Lexer) matchTokenType(t tokenType) bool {
+func (lexer *Lexer) matchTokenType(t tokenType) bool {
 	return lexer.current.TokenType == t
 }
 
-func (lexer Lexer) matchIntConstant() bool {
+func (lexer *Lexer) matchIntConstant() bool {
 	return lexer.matchTokenType(TokenNumber)
 }
 
-func (lexer Lexer) matchStringConstant() bool {
+func (lexer *Lexer) matchStringConstant() bool {
 	return lexer.matchTokenType(TokenString)
 }
 
-func (lexer Lexer) matchKeyword(keyword string) bool {
+func (lexer *Lexer) matchKeyword(keyword string) bool {
 	return lexer.current.TokenType > keywordTokens &&
 		tokenToString(lexer.tokenizer.src, lexer.current) == keyword
 }
 
-func (lexer Lexer) matchIdentifier() bool {
+func (lexer *Lexer) matchIdentifier() bool {
 	return lexer.current.TokenType == TokenIdentifier
 }
 
-func (lexer Lexer) eatTokenType(t tokenType) error {
+func (lexer *Lexer) eatTokenType(t tokenType) error {
 	if !lexer.matchTokenType(t) {
 		return ErrInvalidSyntax
 	}
 	return lexer.nextToken()
 }
 
-func (lexer Lexer) eatIntConstant() (int, error) {
+func (lexer *Lexer) eatIntConstant() (int, error) {
 	if !lexer.matchIntConstant() {
 		return 0, ErrInvalidSyntax
 	}
@@ -54,7 +54,7 @@ func (lexer Lexer) eatIntConstant() (int, error) {
 	return tokenToIntVal(lexer.tokenizer.src, lexer.current)
 }
 
-func (lexer Lexer) eatStringConstant() (string, error) {
+func (lexer *Lexer) eatStringConstant() (string, error) {
 	if !lexer.matchStringConstant() {
 		return "", ErrInvalidSyntax
 	}
@@ -62,7 +62,7 @@ func (lexer Lexer) eatStringConstant() (string, error) {
 	return tokenToString(lexer.tokenizer.src, lexer.current), nil
 }
 
-func (lexer Lexer) eatKeyword(kw string) error {
+func (lexer *Lexer) eatKeyword(kw string) error {
 	if !lexer.matchKeyword(kw) {
 		return ErrInvalidSyntax
 	}
@@ -70,7 +70,7 @@ func (lexer Lexer) eatKeyword(kw string) error {
 	return nil
 }
 
-func (lexer Lexer) eatIdentifier() (string, error) {
+func (lexer *Lexer) eatIdentifier() (string, error) {
 	if !lexer.matchIdentifier() {
 		return "", ErrInvalidSyntax
 	}

@@ -13,6 +13,7 @@ const (
 	TokenLeftParen tokenType = iota
 	TokenRightParen
 	TokenSemicolon
+	TokenComma
 	TokenStar
 	TokenEOF
 	TokenEqual
@@ -127,6 +128,8 @@ func (t *tokenizer) nextToken() (Token, error) {
 		return t.makeToken(TokenRightParen), nil
 	case ';':
 		return t.makeToken(TokenSemicolon), nil
+	case ',':
+		return t.makeToken(TokenComma), nil
 	// two chars token
 	case '!':
 		if t.match('=') {
