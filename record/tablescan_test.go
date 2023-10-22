@@ -11,8 +11,6 @@ import (
 )
 
 func TestTableScan(t *testing.T) {
-	t.Cleanup(test.ClearTestFolder)
-
 	schema := NewSchema()
 	schema.AddIntField("A")
 	schema.AddStringField("B", 9)
@@ -22,7 +20,7 @@ func TestTableScan(t *testing.T) {
 		t.Logf("field %q has offset %d", field, layout.Offset(field))
 	}
 
-	fm, lm, bm := test.MakeManagers()
+	fm, lm, bm := test.MakeManagers(t)
 
 	trans := tx.NewTx(fm, lm, bm)
 

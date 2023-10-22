@@ -10,9 +10,7 @@ import (
 )
 
 func TestRecord(t *testing.T) {
-	t.Cleanup(test.ClearTestFolder)
-
-	fm, lm, bm := test.MakeManagers()
+	fm, lm, bm := test.MakeManagers(t)
 
 	schema := NewSchema()
 	schema.AddIntField("A")

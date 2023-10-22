@@ -9,11 +9,9 @@ import (
 )
 
 func TestSerialTx(t *testing.T) {
-	t.Cleanup(test.ClearTestFolder)
-
 	const blockname = "testfile"
 
-	fm, lm, bm := test.MakeManagers()
+	fm, lm, bm := test.MakeManagers(t)
 
 	tx1 := tx.NewTx(fm, lm, bm)
 

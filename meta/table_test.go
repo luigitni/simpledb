@@ -9,10 +9,7 @@ import (
 )
 
 func TestTableManager(t *testing.T) {
-
-	t.Cleanup(test.ClearTestFolder)
-
-	trans := tx.NewTx(test.MakeManagers())
+	trans := tx.NewTx(test.MakeManagers(t))
 
 	tm := NewTableManager()
 	tm.Init(trans)

@@ -9,14 +9,10 @@ import (
 )
 
 func TestBuffer(t *testing.T) {
+	fm, _, bm := test.MakeManagers(t)
 
-	t.Cleanup(func() {
-		test.ClearTestFolder()
-	})
-
-	fm, _, bm := test.MakeManagers()
-
-	buff1, err := bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 1))
+	conf := test.DefaultConfig(t)
+	buff1, err := bm.Pin(file.NewBlockID(conf.BlockFile, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -40,16 +36,16 @@ func TestBuffer(t *testing.T) {
 	// buff1 is unpinned and will swap the assigned block
 	// Since buff1 has been modified, Pin will flush the old block to disk
 
-	buff2, err := bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 2))
+	buff2, err := bm.Pin(file.NewBlockID(conf.BlockFile, 2))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 3)); err != nil {
+	if _, err := bm.Pin(file.NewBlockID(conf.BlockFile, 3)); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, err := bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 4)); err != nil {
+	if _, err := bm.Pin(file.NewBlockID(conf.BlockFile, 4)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -61,7 +57,7 @@ func TestBuffer(t *testing.T) {
 	bm.Unpin(buff2)
 
 	// buff2 will not be written to disk, as no other block needs to be associated with a buffer
-	buff2, err = bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 1))
+	buff2, err = bm.Pin(file.NewBlockID(conf.BlockFile, 1))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -74,7 +70,7 @@ func TestBuffer(t *testing.T) {
 	// test that at position 80, block1 DOES NOT contain 9999
 
 	blankPage := file.NewPageWithSize(fm.BlockSize())
-	fm.Read(file.NewBlockID(test.DefaultConfig.BlockFile, 1), blankPage)
+	fm.Read(file.NewBlockID(conf.BlockFile, 1), blankPage)
 
 	v := blankPage.GetInt(80)
 
@@ -88,19 +84,16 @@ func TestBuffer(t *testing.T) {
 }
 
 func TestBufferManager(t *testing.T) {
-
-	t.Cleanup(func() {
-		test.ClearTestFolder()
-	})
-
-	_, _, bm := test.MakeManagers()
+	_, _, bm := test.MakeManagers(t)
 
 	buffers := make([]*buffer.Buffer, 6)
+
+	conf := test.DefaultConfig(t)
 
 	var err error
 	for i := 0; i < 3; i++ {
 		// assign all buffers to blocks
-		buffers[i], err = bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, i))
+		buffers[i], err = bm.Pin(file.NewBlockID(conf.BlockFile, i))
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -109,16 +102,16 @@ func TestBufferManager(t *testing.T) {
 	bm.Unpin(buffers[1])
 	buffers[1] = nil
 
-	if buffers[3], err = bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 0)); err != nil {
+	if buffers[3], err = bm.Pin(file.NewBlockID(conf.BlockFile, 0)); err != nil {
 		t.Fatal(err)
 	}
 
-	if buffers[4], err = bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 1)); err != nil {
+	if buffers[4], err = bm.Pin(file.NewBlockID(conf.BlockFile, 1)); err != nil {
 		t.Fatal(err)
 	}
 
 	// expect this buffer to timeout
-	buffers[5], err = bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 3))
+	buffers[5], err = bm.Pin(file.NewBlockID(conf.BlockFile, 3))
 	if err != buffer.ErrClientTimeout {
 		t.Fatalf("expected pin on buffer 5 to timeount. Got %v", err)
 	} else {
@@ -127,7 +120,7 @@ func TestBufferManager(t *testing.T) {
 
 	bm.Unpin(buffers[2])
 	buffers[2] = nil
-	if buffers[5], err = bm.Pin(file.NewBlockID(test.DefaultConfig.BlockFile, 3)); err != nil {
+	if buffers[5], err = bm.Pin(file.NewBlockID(conf.BlockFile, 3)); err != nil {
 		t.Fatalf("expected client not to time out. Got %v", err)
 	}
 

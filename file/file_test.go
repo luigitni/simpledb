@@ -9,13 +9,10 @@ import (
 
 func TestFile(t *testing.T) {
 
-	t.Cleanup(func() {
-		test.ClearTestFolder()
-	})
+	conf := test.DefaultConfig(t)
+	fman := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 
-	fman := file.NewFileManager(test.DefaultConfig.DbFolder, test.DefaultConfig.BlockSize)
-
-	block := file.NewBlockID(test.DefaultConfig.BlockFile, 2)
+	block := file.NewBlockID(conf.BlockFile, 2)
 	page := file.NewPageWithSize(fman.BlockSize())
 
 	pos := 88

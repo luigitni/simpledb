@@ -3,31 +3,31 @@ package sql
 import "testing"
 
 func TestMatchStringConstant(t *testing.T) {
-	
+
 	const exp = "'testname'"
-	lx := NewLexer(newTokenizer(exp));
+	lx := NewLexer(newTokenizer(exp))
 
 	v, err := lx.eatStringConstant()
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if v != exp {
 		t.Fatalf("expected a value of %q, got %s", exp, v)
 	}
 }
 
 func TestMatchIntConstant(t *testing.T) {
-	
-	lx := NewLexer(newTokenizer("123"));
+
+	lx := NewLexer(newTokenizer("123"))
 
 	v, err := lx.eatIntConstant()
 
 	if err != nil {
 		t.Fatal(err)
 	}
-	
+
 	if v != 123 {
 		t.Fatalf("expected a value of 123, got %d", v)
 	}

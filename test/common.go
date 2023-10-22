@@ -3,14 +3,13 @@
 package test
 
 import (
-	"os"
+	"testing"
 
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/log"
 )
 
-const dbFolder = "../test_data"
 const logfile = "testlog"
 const blockfile = "testfile"
 const blockSize = 400
@@ -24,20 +23,18 @@ type Conf struct {
 	BuffersAvailable int
 }
 
-var DefaultConfig = Conf{
-	DbFolder:         dbFolder,
-	LogFile:          logfile,
-	BlockFile:        blockfile,
-	BlockSize:        blockSize,
-	BuffersAvailable: buffersAvaialble,
+func DefaultConfig(t *testing.T) Conf {
+	return Conf{
+		DbFolder:         t.TempDir(),
+		LogFile:          logfile,
+		BlockFile:        blockfile,
+		BlockSize:        blockSize,
+		BuffersAvailable: buffersAvaialble,
+	}
 }
 
-func ClearTestFolder() {
-	os.RemoveAll(dbFolder)
-}
-
-func MakeManagers() (*file.Manager, *log.Manager, *buffer.Manager) {
-	fm := file.NewFileManager(dbFolder, blockSize)
+func MakeManagers(t *testing.T) (*file.Manager, *log.Manager, *buffer.Manager) {
+	fm := file.NewFileManager(t.TempDir(), blockSize)
 	lm := log.NewLogManager(fm, logfile)
 
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)

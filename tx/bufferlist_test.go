@@ -8,19 +8,19 @@ import (
 )
 
 func TestBufferlistPin(t *testing.T) {
-	t.Cleanup(test.ClearTestFolder)
+	conf := test.DefaultConfig(t)
 
-	_, _, bm := test.MakeManagers()
+	_, _, bm := test.MakeManagers(t)
 
 	buflist := MakeBufferList(bm)
 
-	testBlock := file.NewBlockID(test.DefaultConfig.BlockFile, 1)
+	testBlock := file.NewBlockID(conf.BlockFile, 1)
 
 	buflist.Pin(testBlock)
 
 	// test that available buffers in the manager are all minus one
-	if av := bm.Available(); av != test.DefaultConfig.BuffersAvailable-1 {
-		t.Fatalf("expected %d buffers available, got %d", test.DefaultConfig.BuffersAvailable-1, av)
+	if av := bm.Available(); av != conf.BuffersAvailable-1 {
+		t.Fatalf("expected %d buffers available, got %d", conf.BuffersAvailable-1, av)
 	}
 
 	// test that the pinned buffer is correctly accounted for in the list
@@ -41,14 +41,14 @@ func TestBufferlistPin(t *testing.T) {
 }
 
 func TestBufferlistUnpinAll(t *testing.T) {
-	t.Cleanup(test.ClearTestFolder)
+	conf := test.DefaultConfig(t)
 
-	_, _, bm := test.MakeManagers()
+	_, _, bm := test.MakeManagers(t)
 
 	buflist := MakeBufferList(bm)
 
 	for i := 0; i < 3; i++ {
-		block := file.NewBlockID(test.DefaultConfig.BlockFile, i)
+		block := file.NewBlockID(conf.BlockFile, i)
 		buflist.Pin(block)
 	}
 

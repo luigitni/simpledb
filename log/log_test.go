@@ -11,13 +11,10 @@ import (
 
 func TestLog(t *testing.T) {
 
-	dbFolder := test.DefaultConfig.DbFolder
-	logfile := test.DefaultConfig.LogFile
-	blockSize := test.DefaultConfig.BlockSize
-
-	t.Cleanup(func() {
-		test.ClearTestFolder()
-	})
+	conf := test.DefaultConfig(t)
+	dbFolder := conf.DbFolder
+	logfile := conf.LogFile
+	blockSize := conf.BlockSize
 
 	fman := file.NewFileManager(dbFolder, blockSize)
 
