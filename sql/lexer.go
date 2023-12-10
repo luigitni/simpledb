@@ -1,6 +1,9 @@
 package sql
 
-import "errors"
+import (
+	"errors"
+	"io"
+)
 
 var ErrInvalidSyntax = errors.New("invalid syntax")
 
@@ -80,7 +83,7 @@ func (lexer *Lexer) eatIdentifier() (string, error) {
 
 func (lexer *Lexer) nextToken() error {
 	tkn, err := lexer.tokenizer.nextToken()
-	if err != nil {
+	if err != nil && err != io.EOF {
 		return ErrInvalidSyntax
 	}
 	lexer.current = tkn

@@ -45,7 +45,8 @@ func (p Parser) Constant() (record.Constant, error) {
 		if err != nil {
 			return record.Constant{}, err
 		}
-		return record.ConstantFromString(s), nil
+		// remove quotes from the parsed raw string
+		return record.ConstantFromString(s[1 : len(s)-1]), nil
 	}
 
 	v, err := p.eatIntConstant()
@@ -115,7 +116,7 @@ func (p Parser) Predicate() (record.Predicate, error) {
 }
 
 // Query parsing methods
-
+// <Query> := SELECT <SelectList> FROM <TableList> [ WHERE <Predicate> ]
 func (p Parser) Query() (record.QueryData, error) {
 	if err := p.eatTokenType(TokenSelect); err != nil {
 		return record.QueryData{}, err
@@ -163,9 +164,7 @@ func (p Parser) SelectList() (record.SelectList, error) {
 		return sl, nil
 	}
 
-	if err := p.eatTokenType(TokenComma); err != nil {
-		return nil, err
-	}
+	p.eatTokenType(TokenComma)
 
 	other, err := p.SelectList()
 	if err != nil {

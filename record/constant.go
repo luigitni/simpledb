@@ -1,6 +1,9 @@
 package record
 
-import "strconv"
+import (
+	"fmt"
+	"strconv"
+)
 
 type Constant struct {
 	isInt  bool
@@ -28,5 +31,5 @@ func (c Constant) String() string {
 	if c.isInt {
 		return strconv.FormatInt(int64(c.intVal), 10)
 	}
-	return c.strVal
+	return fmt.Sprintf("'%s'", c.strVal)
 }
