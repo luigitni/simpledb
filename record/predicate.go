@@ -2,6 +2,12 @@ package record
 
 import "strings"
 
+// Predicate specifies a condition that returns
+// true or false for each ROW of a given scan.
+// If the condition returns true, then 
+// the row satisfies the predicate.
+// In SQL, a Predicate is a Term or a boolean combination
+// of Terms.
 type Predicate struct {
 	terms []Term
 }
@@ -22,21 +28,21 @@ func (p *Predicate) CojoinWith(other Predicate) {
 	p.terms = append(p.terms, other.terms...)
 }
 
-func (p Predicate) IsSatisfied(s Scan) (bool, error) {
+func (p Predicate) IsSatisfied(s Scan) (error, bool) {
 	for _, t := range p.terms {
 		ok, err := t.IsSatisfied(s)
 		if err != nil {
-			return false, err
+			return err, false
 		}
 		if !ok {
-			return false, nil
+			return nil, false
 		}
 	}
 
-	return true, nil
+	return nil, true
 }
 
-func (p Predicate) SelectSubPredicate(schema Schema) (bool, Predicate) {
+func (p Predicate) SelectSubPredicate(schema Schema) (Predicate, bool) {
 	result := Predicate{}
 	for _, t := range p.terms {
 		if t.AppliesTo(schema) {
@@ -44,10 +50,10 @@ func (p Predicate) SelectSubPredicate(schema Schema) (bool, Predicate) {
 		}
 	}
 
-	return len(result.terms) > 0, result
+	return result, len(result.terms) > 0
 }
 
-func (p Predicate) JoinSubPredicate(first Schema, second Schema) (bool, Predicate) {
+func (p Predicate) JoinSubPredicate(first Schema, second Schema) (Predicate, bool) {
 	out := Predicate{}
 	schema := NewSchema()
 	schema.AddAll(first)
@@ -59,29 +65,29 @@ func (p Predicate) JoinSubPredicate(first Schema, second Schema) (bool, Predicat
 		}
 	}
 
-	return len(out.terms) > 0, out
+	return out, len(out.terms) > 0
 }
 
-func (p Predicate) EquatesWithConstant(fieldName string) (bool, Constant) {
+func (p Predicate) EquatesWithConstant(fieldName string) (Constant, bool) {
 	for _, t := range p.terms {
 		ok, c := t.EquatesWithConstant(fieldName)
 		if ok {
-			return true, c
+			return c, true
 		}
 	}
 
-	return false, Constant{}
+	return Constant{}, false
 }
 
-func (p Predicate) EquatesWithField(fieldname string) (bool, string) {
+func (p Predicate) EquatesWithField(fieldname string) (string, bool) {
 	for _, t := range p.terms {
 		ok, v := t.EquatesWithField(fieldname)
 		if ok {
-			return true, v
+			return v, true
 		}
 	}
 
-	return false, ""
+	return "", false
 }
 
 func (p Predicate) String() string {

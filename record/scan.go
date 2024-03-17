@@ -1,5 +1,9 @@
 package record
 
+// Scan represents the output of a relational algebra query.
+// Scan's methods are a subset of TableScan's.
+// The output of a query is a table and values are accessed in the same way.
+// A Scan corresponds also to a node in a query tree.
 type Scan interface {
 	BeforeFirst()
 
@@ -16,6 +20,11 @@ type Scan interface {
 	Close()
 }
 
+// UpdateScan is an updatable scan, where an updatable scan
+// is a Scan if every output record in it has a corresponding record
+// in an underlying database table.
+// In SimpleDB, the only the only two classes that implement UpdateScan
+// are TableScan and SelectScan
 type UpdateScan interface {
 	Scan
 

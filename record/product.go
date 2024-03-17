@@ -1,5 +1,8 @@
 package record
 
+// Product is a relational algebra operator.
+// Product takes two tables as input and returns
+// all possible combinations of their records.
 type Product struct {
 	first  Scan
 	second Scan
@@ -58,7 +61,11 @@ func (pr Product) HasField(fname string) bool {
 	return pr.first.HasField(fname) || pr.second.HasField(fname)
 }
 
-// Next implements Scan.
+// Next iterates through all possible combinations of records of the ProductScan's input.
+// Each call to Next moves the current record to the next record of the second input.
+// If such record exists, Next returns.
+// Otherwise, the iteration on the second input completes and the Scan moves to the next item
+// of the first input.
 func (pr Product) Next() error {
 	if pr.second.Next() == nil {
 		return nil

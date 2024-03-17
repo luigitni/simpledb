@@ -5,12 +5,20 @@ import (
 	"io"
 )
 
+// Select is a relational algebra operator.
+// Select returns a table that has the same
+// columns of its input tabl but with some rows removed.
+// Select scans are updatable
 type Select struct {
 	scan      Scan
+	// Predicate is any boolean combination of terms
+	// and corresponds to a WHERE clause in SQL
 	predicate Predicate
 }
 
-func NewSelect(scan Scan, pred Predicate) Select {
+// NewSelect scan creates a new Select operator.
+// It takes a table (Scan) as input and a Predicate.
+func NewSelectScan(scan Scan, pred Predicate) Select {
 	return Select{
 		scan:      scan,
 		predicate: pred,
@@ -40,7 +48,7 @@ func (sel Select) GetString(fname string) (string, error) {
 }
 
 // GetVal implements Scan.
-func (sel Select) GetVal(fname string) (interface{}, error) {
+func (sel Select) GetVal(fname string) (Constant, error) {
 	return sel.scan.GetVal(fname)
 }
 
@@ -49,7 +57,11 @@ func (sel Select) HasField(fname string) bool {
 	return sel.scan.HasField(fname)
 }
 
-// Next implements Scan.
+// Next estabilishes a new current record.
+// It loops through the underlying scan looking
+// for a record that satisfies the underlying predicate.
+// If such record is found, then it becomes the current record,
+// otherwise the method returs a io.EOF error
 func (sel Select) Next() error {
 	for {
 		err := sel.scan.Next()
@@ -61,7 +73,7 @@ func (sel Select) Next() error {
 			return err
 		}
 
-		if ok, err := sel.predicate.IsSatisfied(sel.scan); ok {
+		if err, ok := sel.predicate.IsSatisfied(sel.scan); ok {
 			return err
 		}
 	}

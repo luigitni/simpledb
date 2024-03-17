@@ -2,6 +2,8 @@ package record
 
 import "fmt"
 
+// Term is a comparison between two Expressions.
+
 type Term struct {
 	lhs Expression
 	rhs Expression

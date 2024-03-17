@@ -99,12 +99,20 @@ func (ts *TableScan) GetString(fieldname string) (string, error) {
 	return ts.rp.GetString(ts.currentSlot, fieldname)
 }
 
-func (ts *TableScan) GetVal(fieldname string) (interface{}, error) {
+func (ts *TableScan) GetVal(fieldname string) (Constant, error) {
 	switch ts.layout.schema.Type(fieldname) {
 	case INTEGER:
-		return ts.GetInt(fieldname)
+		v, err := ts.GetInt(fieldname)
+		if err != nil {
+			return Constant{}, err
+		}
+		return ConstantFromInt(v), nil
 	case STRING:
-		return ts.GetString(fieldname)
+		v, err := ts.GetString(fieldname)
+		if err != nil {
+			return Constant{}, err
+		}
+		return ConstantFromString(v), nil
 	}
 
 	pm := "invalid type for field " + fieldname
@@ -184,7 +192,6 @@ func (ts *TableScan) Delete() error {
 	return ts.rp.Delete(ts.currentSlot)
 }
 
-//
 func (ts *TableScan) MoveToRID(rid RID) {
 	ts.Close()
 	block := file.NewBlockID(ts.fname, rid.Blocknum)

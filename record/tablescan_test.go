@@ -24,25 +24,25 @@ func TestTableScan(t *testing.T) {
 
 	trans := tx.NewTx(fm, lm, bm)
 
-	ts := NewTableScan(trans, "TEST", layout)
+	scan := NewTableScan(trans, "TEST", layout)
 	t.Log("Filling the table with 50 random records")
-	ts.BeforeFirst()
+	scan.BeforeFirst()
 
 	nodel := map[RID]struct{}{}
 
 	for i := 0; i < 50; i++ {
 		v := rand.Intn(50)
-		ts.Insert()
-		if err := ts.SetInt("A", v); err != nil {
+		scan.Insert()
+		if err := scan.SetInt("A", v); err != nil {
 			t.Fatal(err)
 		}
 
 		s := fmt.Sprintf("rec%d", v)
-		if err := ts.SetString("B", s); err != nil {
+		if err := scan.SetString("B", s); err != nil {
 			t.Fatal(err)
 		}
 
-		rid := ts.GetRID()
+		rid := scan.GetRID()
 		if v >= 25 {
 			nodel[rid] = struct{}{}
 		}
@@ -51,10 +51,10 @@ func TestTableScan(t *testing.T) {
 	}
 
 	t.Log("Deleting records with A < 25")
-	ts.BeforeFirst()
+	scan.BeforeFirst()
 	count := 0
 	for {
-		err := ts.Next()
+		err := scan.Next()
 		if err == io.EOF {
 			break
 		}
@@ -63,25 +63,25 @@ func TestTableScan(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		a, err := ts.GetInt("A")
+		a, err := scan.GetInt("A")
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		if a < 25 {
-			rid := ts.GetRID()
+			rid := scan.GetRID()
 			if _, ok := nodel[rid]; ok {
 				t.Fatalf("Unexpected deletion of record %q", rid)
 			}
 
-			b, err := ts.GetString("B")
+			b, err := scan.GetString("B")
 			if err != nil {
 				t.Fatal(err)
 			}
 
 			t.Logf("Deleting record %s {%d, %q}", rid, a, b)
 
-			if err := ts.Delete(); err != nil {
+			if err := scan.Delete(); err != nil {
 				t.Fatal(err)
 			}
 			count++
@@ -91,10 +91,10 @@ func TestTableScan(t *testing.T) {
 	t.Logf("%d records were deleted", count)
 
 	t.Log("Printing remaining records:")
-	ts.BeforeFirst()
+	scan.BeforeFirst()
 
 	for {
-		err := ts.Next()
+		err := scan.Next()
 		if err == io.EOF {
 			break
 		}
@@ -103,17 +103,17 @@ func TestTableScan(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		a, err := ts.GetInt("A")
+		a, err := scan.GetInt("A")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		b, err := ts.GetString("B")
+		b, err := scan.GetString("B")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		rid := ts.GetRID()
+		rid := scan.GetRID()
 		if _, ok := nodel[rid]; !ok {
 			t.Fatalf("record %s: {%d, %q} was expected to be deleted", rid, a, b)
 		}

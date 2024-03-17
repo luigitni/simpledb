@@ -13,6 +13,10 @@ type StatInfo struct {
 	Records int
 }
 
+func (si StatInfo) DistinctValues(fieldName string) int {
+	return 1 + si.Records/3 // todo: this is just a stub
+}
+
 type StatManager struct {
 	*TableManager
 	sync.Mutex
