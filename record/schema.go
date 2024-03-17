@@ -70,7 +70,7 @@ func (s *Schema) AddAll(schema Schema) {
 	}
 }
 
-func (s *Schema) HasField(fname string) bool {
+func (s Schema) HasField(fname string) bool {
 	_, ok := s.info[fname]
 	return ok
 }

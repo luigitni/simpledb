@@ -10,7 +10,7 @@ import (
 // columns of its input tabl but with some rows removed.
 // Select scans are updatable
 type Select struct {
-	scan      Scan
+	scan Scan
 	// Predicate is any boolean combination of terms
 	// and corresponds to a WHERE clause in SQL
 	predicate Predicate
@@ -94,13 +94,13 @@ func (sel *Select) Delete() error {
 }
 
 // GetRid implements UpdateScan.
-func (sel Select) GetRid() RID {
+func (sel Select) GetRID() RID {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		panic(errors.New("cannot update over anon update scan"))
 	}
 
-	return u.GetRid()
+	return u.GetRID()
 }
 
 // MoveToRID implements UpdateScan.

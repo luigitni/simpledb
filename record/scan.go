@@ -23,7 +23,7 @@ type Scan interface {
 // UpdateScan is an updatable scan, where an updatable scan
 // is a Scan if every output record in it has a corresponding record
 // in an underlying database table.
-// In SimpleDB, the only the only two classes that implement UpdateScan
+// In SimpleDB, the only two classes that implement UpdateScan
 // are TableScan and SelectScan
 type UpdateScan interface {
 	Scan
@@ -38,7 +38,7 @@ type UpdateScan interface {
 
 	Delete() error
 
-	GetRid() RID
+	GetRID() RID
 
 	MoveToRID(rid RID)
 }

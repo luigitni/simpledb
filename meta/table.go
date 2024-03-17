@@ -1,6 +1,7 @@
 package meta
 
 import (
+	"errors"
 	"fmt"
 	"io"
 
@@ -10,6 +11,8 @@ import (
 
 // NameMaxLen is the maximum len of a field or table name
 const NameMaxLen = 16
+
+var ErrNoViewFoud = errors.New("cannot find table in catalog")
 
 type TableManager struct {
 	// tcat is the catalog table for tables
@@ -39,8 +42,8 @@ func NewTableManager() *TableManager {
 }
 
 func (tm TableManager) Init(trans tx.Transaction) {
-	tm.CreateTable("tblcat", tm.tcat.Schema(), trans)
-	tm.CreateTable("fldcat", tm.tcat.Schema(), trans)
+	tm.CreateTable("tblcat", *tm.tcat.Schema(), trans)
+	tm.CreateTable("fldcat", *tm.tcat.Schema(), trans)
 }
 
 func (tm TableManager) CreateTable(tblname string, sch record.Schema, tr tx.Transaction) error {
@@ -119,7 +122,7 @@ func (tm TableManager) Layout(tblname string, trans tx.Transaction) (record.Layo
 
 	if size < 0 {
 		// could not find the table in the catalogue
-		return empty, fmt.Errorf("could not find table %q in table catalog", tblname)
+		return empty, fmt.Errorf("%w: %q", ErrNoViewFoud, tblname)
 	}
 
 	schema := record.NewSchema()

@@ -47,8 +47,8 @@ func lenInBytes(schema Schema, field string) int {
 	panic("unsupported type")
 }
 
-func (l Layout) Schema() Schema {
-	return l.schema
+func (l Layout) Schema() *Schema {
+	return &l.schema
 }
 
 func (l Layout) Offset(fname string) int {

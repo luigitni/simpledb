@@ -133,12 +133,12 @@ func (ts *TableScan) SetString(fieldname string, val string) error {
 	return ts.rp.SetString(ts.currentSlot, fieldname, val)
 }
 
-func (ts *TableScan) SetVal(fieldname string, val interface{}) error {
+func (ts *TableScan) SetVal(fieldname string, val Constant) error {
 	switch ts.layout.schema.Type(fieldname) {
 	case INTEGER:
-		return ts.SetInt(fieldname, val.(int))
+		return ts.SetInt(fieldname, val.AsIntVal())
 	case STRING:
-		return ts.SetString(fieldname, val.(string))
+		return ts.SetString(fieldname, val.AsStringVal())
 	}
 
 	pm := "invalid type for field " + fieldname
