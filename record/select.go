@@ -12,6 +12,7 @@ type Predicate interface {
 	IsSatisfied(plan sql.Scan) (bool, error)
 	EquatesWithConstant(fieldName string) (file.Value, bool)
 	EquatesWithField(fieldname string) (string, bool)
+	ReductionFactor(plan sql.Plan) int
 }
 
 // Select is a relational algebra operator.

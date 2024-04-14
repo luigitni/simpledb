@@ -62,7 +62,7 @@ func (bup BasicUpdatePlanner) iterateAndExecute(x tx.Transaction, tableName stri
 	return c, nil
 }
 
-func (bup BasicUpdatePlanner) ExecuteModify(data sql.UpdateCommand, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) ExecuteUpdate(data sql.UpdateCommand, x tx.Transaction) (int, error) {
 	exec := func(us UpdateScan) error {
 		val, err := data.NewValue.Evaluate(us)
 		if err != nil {

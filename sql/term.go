@@ -2,9 +2,14 @@ package sql
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/luigitni/simpledb/file"
 )
+
+type Plan interface {
+	DistinctValues(fieldName string) int
+}
 
 // Term is a comparison between two Expressions.
 type Term struct {
@@ -28,6 +33,31 @@ func (t Term) IsSatisfied(s Scan) (bool, error) {
 	}
 
 	return lc == rc, nil
+}
+
+func (t Term) ReductionFactor(p Plan) int {
+	if t.lhs.IsFieldName() && t.rhs.IsFieldName() {
+		lhsName := t.lhs.AsFieldName()
+		rhsName := t.rhs.AsFieldName()
+		if m := p.DistinctValues(lhsName); m > p.DistinctValues(rhsName) {
+			return m
+		}
+		return p.DistinctValues(rhsName)
+	}
+
+	if t.lhs.IsFieldName() {
+		return p.DistinctValues(t.lhs.AsFieldName())
+	}
+
+	if t.rhs.IsFieldName() {
+		return p.DistinctValues(t.rhs.AsFieldName())
+	}
+
+	if t.lhs.AsConstant() == t.rhs.AsConstant() {
+		return 1
+	}
+
+	return math.MaxInt
 }
 
 func (t Term) AppliesTo(schema Schema) bool {

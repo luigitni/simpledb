@@ -46,6 +46,14 @@ func (p Predicate) IsSatisfied(s Scan) (bool, error) {
 	return true, nil
 }
 
+func (p Predicate) ReductionFactor(plan Plan) int {
+	factor := 1
+	for _, t := range p.terms {
+		factor *= t.ReductionFactor(plan)
+	}
+	return factor
+}
+
 func (p Predicate) SelectSubPredicate(schema Schema) (Predicate, bool) {
 	result := Predicate{}
 	for _, t := range p.terms {

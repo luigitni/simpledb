@@ -101,7 +101,7 @@ func (p SelectPlan) BlocksAccessed() int {
 }
 
 func (p SelectPlan) RecordsOutput() int {
-	return p.plan.RecordsOutput()
+	return p.plan.RecordsOutput() / p.predicate.ReductionFactor(p)
 }
 
 func (p SelectPlan) DistinctValues(fieldName string) int {
