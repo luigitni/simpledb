@@ -1,25 +1,26 @@
-package meta
+package record
 
 import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-type Manager struct {
+type MetadataManager struct {
 	*TableManager
 	*ViewManager
 	*StatManager
+	*IndexManager
 }
 
-func NewManager() *Manager {
+func NewMetadataManager() *MetadataManager {
 	tm := NewTableManager()
-	return &Manager{
+	return &MetadataManager{
 		TableManager: tm,
 		ViewManager:  NewViewManager(tm),
 		StatManager:  NewStatManager(tm),
 	}
 }
 
-func (man *Manager) Init(trans tx.Transaction) error {
+func (man *MetadataManager) Init(trans tx.Transaction) error {
 	man.TableManager.Init(trans)
 	man.ViewManager.Init(trans)
 	return man.StatManager.Init(trans)

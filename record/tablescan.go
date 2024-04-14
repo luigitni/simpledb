@@ -10,6 +10,15 @@ import (
 // TableScan store arbitrarily many records in multiple blocks of a file.
 // The TableScan manages the records in a table: it hides the block structure
 // from its clients, which will not know or care which block is currently being accessed.
+// Each table scan in a query holds its current record page, which holds a buffer, which pins a page.
+// When records in that page have been read, its buffer is unpinned
+// and a record page for the next block in the file takes its place.
+// Thus, a single pass through the table scan will access each block exactly once.
+//
+// The cost of a table scan is thus:
+// The number of blocks in the underlying table +
+// The number of records in the underlying table +
+// The number of distinct values in the underlying table
 type TableScan struct {
 	tx          tx.Transaction
 	layout      Layout
@@ -79,7 +88,9 @@ func (ts *TableScan) Next() error {
 		}
 
 		// move to block next to the one the record page is pointing to
-		ts.moveToBlock(ts.rp.Block().BlockNumber() + 1)
+		nextBlock := ts.rp.Block().BlockNumber() + 1
+
+		ts.moveToBlock(nextBlock)
 		slot, err := ts.rp.NextAfter(ts.currentSlot)
 		if err != nil {
 			return err
@@ -99,20 +110,20 @@ func (ts *TableScan) GetString(fieldname string) (string, error) {
 	return ts.rp.GetString(ts.currentSlot, fieldname)
 }
 
-func (ts *TableScan) GetVal(fieldname string) (Constant, error) {
+func (ts *TableScan) GetVal(fieldname string) (file.Value, error) {
 	switch ts.layout.schema.Type(fieldname) {
-	case INTEGER:
+	case file.INTEGER:
 		v, err := ts.GetInt(fieldname)
 		if err != nil {
-			return Constant{}, err
+			return file.Value{}, err
 		}
-		return ConstantFromInt(v), nil
-	case STRING:
+		return file.ValueFromInt(v), nil
+	case file.STRING:
 		v, err := ts.GetString(fieldname)
 		if err != nil {
-			return Constant{}, err
+			return file.Value{}, err
 		}
-		return ConstantFromString(v), nil
+		return file.ValueFromString(v), nil
 	}
 
 	pm := "invalid type for field " + fieldname
@@ -133,11 +144,11 @@ func (ts *TableScan) SetString(fieldname string, val string) error {
 	return ts.rp.SetString(ts.currentSlot, fieldname, val)
 }
 
-func (ts *TableScan) SetVal(fieldname string, val Constant) error {
+func (ts *TableScan) SetVal(fieldname string, val file.Value) error {
 	switch ts.layout.schema.Type(fieldname) {
-	case INTEGER:
+	case file.INTEGER:
 		return ts.SetInt(fieldname, val.AsIntVal())
-	case STRING:
+	case file.STRING:
 		return ts.SetString(fieldname, val.AsStringVal())
 	}
 
@@ -150,6 +161,7 @@ func (ts *TableScan) SetVal(fieldname string, val Constant) error {
 // If the current block does not contain free slots, it attempts to move to the next block
 // If the next block is at the end of the file, appends a new block and start scanning from there.
 func (ts *TableScan) Insert() error {
+
 	slot, err := ts.rp.InsertAfter(ts.currentSlot)
 	if err != nil {
 		return err

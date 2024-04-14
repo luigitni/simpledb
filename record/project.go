@@ -1,12 +1,19 @@
 package record
 
-import "errors"
+import (
+	"errors"
+
+	"github.com/luigitni/simpledb/file"
+)
 
 // Project is a relational algebra operator.
 // Project returns a table that has the same rows
 // of its input table, but with some columns removed.
+// A Project Scan has a single underlying scan
+// and because it does not access any additional blocks compared with its underlying scan,
+// its cost is exactly the same.
 type Project struct {
-	scan   Scan
+	scan Scan
 	// fields is the list of output fields.
 	fields map[string]struct{}
 }
@@ -62,9 +69,9 @@ func (project Project) GetString(fname string) (string, error) {
 // GetVal checks if the specified fieldname is in the list.
 // If it is, it calls the underlying scan, if not, it returns an
 // ErrNoField error
-func (project Project) GetVal(fname string) (Constant, error) {
+func (project Project) GetVal(fname string) (file.Value, error) {
 	if !project.HasField(fname) {
-		return Constant{}, ErrNoField
+		return file.Value{}, ErrNoField
 	}
 	return project.scan.GetVal(fname)
 }

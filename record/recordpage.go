@@ -15,7 +15,7 @@ const (
 // - unspanned: a whole record is fully contained within a single fixed-sized block
 // - homogeneous: a block contains only one type of record
 // - fixed-length: variable length values are truncated to the maximum allowed size.
-// From the homogenous and fixed-length property, it folllows that we can allocate
+// From the homogenous and fixed-length property, it follows that we can allocate
 // the same amount of space for each record within a block.
 // Because records are unspanned, they both have a maximum hard-limit length, which needs to be
 // smaller than the block size.
@@ -25,7 +25,8 @@ const (
 // Flag bytes are followed by the actual record.
 // | flag 0 | Record 0 | flag 1 | Record 1 | ..... | flag N | Record N |
 // ^-------------------^-------------------^
-//       slot 0              slot 1
+//
+//	slot 0              slot 1
 type RecordPage struct {
 	tx     tx.Transaction
 	block  file.BlockID
@@ -87,11 +88,11 @@ func (p RecordPage) Format() error {
 		for _, f := range schema.Fields() {
 			fpos := p.offset(slot) + p.layout.Offset(f)
 			switch schema.Type(f) {
-			case INTEGER:
+			case file.INTEGER:
 				if err := p.tx.SetInt(p.block, fpos, 0, false); err != nil {
 					return err
 				}
-			case STRING:
+			case file.STRING:
 				if err := p.tx.SetString(p.block, fpos, "", false); err != nil {
 					return err
 				}

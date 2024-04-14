@@ -1,10 +1,68 @@
 package sql
 
-import (
-	"github.com/luigitni/simpledb/record"
-)
+import "github.com/luigitni/simpledb/file"
 
-func (p Parser) UpdateCmd() (record.Command, error) {
+type Command interface{}
+
+type InsertCommand struct {
+	Command
+	TableName string
+	Fields    []string
+	Values    []file.Value
+}
+
+func NewInsertCommand(table string, fields []string, values []file.Value) InsertCommand {
+	return InsertCommand{
+		TableName: table,
+		Fields:    fields,
+		Values:    values,
+	}
+}
+
+type DeleteCommand struct {
+	Command
+	TableName string
+	Predicate Predicate
+}
+
+func NewDeleteCommand(table string) DeleteCommand {
+	return DeleteCommand{
+		TableName: table,
+		Predicate: Predicate{},
+	}
+}
+
+func NewDeleteCommandWithPredicate(table string, predicate Predicate) DeleteCommand {
+	return DeleteCommand{
+		TableName: table,
+		Predicate: predicate,
+	}
+}
+
+type UpdateCommand struct {
+	Command
+	TableName string
+	Field     string
+	NewValue  Expression
+	Predicate Predicate
+}
+
+func NewUpdateCommand(table string, field string, expression Expression) UpdateCommand {
+	return UpdateCommand{
+		TableName: table,
+		Field:     field,
+		NewValue:  expression,
+		Predicate: Predicate{},
+	}
+}
+
+func NewUpdateCommandWithPredicate(table string, field string, expression Expression, predicate Predicate) UpdateCommand {
+	m := NewUpdateCommand(table, field, expression)
+	m.Predicate = predicate
+	return m
+}
+
+func (p Parser) WriteCmd() (Command, error) {
 	if p.matchKeyword("insert") {
 		return p.insert()
 	}
@@ -21,81 +79,81 @@ func (p Parser) UpdateCmd() (record.Command, error) {
 }
 
 // <Delete> := DELETE FROM TokenIdentifier [ WHERE <Predicate> ]
-func (p Parser) delete() (record.DeleteData, error) {
+func (p Parser) delete() (DeleteCommand, error) {
 	p.eatKeyword("delete")
 
 	if err := p.eatKeyword("from"); err != nil {
-		return record.DeleteData{}, err
+		return DeleteCommand{}, err
 	}
 
 	table, err := p.eatIdentifier()
 	if err != nil {
-		return record.DeleteData{}, err
+		return DeleteCommand{}, err
 	}
 
 	if p.matchKeyword("where") {
 		p.eatKeyword("where")
 		pred, err := p.Predicate()
 		if err != nil {
-			return record.DeleteData{}, err
+			return DeleteCommand{}, err
 		}
 
-		return record.NewDeleteDataWithPredicate(table, pred), nil
+		return NewDeleteCommandWithPredicate(table, pred), nil
 	}
 
-	return record.NewDeleteData(table), nil
+	return NewDeleteCommand(table), nil
 }
 
 // <Insert> := INSERT INTO TokenIdentifier ( <FieldList> ) VALUES ( <ConstList> )
-func (p Parser) insert() (record.InsertData, error) {
+func (p Parser) insert() (InsertCommand, error) {
 	if err := p.eatKeyword("insert"); err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	if err := p.eatKeyword("into"); err != nil {
-		return record.InsertData{}, nil
+		return InsertCommand{}, nil
 	}
 
 	table, err := p.eatIdentifier()
 	if err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenLeftParen); err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	fields, err := p.FieldList()
 	if err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenRightParen); err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	if err := p.eatKeyword("values"); err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenLeftParen); err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	constants, err := p.ConstantList()
 	if err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenRightParen); err != nil {
-		return record.InsertData{}, err
+		return InsertCommand{}, err
 	}
 
-	return record.NewInsertData(table, fields, constants), nil
+	return NewInsertCommand(table, fields, constants), nil
 }
 
-func (p Parser) FieldList() (record.FieldList, error) {
-	var list record.FieldList
+func (p Parser) FieldList() ([]string, error) {
+	var list []string
 	v, err := p.Field()
 	if err != nil {
 		return nil, err
@@ -119,8 +177,8 @@ func (p Parser) FieldList() (record.FieldList, error) {
 	return list, nil
 }
 
-func (p Parser) ConstantList() (record.ConstantList, error) {
-	var list record.ConstantList
+func (p Parser) ConstantList() ([]file.Value, error) {
+	var list []file.Value
 	c, err := p.Constant()
 	if err != nil {
 		return nil, err
@@ -147,46 +205,46 @@ func (p Parser) ConstantList() (record.ConstantList, error) {
 }
 
 // <Modify> := UPDATE TokenIdentifier SET <Field> = <Expression> [ WHERE <Predicate> ]
-func (p Parser) modify() (record.ModifyData, error) {
+func (p Parser) modify() (UpdateCommand, error) {
 	if err := p.eatKeyword("update"); err != nil {
-		return record.ModifyData{}, err
+		return UpdateCommand{}, err
 	}
 
 	table, err := p.eatIdentifier()
 	if err != nil {
-		return record.ModifyData{}, err
+		return UpdateCommand{}, err
 	}
 
 	if err := p.eatKeyword("set"); err != nil {
-		return record.ModifyData{}, err
+		return UpdateCommand{}, err
 	}
 
 	field, err := p.Field()
 	if err != nil {
-		return record.ModifyData{}, err
+		return UpdateCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenEqual); err != nil {
-		return record.ModifyData{}, err
+		return UpdateCommand{}, err
 	}
 
 	expr, err := p.Expression()
 	if err != nil {
-		return record.ModifyData{}, err
+		return UpdateCommand{}, err
 	}
 
 	if p.matchKeyword("where") {
 		if err := p.eatKeyword("where"); err != nil {
-			return record.ModifyData{}, err
+			return UpdateCommand{}, err
 		}
 
 		pred, err := p.Predicate()
 		if err != nil {
-			return record.ModifyData{}, err
+			return UpdateCommand{}, err
 		}
 
-		return record.NewModifyDataWithPredicate(table, field, expr, pred), nil
+		return NewUpdateCommandWithPredicate(table, field, expr, pred), nil
 	}
 
-	return record.NewModifyData(table, field, expr), nil
+	return NewUpdateCommand(table, field, expr), nil
 }

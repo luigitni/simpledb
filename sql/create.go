@@ -1,10 +1,59 @@
 package sql
 
-import (
-	"github.com/luigitni/simpledb/record"
-)
+import "github.com/luigitni/simpledb/file"
 
-func (p Parser) create() (record.Command, error) {
+type FieldDef struct {
+	Name string
+	Type file.FieldType
+	Len  int
+}
+
+type CreateTableCommand struct {
+	Command
+	TableName string
+	Fields    []FieldDef
+}
+
+func NewCreateTableCommand(name string, fieldsDef []FieldDef) CreateTableCommand {
+	return CreateTableCommand{
+		TableName: name,
+		Fields:    fieldsDef,
+	}
+}
+
+type CreateIndexCommand struct {
+	Command
+	IndexName   string
+	TableName   string
+	TargetField string
+}
+
+func NewCreateIndexCommand(name string, table string, field string) CreateIndexCommand {
+	return CreateIndexCommand{
+		IndexName:   name,
+		TableName:   table,
+		TargetField: field,
+	}
+}
+
+type CreateViewCommand struct {
+	Command
+	ViewName string
+	Query    Query
+}
+
+func NewCreateViewCommand(name string, query Query) CreateViewCommand {
+	return CreateViewCommand{
+		ViewName: name,
+		Query:    query,
+	}
+}
+
+func (cvd CreateViewCommand) Definition() string {
+	return cvd.Query.String()
+}
+
+func (p Parser) create() (Command, error) {
 	if err := p.eatKeyword("create"); err != nil {
 		return nil, err
 	}
@@ -21,133 +70,144 @@ func (p Parser) create() (record.Command, error) {
 }
 
 // <CreateTable> := CREATE TABLE TokenIdentifier ( <FieldDefs> )
-func (p Parser) createTable() (record.CreateTableData, error) {
+func (p Parser) createTable() (CreateTableCommand, error) {
 	p.eatKeyword("table")
 
 	table, err := p.eatIdentifier()
 	if err != nil {
-		return record.CreateTableData{}, err
+		return CreateTableCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenLeftParen); err != nil {
-		return record.CreateTableData{}, err
+		return CreateTableCommand{}, err
 	}
 
 	fields, err := p.fieldDefs()
-
-	if err := p.eatTokenType(TokenRightParen); err != nil {
-		return record.CreateTableData{}, err
+	if err != nil {
+		return CreateTableCommand{}, err
 	}
 
-	return record.NewCreateTableData(table, fields), nil
+	if err := p.eatTokenType(TokenRightParen); err != nil {
+		return CreateTableCommand{}, err
+	}
+
+	return NewCreateTableCommand(table, fields), nil
 }
 
-func (p Parser) fieldDefs() (record.Schema, error) {
-	schema, err := p.fieldDef()
+func (p Parser) fieldDefs() ([]FieldDef, error) {
+	fields, err := p.fieldDef()
 	if err != nil {
-		return record.Schema{}, err
+		return nil, err
 	}
 
 	if p.matchTokenType(TokenComma) {
 		p.eatTokenType(TokenComma)
 		s, err := p.fieldDefs()
 		if err != nil {
-			return record.Schema{}, err
+			return nil, err
 		}
 
-		schema.AddAll(s)
+		fields = append(fields, s...)
 	}
 
-	return schema, nil
+	return fields, nil
 }
 
-func (p Parser) fieldDef() (record.Schema, error) {
+func (p Parser) fieldDef() ([]FieldDef, error) {
 	field, err := p.Field()
 	if err != nil {
-		return record.Schema{}, err
+		return nil, err
 	}
 
 	return p.fieldType(field)
 }
 
-func (p Parser) fieldType(field string) (record.Schema, error) {
-	schema := record.NewSchema()
+func (p Parser) fieldType(field string) ([]FieldDef, error) {
+	var fields []FieldDef
 	if p.matchKeyword("int") {
 		p.eatKeyword("int")
-		schema.AddIntField(field)
-		return schema, nil
+		fields = append(fields, FieldDef{
+			Name: field,
+			Type: file.INTEGER,
+		})
+		return fields, nil
 	}
 
 	if err := p.eatKeyword("varchar"); err != nil {
-		return record.Schema{}, err
+		return nil, err
 	}
 
 	if err := p.eatTokenType(TokenLeftParen); err != nil {
-		return record.Schema{}, err
+		return nil, err
 	}
 
-	len, err := p.eatIntConstant()
+	len, err := p.eatIntValue()
 	if err != nil {
-		return record.Schema{}, err
+		return nil, err
 	}
 
 	if err := p.eatTokenType(TokenRightParen); err != nil {
-		return record.Schema{}, err
+		return nil, err
 	}
 
-	schema.AddStringField(field, len)
-	return schema, nil
+	fields = append(fields, FieldDef{
+		Name: field,
+		Type: file.STRING,
+		Len:  len,
+	})
+
+	return fields, nil
 }
 
 // <CreateIndex> := CREATE INDEX TokenIdentifier ON TokenIdentifier ( <Field> )
-func (p Parser) createIndex() (record.CreateIndexData, error) {
+func (p Parser) createIndex() (CreateIndexCommand, error) {
 	p.eatKeyword("index")
 	id, err := p.eatIdentifier()
 	if err != nil {
-		return record.CreateIndexData{}, err
+		return CreateIndexCommand{}, err
 	}
 
 	if err := p.eatKeyword("on"); err != nil {
-		return record.CreateIndexData{}, err
+		return CreateIndexCommand{}, err
 	}
 
 	table, err := p.eatIdentifier()
 	if err != nil {
-		return record.CreateIndexData{}, err
+		return CreateIndexCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenLeftParen); err != nil {
-		return record.CreateIndexData{}, err
+		return CreateIndexCommand{}, err
 	}
 
 	field, err := p.eatIdentifier()
 	if err != nil {
-		return record.CreateIndexData{}, err
+		return CreateIndexCommand{}, err
 	}
 
 	if err := p.eatTokenType(TokenRightParen); err != nil {
-		return record.CreateIndexData{}, err
+		return CreateIndexCommand{}, err
 	}
 
-	return record.NewCreateIndexData(id, table, field), nil
+	return NewCreateIndexCommand(id, table, field), nil
 }
 
 // <CreateView> := CREATE VIEW TokenIdentifier AS <Query>
-func (p Parser) createView() (record.CreateViewData, error) {
+func (p Parser) createView() (CreateViewCommand, error) {
 	p.eatKeyword("view")
 	id, err := p.eatIdentifier()
 	if err != nil {
-		return record.CreateViewData{}, err
+		return CreateViewCommand{}, err
 	}
 
 	if err := p.eatKeyword("on"); err != nil {
-		return record.CreateViewData{}, err
+		return CreateViewCommand{}, err
 	}
 
 	query, err := p.Query()
 	if err != nil {
-		return record.CreateViewData{}, err
+		return CreateViewCommand{}, err
 	}
 
-	return record.NewCreateViewData(id, query), nil
+	return NewCreateViewCommand(id, query), nil
 }

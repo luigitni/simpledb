@@ -1,9 +1,9 @@
-package meta
+package record
 
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/record"
+	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/tx"
 )
@@ -14,7 +14,7 @@ func TestTableManager(t *testing.T) {
 	tm := NewTableManager()
 	tm.Init(trans)
 
-	schema := record.NewSchema()
+	schema := NewSchema()
 	schema.AddIntField("A")
 	schema.AddStringField("B", 9)
 
@@ -33,9 +33,9 @@ func TestTableManager(t *testing.T) {
 	sch := layout.Schema()
 	for _, fname := range sch.Fields() {
 		switch sch.Type(fname) {
-		case record.INTEGER:
+		case file.INTEGER:
 			t.Logf("%s INTEGER", fname)
-		case record.STRING:
+		case file.STRING:
 			t.Logf("%s VARCHAR(%d)", fname, sch.Length(fname))
 		}
 	}

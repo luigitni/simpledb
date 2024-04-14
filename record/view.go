@@ -1,9 +1,8 @@
-package meta
+package record
 
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/record"
 	"github.com/luigitni/simpledb/tx"
 )
 
@@ -20,7 +19,7 @@ func NewViewManager(tm *TableManager) *ViewManager {
 }
 
 func (vm ViewManager) Init(trans tx.Transaction) {
-	schema := record.NewSchema()
+	schema := NewSchema()
 	schema.AddStringField("viewname", NameMaxLen)
 	schema.AddStringField("viewdef", maxViewDefinition)
 	vm.CreateTable("viewcat", schema, trans)
@@ -32,7 +31,7 @@ func (vm ViewManager) CreateView(vname string, vdef string, trans tx.Transaction
 		return err
 	}
 
-	ts := record.NewTableScan(trans, "viewcat", layout)
+	ts := NewTableScan(trans, "viewcat", layout)
 	if err := ts.SetString("viewname", vname); err != nil {
 		return err
 	}
@@ -51,7 +50,7 @@ func (vm ViewManager) ViewDefinition(vname string, trans tx.Transaction) (string
 		return "", err
 	}
 
-	ts := record.NewTableScan(trans, "viewcat", layout)
+	ts := NewTableScan(trans, "viewcat", layout)
 	for {
 		err := ts.Next()
 		if err == io.EOF {

@@ -1,23 +1,21 @@
-package planner
+package record
 
 import (
 	"errors"
 
-	"github.com/luigitni/simpledb/meta"
-	"github.com/luigitni/simpledb/record"
 	"github.com/luigitni/simpledb/sql"
 	"github.com/luigitni/simpledb/tx"
 )
 
 type QueryPlanner interface {
-	CreatePlan(data record.QueryData, x tx.Transaction) (Plan, error)
+	CreatePlan(data sql.Query, x tx.Transaction) (Plan, error)
 }
 
 type BasicQueryPlanner struct {
-	mdm *meta.Manager
+	mdm *MetadataManager
 }
 
-func NewBasicQueryPlanner(mdm *meta.Manager) BasicQueryPlanner {
+func NewBasicQueryPlanner(mdm *MetadataManager) BasicQueryPlanner {
 	return BasicQueryPlanner{
 		mdm: mdm,
 	}
@@ -30,12 +28,12 @@ func NewBasicQueryPlanner(mdm *meta.Manager) BasicQueryPlanner {
 //  2. Take the product of these table plans, in the order given
 //  3. Select on the predicate in the <WHERE> clause
 //  4. Project on the fields in the <SELECT> clause
-func (bqp BasicQueryPlanner) CreatePlan(data record.QueryData, x tx.Transaction) (Plan, error) {
-	if len(data.Tables) == 0 {
+func (bqp BasicQueryPlanner) CreatePlan(data sql.Query, x tx.Transaction) (Plan, error) {
+	if len(data.Tables()) == 0 {
 		return nil, errors.New("invalid query data: empty table set")
 	}
 	var plans []Plan
-	for _, tName := range data.Tables {
+	for _, tName := range data.Tables() {
 		viewDef, err := bqp.mdm.ViewDefinition(tName, x)
 
 		// the table is a view, recurse on T
@@ -54,7 +52,7 @@ func (bqp BasicQueryPlanner) CreatePlan(data record.QueryData, x tx.Transaction)
 			plans = append(plans, plan)
 		}
 
-		if errors.Is(err, meta.ErrNoViewFoud) {
+		if errors.Is(err, ErrViewNotFound) {
 			plan, err := NewTablePlan(x, tName, bqp.mdm)
 			if err != nil {
 				return nil, err
@@ -70,7 +68,7 @@ func (bqp BasicQueryPlanner) CreatePlan(data record.QueryData, x tx.Transaction)
 		p = NewProductPlan(p, next)
 	}
 
-	p = NewSelectPlan(p, data.Pred)
+	p = NewSelectPlan(p, data.Predicate())
 
-	return NewProjectPlan(p, record.FieldList(data.Fields)), nil
+	return NewProjectPlan(p, data.Fields()), nil
 }

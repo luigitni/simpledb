@@ -1,14 +1,10 @@
 package record
 
-type FieldType int
+import "github.com/luigitni/simpledb/file"
 
-const (
-	INTEGER FieldType = iota
-	STRING
-)
 
 type FieldInfo struct {
-	Type   FieldType
+	Type   file.FieldType
 	Lenght int
 }
 
@@ -27,7 +23,7 @@ func NewSchema() Schema {
 	}
 }
 
-func (s *Schema) Type(name string) FieldType {
+func (s *Schema) Type(name string) file.FieldType {
 	return s.info[name].Type
 }
 
@@ -39,7 +35,7 @@ func (s *Schema) Fields() []string {
 	return s.fields
 }
 
-func (s *Schema) AddField(name string, typ FieldType, lenght int) {
+func (s *Schema) AddField(name string, typ file.FieldType, lenght int) {
 	s.fields = append(s.fields, name)
 	s.info[name] = FieldInfo{
 		Type:   typ,
@@ -48,14 +44,14 @@ func (s *Schema) AddField(name string, typ FieldType, lenght int) {
 }
 
 func (s *Schema) AddIntField(name string) {
-	s.AddField(name, INTEGER, 0)
+	s.AddField(name, file.INTEGER, 0)
 }
 
 // AddStringField adds a string field to the schema, of type VARCHAR
 // The length is the conceptual length of the field.
 // For example, if the field is described as VARCHAR(8), then length is 8
 func (s *Schema) AddStringField(name string, length int) {
-	s.AddField(name, STRING, length)
+	s.AddField(name, file.STRING, length)
 }
 
 func (s *Schema) Add(fname string, schema Schema) {

@@ -1,5 +1,10 @@
 package record
 
+import (
+
+	"github.com/luigitni/simpledb/file"
+)
+
 // Scan represents the output of a relational algebra query.
 // Scan's methods are a subset of TableScan's.
 // The output of a query is a table and values are accessed in the same way.
@@ -13,7 +18,7 @@ type Scan interface {
 
 	GetString(fname string) (string, error)
 
-	GetVal(fname string) (Constant, error)
+	GetVal(fname string) (file.Value, error)
 
 	HasField(fname string) bool
 
@@ -32,7 +37,7 @@ type UpdateScan interface {
 
 	SetString(fname string, v string) error
 
-	SetVal(fname string, v Constant) error
+	SetVal(fname string, v file.Value) error
 
 	Insert() error
 

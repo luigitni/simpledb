@@ -1,8 +1,18 @@
 package record
 
+import "github.com/luigitni/simpledb/file"
+
 // Product is a relational algebra operator.
 // Product takes two tables as input and returns
 // all possible combinations of their records.
+// A Product Scan has two underlying scans.
+// Its ouput is made of all the combinations of records from Scan 1 and Scan 2.
+// When the Product Scan is traversed, Scan 1 will be traversed once, and Scan 2
+// will be traversed once for each record of Scan 1 that is matched (R).
+// That is:
+// Blocks accessed = B(s1) + (R(s1) * B(s2))
+// Output = R(s1) + R(s2).
+// The cost will be lowest when S1 has less records per block.
 type Product struct {
 	first  Scan
 	second Scan
@@ -48,7 +58,7 @@ func (pr Product) GetString(fname string) (string, error) {
 }
 
 // GetVal implements Scan.
-func (pr Product) GetVal(fname string) (Constant, error) {
+func (pr Product) GetVal(fname string) (file.Value, error) {
 	if pr.first.HasField(fname) {
 		return pr.first.GetVal(fname)
 	}

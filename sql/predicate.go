@@ -1,10 +1,14 @@
-package record
+package sql
 
-import "strings"
+import (
+	"strings"
+
+	"github.com/luigitni/simpledb/file"
+)
 
 // Predicate specifies a condition that returns
 // true or false for each ROW of a given scan.
-// If the condition returns true, then 
+// If the condition returns true, then
 // the row satisfies the predicate.
 // In SQL, a Predicate is a Term or a boolean combination
 // of Terms.
@@ -28,18 +32,18 @@ func (p *Predicate) CojoinWith(other Predicate) {
 	p.terms = append(p.terms, other.terms...)
 }
 
-func (p Predicate) IsSatisfied(s Scan) (error, bool) {
+func (p Predicate) IsSatisfied(s Scan) (bool, error) {
 	for _, t := range p.terms {
 		ok, err := t.IsSatisfied(s)
 		if err != nil {
-			return err, false
+			return false, err
 		}
 		if !ok {
-			return nil, false
+			return false, nil
 		}
 	}
 
-	return nil, true
+	return true, nil
 }
 
 func (p Predicate) SelectSubPredicate(schema Schema) (Predicate, bool) {
@@ -53,14 +57,11 @@ func (p Predicate) SelectSubPredicate(schema Schema) (Predicate, bool) {
 	return result, len(result.terms) > 0
 }
 
-func (p Predicate) JoinSubPredicate(first Schema, second Schema) (Predicate, bool) {
+func (p Predicate) JoinSubPredicate(joined Schema, first Schema, second Schema) (Predicate, bool) {
 	out := Predicate{}
-	schema := NewSchema()
-	schema.AddAll(first)
-	schema.AddAll(second)
 
 	for _, t := range p.terms {
-		if !t.AppliesTo(first) && !t.AppliesTo(second) && t.AppliesTo(schema) {
+		if !t.AppliesTo(first) && !t.AppliesTo(second) && t.AppliesTo(joined) {
 			out.terms = append(out.terms, t)
 		}
 	}
@@ -68,7 +69,7 @@ func (p Predicate) JoinSubPredicate(first Schema, second Schema) (Predicate, boo
 	return out, len(out.terms) > 0
 }
 
-func (p Predicate) EquatesWithConstant(fieldName string) (Constant, bool) {
+func (p Predicate) EquatesWithConstant(fieldName string) (file.Value, bool) {
 	for _, t := range p.terms {
 		ok, c := t.EquatesWithConstant(fieldName)
 		if ok {
@@ -76,7 +77,7 @@ func (p Predicate) EquatesWithConstant(fieldName string) (Constant, bool) {
 		}
 	}
 
-	return Constant{}, false
+	return file.Value{}, false
 }
 
 func (p Predicate) EquatesWithField(fieldname string) (string, bool) {

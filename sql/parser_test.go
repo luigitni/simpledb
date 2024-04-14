@@ -2,8 +2,6 @@ package sql
 
 import (
 	"testing"
-
-	"github.com/luigitni/simpledb/record"
 )
 
 func TestParseField(t *testing.T) {
@@ -90,12 +88,12 @@ func TestUpdateCommandSimple(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.UpdateCmd()
+	cmd, err := p.WriteCmd()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	upd := cmd.(record.ModifyData)
+	upd := cmd.(UpdateCommand)
 
 	if upd.Field != "col" {
 		t.Fatalf("expected field to be %q, got %s", "col", upd.Field)
@@ -111,12 +109,12 @@ func TestUpdateCommandPredicate(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.UpdateCmd()
+	cmd, err := p.WriteCmd()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	upd := cmd.(record.ModifyData)
+	upd := cmd.(UpdateCommand)
 
 	if upd.Field != "col" {
 		t.Fatalf("expected field to be %q, got %s", "col", upd.Field)
@@ -136,12 +134,12 @@ func TestDeleteCommand(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.UpdateCmd()
+	cmd, err := p.WriteCmd()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	del := cmd.(record.DeleteData)
+	del := cmd.(DeleteCommand)
 
 	if del.TableName != "atable" {
 		t.Fatalf("expected target table to be %q, got %q", "atable", del.TableName)
@@ -157,12 +155,12 @@ func TestInsertCommand(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.UpdateCmd()
+	cmd, err := p.WriteCmd()
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	ins := cmd.(record.InsertData)
+	ins := cmd.(InsertCommand)
 
 	if ins.TableName != "atable" {
 		t.Fatalf("expected target table to be %q, got %q", "atable", ins.TableName)

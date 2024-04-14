@@ -1,11 +1,21 @@
-package record
+package sql
+
+import "github.com/luigitni/simpledb/file"
+
+type Scan interface {
+	GetVal(fieldName string) (file.Value, error)
+}
+
+type Schema interface {
+	HasField(fieldName string) bool
+}
 
 type Expression struct {
-	val   Constant
+	val   file.Value
 	fname string
 }
 
-func NewExpressionWithVal(v Constant) Expression {
+func NewExpressionWithVal(v file.Value) Expression {
 	return Expression{val: v}
 }
 
@@ -17,7 +27,7 @@ func (exp Expression) IsFieldName() bool {
 	return exp.fname != ""
 }
 
-func (exp Expression) AsConstant() Constant {
+func (exp Expression) AsConstant() file.Value {
 	return exp.val
 }
 
@@ -25,8 +35,8 @@ func (exp Expression) AsFieldName() string {
 	return exp.fname
 }
 
-func (exp Expression) Evaluate(scan Scan) (Constant, error) {
-	if empty := (Constant{}); exp.val != empty {
+func (exp Expression) Evaluate(scan Scan) (file.Value, error) {
+	if empty := (file.Value{}); exp.val != empty {
 		return exp.val, nil
 	}
 
@@ -34,7 +44,7 @@ func (exp Expression) Evaluate(scan Scan) (Constant, error) {
 }
 
 func (exp Expression) AppliesTo(schema Schema) bool {
-	if empty := (Constant{}); exp.val != empty {
+	if empty := (file.Value{}); exp.val != empty {
 		return true
 	}
 
@@ -42,7 +52,7 @@ func (exp Expression) AppliesTo(schema Schema) bool {
 }
 
 func (exp Expression) String() string {
-	if empty := (Constant{}); exp.val != empty {
+	if empty := (file.Value{}); exp.val != empty {
 		return exp.val.String()
 	}
 

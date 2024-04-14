@@ -39,9 +39,9 @@ func NewLayoutFromMetadata(schema Schema, offsets map[string]int, slotSize int) 
 func lenInBytes(schema Schema, field string) int {
 	t := schema.Type(field)
 	switch t {
-	case INTEGER:
+	case file.INTEGER:
 		return file.IntBytes
-	case STRING:
+	case file.STRING:
 		return file.MaxLength(schema.Length(field))
 	}
 	panic("unsupported type")

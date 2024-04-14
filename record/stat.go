@@ -1,10 +1,9 @@
-package meta
+package record
 
 import (
 	"io"
 	"sync"
 
-	"github.com/luigitni/simpledb/record"
 	"github.com/luigitni/simpledb/tx"
 )
 
@@ -36,7 +35,7 @@ func (sm *StatManager) Init(trans tx.Transaction) error {
 	return sm.refreshStatistics(trans)
 }
 
-func (sm *StatManager) StatInfo(tname string, layout record.Layout, trans tx.Transaction) (StatInfo, error) {
+func (sm *StatManager) StatInfo(tname string, layout Layout, trans tx.Transaction) (StatInfo, error) {
 	sm.Lock()
 	defer sm.Unlock()
 
@@ -72,7 +71,7 @@ func (sm *StatManager) refreshStatistics(trans tx.Transaction) error {
 		return err
 	}
 
-	ts := record.NewTableScan(trans, "tblcat", tcat)
+	ts := NewTableScan(trans, "tblcat", tcat)
 	for {
 		err := ts.Next()
 		if err == io.EOF {
@@ -107,9 +106,9 @@ func (sm *StatManager) refreshStatistics(trans tx.Transaction) error {
 	return nil
 }
 
-func (sm *StatManager) calcTableStats(tname string, layout record.Layout, trans tx.Transaction) (StatInfo, error) {
+func (sm *StatManager) calcTableStats(tname string, layout Layout, trans tx.Transaction) (StatInfo, error) {
 	var recs, blocks int
-	ts := record.NewTableScan(trans, tname, layout)
+	ts := NewTableScan(trans, tname, layout)
 	for {
 		err := ts.Next()
 		if err == io.EOF {

@@ -1,39 +1,39 @@
-package planner
+package record
 
 import (
-	"github.com/luigitni/simpledb/meta"
-	"github.com/luigitni/simpledb/record"
 	"github.com/luigitni/simpledb/tx"
 )
 
 // Plan calculates the cost of a query tree
 // Like Scans, plans denote a query tree.
-// Unlike Scans, plans access the metadata of the tables
-// in the query instead of their data.
+// Unlike Scans, plans access the metadata of the tables in the query instead of their data
+// and compute the cost of the query by composing the underlying plans.
 // When a SQL query is submitted, the database planner may create
 // several plans and pick the most efficient.
-// Then, it invokes Open to create the desired Scan
+// Then, it invokes Open to create the desired Scan.
+// There is a Plan for each relational algebra operator.
 type Plan interface {
 	// Creates the desired Scan after the Plan has been selected
 	// by the query planner
-	Open() record.Scan
+	Open() Scan
 	BlocksAccessed() int
 	RecordsOutput() int
 	DistinctValues(fieldName string) int
 	// Schema returns the schema of the OUTPUT table
 	// The query planner can use this schema to verify
 	// type correctness and to optimise the plan
-	Schema() record.Schema
+	Schema() Schema
 }
 
+// TablePlan obtains its cost estimates directly from the metadata manager.
 type TablePlan struct {
 	tx        tx.Transaction
 	tableName string
-	layout    record.Layout
-	info      meta.StatInfo
+	layout    Layout
+	info      StatInfo
 }
 
-func NewTablePlan(tx tx.Transaction, table string, md *meta.Manager) (TablePlan, error) {
+func NewTablePlan(tx tx.Transaction, table string, md *MetadataManager) (TablePlan, error) {
 	layout, err := md.Layout(table, tx)
 	if err != nil {
 		return TablePlan{}, err
@@ -52,8 +52,8 @@ func NewTablePlan(tx tx.Transaction, table string, md *meta.Manager) (TablePlan,
 	}, nil
 }
 
-func (p TablePlan) Open() record.Scan {
-	return record.NewTableScan(p.tx, p.tableName, p.layout)
+func (p TablePlan) Open() Scan {
+	return NewTableScan(p.tx, p.tableName, p.layout)
 }
 
 func (p TablePlan) BlocksAccessed() int {
@@ -68,25 +68,32 @@ func (p TablePlan) DistinctValues(fname string) int {
 	return p.info.DistinctValues(fname)
 }
 
-func (p TablePlan) Schema() record.Schema {
+func (p TablePlan) Schema() Schema {
 	return *p.layout.Schema()
 }
 
+// SelectPlan plans the cost of a SelectScan.
+// The estimates of the plan depend on the underlying predicate.
+// To calculate the number of records accessed, it uses the ReductionFactor
+// of the predicate, which is the extent to which the size of the input table is reduced by the predicate.
+// It uses the EquatesWithConstant method of the predicate to tell if the predicate
+// is equating a field with a constant.
+// Both the factors above influence the cost of a plan.
 type SelectPlan struct {
 	plan      Plan
-	predicate record.Predicate
+	predicate Predicate
 }
 
-func NewSelectPlan(plan Plan, predicate record.Predicate) SelectPlan {
+func NewSelectPlan(plan Plan, predicate Predicate) SelectPlan {
 	return SelectPlan{
 		plan:      plan,
 		predicate: predicate,
 	}
 }
 
-func (sp SelectPlan) Open() record.Scan {
+func (sp SelectPlan) Open() Scan {
 	sub := sp.plan.Open()
-	return record.NewSelectScan(sub, sp.predicate)
+	return NewSelectScan(sub, sp.predicate)
 }
 
 func (p SelectPlan) BlocksAccessed() int {
@@ -113,17 +120,17 @@ func (p SelectPlan) DistinctValues(fieldName string) int {
 	return f
 }
 
-func (p SelectPlan) Schema() record.Schema {
+func (p SelectPlan) Schema() Schema {
 	return p.plan.Schema()
 }
 
 type ProjectPlan struct {
 	plan   Plan
-	schema record.Schema
+	schema Schema
 }
 
-func NewProjectPlan(p Plan, fields record.FieldList) ProjectPlan {
-	schema := record.NewSchema()
+func NewProjectPlan(p Plan, fields []string) ProjectPlan {
+	schema := NewSchema()
 	for _, f := range fields {
 		schema.Add(f, p.Schema())
 	}
@@ -133,9 +140,9 @@ func NewProjectPlan(p Plan, fields record.FieldList) ProjectPlan {
 	}
 }
 
-func (p ProjectPlan) Open() record.Scan {
+func (p ProjectPlan) Open() Scan {
 	s := p.plan.Open()
-	return record.NewProjectScan(s, p.schema.Fields())
+	return NewProjectScan(s, p.schema.Fields())
 }
 
 func (p ProjectPlan) BlocksAccessed() int {
@@ -150,18 +157,18 @@ func (p ProjectPlan) DistinctValues(fiedName string) int {
 	return p.plan.DistinctValues(fiedName)
 }
 
-func (p ProjectPlan) Schema() record.Schema {
+func (p ProjectPlan) Schema() Schema {
 	return p.schema
 }
 
 type ProductPlan struct {
 	p1     Plan
 	p2     Plan
-	schema record.Schema
+	schema Schema
 }
 
 func NewProductPlan(p1 Plan, p2 Plan) ProductPlan {
-	schema := record.NewSchema()
+	schema := NewSchema()
 	schema.AddAll(p1.Schema())
 	schema.AddAll(p2.Schema())
 	return ProductPlan{
@@ -171,10 +178,10 @@ func NewProductPlan(p1 Plan, p2 Plan) ProductPlan {
 	}
 }
 
-func (p ProductPlan) Open() record.Scan {
+func (p ProductPlan) Open() Scan {
 	p1 := p.p1.Open()
 	p2 := p.p2.Open()
-	return record.NewProduct(p1, p2)
+	return NewProduct(p1, p2)
 }
 
 func (p ProductPlan) BlocksAccessed() int {
@@ -194,6 +201,6 @@ func (p ProductPlan) DistinctValues(fieldName string) int {
 	return p.p2.DistinctValues(fieldName)
 }
 
-func (p ProductPlan) Schema() record.Schema {
+func (p ProductPlan) Schema() Schema {
 	return p.schema
 }

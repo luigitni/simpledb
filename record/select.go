@@ -3,12 +3,26 @@ package record
 import (
 	"errors"
 	"io"
+
+	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/sql"
 )
+
+type Predicate interface {
+	IsSatisfied(plan sql.Scan) (bool, error)
+	EquatesWithConstant(fieldName string) (file.Value, bool)
+	EquatesWithField(fieldname string) (string, bool)
+}
 
 // Select is a relational algebra operator.
 // Select returns a table that has the same
 // columns of its input tabl but with some rows removed.
-// Select scans are updatable
+// Select scans are updatable.
+// A Select scan has a single underlying scan. When the Next() method is invoked,
+// the underlying scan Next() is called until it returns false.
+// Iterating through a Select scan accesses exactly the same blocks as the underlying scan.
+// The number of records in the output of a Select Scan depend
+// on the predicate and on the distribution of the matching records.
 type Select struct {
 	scan Scan
 	// Predicate is any boolean combination of terms
@@ -18,8 +32,8 @@ type Select struct {
 
 // NewSelect scan creates a new Select operator.
 // It takes a table (Scan) as input and a Predicate.
-func NewSelectScan(scan Scan, pred Predicate) Select {
-	return Select{
+func NewSelectScan(scan Scan, pred Predicate) *Select {
+	return &Select{
 		scan:      scan,
 		predicate: pred,
 	}
@@ -28,32 +42,32 @@ func NewSelectScan(scan Scan, pred Predicate) Select {
 // Scan methods
 
 // BeforeFirst implements Scan.
-func (sel Select) BeforeFirst() {
+func (sel *Select) BeforeFirst() {
 	sel.scan.BeforeFirst()
 }
 
 // Close implements Scan.
-func (sel Select) Close() {
+func (sel *Select) Close() {
 	sel.scan.Close()
 }
 
 // GetInt implements Scan.
-func (sel Select) GetInt(fname string) (int, error) {
+func (sel *Select) GetInt(fname string) (int, error) {
 	return sel.scan.GetInt(fname)
 }
 
 // GetString implements Scan.
-func (sel Select) GetString(fname string) (string, error) {
+func (sel *Select) GetString(fname string) (string, error) {
 	return sel.scan.GetString(fname)
 }
 
 // GetVal implements Scan.
-func (sel Select) GetVal(fname string) (Constant, error) {
+func (sel *Select) GetVal(fname string) (file.Value, error) {
 	return sel.scan.GetVal(fname)
 }
 
 // HasField implements Scan.
-func (sel Select) HasField(fname string) bool {
+func (sel *Select) HasField(fname string) bool {
 	return sel.scan.HasField(fname)
 }
 
@@ -62,7 +76,7 @@ func (sel Select) HasField(fname string) bool {
 // for a record that satisfies the underlying predicate.
 // If such record is found, then it becomes the current record,
 // otherwise the method returs a io.EOF error
-func (sel Select) Next() error {
+func (sel *Select) Next() error {
 	for {
 		err := sel.scan.Next()
 		if err == io.EOF {
@@ -73,7 +87,7 @@ func (sel Select) Next() error {
 			return err
 		}
 
-		if err, ok := sel.predicate.IsSatisfied(sel.scan); ok {
+		if ok, err := sel.predicate.IsSatisfied(sel.scan); ok {
 			return err
 		}
 	}
@@ -94,7 +108,7 @@ func (sel *Select) Delete() error {
 }
 
 // GetRid implements UpdateScan.
-func (sel Select) GetRID() RID {
+func (sel *Select) GetRID() RID {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		panic(errors.New("cannot update over anon update scan"))
@@ -104,7 +118,7 @@ func (sel Select) GetRID() RID {
 }
 
 // MoveToRID implements UpdateScan.
-func (sel Select) MoveToRID(rid RID) {
+func (sel *Select) MoveToRID(rid RID) {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		panic(errors.New("cannot update over anon update scan"))
@@ -123,7 +137,7 @@ func (sel *Select) Insert() error {
 }
 
 // SetInt implements UpdateScan.
-func (sel Select) SetInt(fname string, v int) error {
+func (sel *Select) SetInt(fname string, v int) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot update over anon update scan")
@@ -133,7 +147,7 @@ func (sel Select) SetInt(fname string, v int) error {
 }
 
 // SetString implements UpdateScan.
-func (sel Select) SetString(fname string, v string) error {
+func (sel *Select) SetString(fname string, v string) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot update over anon update scan")
@@ -143,7 +157,7 @@ func (sel Select) SetString(fname string, v string) error {
 }
 
 // SetVal implements UpdateScan.
-func (sel Select) SetVal(fname string, v Constant) error {
+func (sel *Select) SetVal(fname string, v file.Value) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot update over anon update scan")

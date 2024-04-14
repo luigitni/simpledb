@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/luigitni/simpledb/record"
+import "github.com/luigitni/simpledb/file"
 
 // Entire grammar for the SQL subset supported by SimpleDB
 // <Field> := TokeIdentifier
@@ -39,63 +39,63 @@ func (p Parser) Field() (string, error) {
 	return p.eatIdentifier()
 }
 
-func (p Parser) Constant() (record.Constant, error) {
-	if p.matchStringConstant() {
-		s, err := p.eatStringConstant()
+func (p Parser) Constant() (file.Value, error) {
+	if p.matchStringValue() {
+		s, err := p.eatStringValue()
 		if err != nil {
-			return record.Constant{}, err
+			return file.Value{}, err
 		}
 		// remove quotes from the parsed raw string
-		return record.ConstantFromString(s[1 : len(s)-1]), nil
+		return file.ValueFromString(s[1 : len(s)-1]), nil
 	}
 
-	v, err := p.eatIntConstant()
+	v, err := p.eatIntValue()
 	if err != nil {
-		return record.Constant{}, err
+		return file.Value{}, err
 	}
-	return record.ConstantFromInt(v), nil
+	return file.ValueFromInt(v), nil
 }
 
-func (p Parser) Expression() (record.Expression, error) {
+func (p Parser) Expression() (Expression, error) {
 	if p.matchIdentifier() {
 		f, err := p.Field()
 		if err != nil {
-			return record.Expression{}, err
+			return Expression{}, err
 		}
-		return record.NewExpressionWithField(f), nil
+		return NewExpressionWithField(f), nil
 	}
 
 	c, err := p.Constant()
 	if err != nil {
-		return record.Expression{}, err
+		return Expression{}, err
 	}
-	return record.NewExpressionWithVal(c), nil
+	return NewExpressionWithVal(c), nil
 }
 
-func (p Parser) Term() (record.Term, error) {
+func (p Parser) Term() (Term, error) {
 	lhs, err := p.Expression()
 	if err != nil {
-		return record.Term{}, err
+		return Term{}, err
 	}
 
 	if err := p.eatTokenType(TokenEqual); err != nil {
-		return record.Term{}, err
+		return Term{}, err
 	}
 
 	rhs, err := p.Expression()
 	if err != nil {
-		return record.Term{}, err
+		return Term{}, err
 	}
-	return record.NewTerm(lhs, rhs), nil
+	return NewTerm(lhs, rhs), nil
 }
 
-func (p Parser) Predicate() (record.Predicate, error) {
+func (p Parser) Predicate() (Predicate, error) {
 	term, err := p.Term()
 	if err != nil {
-		return record.Predicate{}, err
+		return Predicate{}, err
 	}
 
-	pred := record.NewPredicateWithTerm(term)
+	pred := NewPredicateWithTerm(term)
 	// check if the next token is an AND
 	// if not, we are done, otherwise recursively add another predicate
 	if !p.matchTokenType(TokenAnd) {
@@ -103,12 +103,12 @@ func (p Parser) Predicate() (record.Predicate, error) {
 	}
 
 	if err := p.eatTokenType(TokenAnd); err != nil {
-		return record.Predicate{}, err
+		return Predicate{}, err
 	}
 
 	other, err := p.Predicate()
 	if err != nil {
-		return record.Predicate{}, nil
+		return Predicate{}, nil
 	}
 
 	pred.CojoinWith(other)
@@ -117,43 +117,43 @@ func (p Parser) Predicate() (record.Predicate, error) {
 
 // Query parsing methods
 // <Query> := SELECT <SelectList> FROM <TableList> [ WHERE <Predicate> ]
-func (p Parser) Query() (record.QueryData, error) {
+func (p Parser) Query() (Query, error) {
 	if err := p.eatTokenType(TokenSelect); err != nil {
-		return record.QueryData{}, err
+		return Query{}, err
 	}
 
 	selects, err := p.SelectList()
 	if err != nil {
-		return record.QueryData{}, err
+		return Query{}, err
 	}
 
 	if err := p.eatTokenType(TokenFrom); err != nil {
-		return record.QueryData{}, err
+		return Query{}, err
 	}
 
 	tables, err := p.TableList()
 	if err != nil {
-		return record.QueryData{}, err
+		return Query{}, err
 	}
 
 	if !p.matchTokenType(TokenWhere) {
-		return record.NewQueryData(selects, tables), nil
+		return NewQuery(selects, tables), nil
 	}
 
 	if err := p.eatTokenType(TokenWhere); err != nil {
-		return record.QueryData{}, err
+		return Query{}, err
 	}
 
 	pred, err := p.Predicate()
 	if err != nil {
-		return record.QueryData{}, err
+		return Query{}, err
 	}
 
-	return record.NewQueryDataWithPredicate(selects, tables, pred), nil
+	return NewQueryWithPredicate(selects, tables, pred), nil
 }
 
-func (p Parser) SelectList() (record.SelectList, error) {
-	var sl record.SelectList
+func (p Parser) SelectList() ([]string, error) {
+	var sl []string
 	f, err := p.Field()
 	if err != nil {
 		return nil, err
@@ -175,8 +175,8 @@ func (p Parser) SelectList() (record.SelectList, error) {
 	return sl, nil
 }
 
-func (p Parser) TableList() (record.TableList, error) {
-	var tl record.TableList
+func (p Parser) TableList() ([]string, error) {
+	var tl []string
 	f, err := p.eatIdentifier()
 	if err != nil {
 		return nil, err

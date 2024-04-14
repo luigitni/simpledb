@@ -1,9 +1,12 @@
-package record
+package sql
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/luigitni/simpledb/file"
+)
 
 // Term is a comparison between two Expressions.
-
 type Term struct {
 	lhs Expression
 	rhs Expression
@@ -31,7 +34,7 @@ func (t Term) AppliesTo(schema Schema) bool {
 	return t.lhs.AppliesTo(schema) && t.rhs.AppliesTo(schema)
 }
 
-func (t Term) EquatesWithConstant(fieldName string) (bool, Constant) {
+func (t Term) EquatesWithConstant(fieldName string) (bool, file.Value) {
 	if t.lhs.IsFieldName() && t.lhs.fname == fieldName && !t.rhs.IsFieldName() {
 		return true, t.lhs.AsConstant()
 	}
@@ -40,7 +43,7 @@ func (t Term) EquatesWithConstant(fieldName string) (bool, Constant) {
 		return true, t.rhs.AsConstant()
 	}
 
-	return false, Constant{}
+	return false, file.Value{}
 }
 
 func (t Term) EquatesWithField(fieldName string) (bool, string) {

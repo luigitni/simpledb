@@ -24,11 +24,11 @@ func (lexer *Lexer) matchTokenType(t tokenType) bool {
 	return lexer.current.TokenType == t
 }
 
-func (lexer *Lexer) matchIntConstant() bool {
+func (lexer *Lexer) matchIntValue() bool {
 	return lexer.matchTokenType(TokenNumber)
 }
 
-func (lexer *Lexer) matchStringConstant() bool {
+func (lexer *Lexer) matchStringValue() bool {
 	return lexer.matchTokenType(TokenString)
 }
 
@@ -48,8 +48,8 @@ func (lexer *Lexer) eatTokenType(t tokenType) error {
 	return lexer.nextToken()
 }
 
-func (lexer *Lexer) eatIntConstant() (int, error) {
-	if !lexer.matchIntConstant() {
+func (lexer *Lexer) eatIntValue() (int, error) {
+	if !lexer.matchIntValue() {
 		return 0, ErrInvalidSyntax
 	}
 
@@ -57,8 +57,8 @@ func (lexer *Lexer) eatIntConstant() (int, error) {
 	return tokenToIntVal(lexer.tokenizer.src, lexer.current)
 }
 
-func (lexer *Lexer) eatStringConstant() (string, error) {
-	if !lexer.matchStringConstant() {
+func (lexer *Lexer) eatStringValue() (string, error) {
+	if !lexer.matchStringValue() {
 		return "", ErrInvalidSyntax
 	}
 	defer lexer.nextToken()

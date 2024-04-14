@@ -1,39 +1,40 @@
-package meta
+package record
 
 import (
 	"errors"
 	"fmt"
 	"io"
 
-	"github.com/luigitni/simpledb/record"
+	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/sql"
 	"github.com/luigitni/simpledb/tx"
 )
 
 // NameMaxLen is the maximum len of a field or table name
 const NameMaxLen = 16
 
-var ErrNoViewFoud = errors.New("cannot find table in catalog")
+var ErrViewNotFound = errors.New("cannot find table in catalog")
 
 type TableManager struct {
 	// tcat is the catalog table for tables
-	tcat record.Layout
+	tcat Layout
 	// fcat is the catalog table for fields
-	fcat record.Layout
+	fcat Layout
 }
 
 func NewTableManager() *TableManager {
-	tcats := record.NewSchema()
+	tcats := NewSchema()
 	tcats.AddStringField("tblname", NameMaxLen)
 	tcats.AddIntField("slotsize")
-	tcat := record.NewLayout(tcats)
+	tcat := NewLayout(tcats)
 
-	fcats := record.NewSchema()
+	fcats := NewSchema()
 	fcats.AddStringField("tblname", NameMaxLen)
 	fcats.AddStringField("fldname", NameMaxLen)
 	fcats.AddIntField("type")
 	fcats.AddIntField("length")
 	fcats.AddIntField("offset")
-	fcat := record.NewLayout(fcats)
+	fcat := NewLayout(fcats)
 
 	return &TableManager{
 		tcat: tcat,
@@ -46,10 +47,45 @@ func (tm TableManager) Init(trans tx.Transaction) {
 	tm.CreateTable("fldcat", *tm.tcat.Schema(), trans)
 }
 
-func (tm TableManager) CreateTable(tblname string, sch record.Schema, tr tx.Transaction) error {
-	layout := record.NewLayout(sch)
+func (tm TableManager) TableExists(tblname string, tr tx.Transaction) bool {
 
-	tcat := record.NewTableScan(tr, "tblcat", tm.tcat)
+	tcat := NewTableScan(tr, "tblcat", tm.tcat)
+
+	q := "SELECT tblname FROM tblcat WHERE tblname = " + tblname
+	p := sql.NewParser(q)
+	data, err := p.Query()
+	if err != nil {
+		panic(err)
+	}
+
+	sel := NewSelectScan(tcat, data.Predicate())
+	for {
+		err := sel.Next()
+		if err == io.EOF {
+			break
+		}
+
+		if err != nil {
+			panic(err)
+		}
+
+		v, err := sel.GetString("tblname")
+		if err != nil {
+			panic(err)
+		}
+
+		if v == tblname {
+			return true
+		}
+	}
+
+	return false
+}
+
+func (tm TableManager) CreateTable(tblname string, sch Schema, tr tx.Transaction) error {
+	layout := NewLayout(sch)
+
+	tcat := NewTableScan(tr, "tblcat", tm.tcat)
 	tcat.Insert()
 	if err := tcat.SetString("tblname", tblname); err != nil {
 		return err
@@ -62,7 +98,7 @@ func (tm TableManager) CreateTable(tblname string, sch record.Schema, tr tx.Tran
 	tcat.Close()
 
 	// for each schema field, insert a record into the field catalog
-	fcat := record.NewTableScan(tr, "fldcat", tm.fcat)
+	fcat := NewTableScan(tr, "fldcat", tm.fcat)
 	for _, fname := range sch.Fields() {
 		fcat.Insert()
 		if err := fcat.SetString("tblname", tblname); err != nil {
@@ -89,12 +125,12 @@ func (tm TableManager) CreateTable(tblname string, sch record.Schema, tr tx.Tran
 	return nil
 }
 
-func (tm TableManager) Layout(tblname string, trans tx.Transaction) (record.Layout, error) {
+func (tm TableManager) Layout(tblname string, trans tx.Transaction) (Layout, error) {
 
-	var empty record.Layout
+	var empty Layout
 
 	size := -1
-	tcat := record.NewTableScan(trans, "tblcat", tm.tcat)
+	tcat := NewTableScan(trans, "tblcat", tm.tcat)
 	for {
 		err := tcat.Next()
 		if err == io.EOF {
@@ -122,12 +158,12 @@ func (tm TableManager) Layout(tblname string, trans tx.Transaction) (record.Layo
 
 	if size < 0 {
 		// could not find the table in the catalogue
-		return empty, fmt.Errorf("%w: %q", ErrNoViewFoud, tblname)
+		return empty, fmt.Errorf("%w: %q", ErrViewNotFound, tblname)
 	}
 
-	schema := record.NewSchema()
+	schema := NewSchema()
 	offsets := map[string]int{}
-	fcat := record.NewTableScan(trans, "fldcat", tm.fcat)
+	fcat := NewTableScan(trans, "fldcat", tm.fcat)
 	for {
 		err := fcat.Next()
 		if err == io.EOF {
@@ -165,10 +201,10 @@ func (tm TableManager) Layout(tblname string, trans tx.Transaction) (record.Layo
 			}
 
 			offsets[fldname] = offset
-			schema.AddField(fldname, record.FieldType(fldtype), fldlen)
+			schema.AddField(fldname, file.FieldType(fldtype), fldlen)
 		}
 	}
 
 	fcat.Close()
-	return record.NewLayoutFromMetadata(schema, offsets, size), nil
+	return NewLayoutFromMetadata(schema, offsets, size), nil
 }

@@ -7,7 +7,7 @@ func TestMatchStringConstant(t *testing.T) {
 	const exp = "'testname'"
 	lx := NewLexer(newTokenizer(exp))
 
-	v, err := lx.eatStringConstant()
+	v, err := lx.eatStringValue()
 
 	if err != nil {
 		t.Fatal(err)
@@ -22,7 +22,7 @@ func TestMatchIntConstant(t *testing.T) {
 
 	lx := NewLexer(newTokenizer("123"))
 
-	v, err := lx.eatIntConstant()
+	v, err := lx.eatIntValue()
 
 	if err != nil {
 		t.Fatal(err)
