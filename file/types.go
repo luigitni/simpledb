@@ -35,6 +35,35 @@ func (c Value) AsStringVal() string {
 	return c.strVal
 }
 
+func (c Value) Hash() int {
+	if c.isInt {
+		return c.intVal
+	}
+
+	return sbdmHash(c.strVal)
+}
+
+func sbdmHash(s string) int {
+	var hash int
+	for _, r := range s {
+		hash = int(r) + (hash << 6) + (hash << 16) - hash
+	}
+
+	return hash
+}
+
+func (v Value) Equals(other Value) bool {
+	if v.isInt != other.isInt {
+		return false
+	}
+
+	if v.isInt {
+		return v.intVal == other.intVal
+	}
+
+	return v.strVal == other.strVal
+}
+
 func (c Value) String() string {
 	if c.isInt {
 		return strconv.FormatInt(int64(c.intVal), 10)
