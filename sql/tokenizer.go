@@ -76,10 +76,10 @@ func newTokenizer(src string) *tokenizer {
 
 func Tokenize(src string) ([]Token, error) {
 	t := newTokenizer(src)
-	return tokenize(src, t)
+	return t.tokenise()
 }
 
-func tokenize(src string, t *tokenizer) ([]Token, error) {
+func (t *tokenizer) tokenise() ([]Token, error) {
 	var tokens []Token
 
 	for {
@@ -172,7 +172,7 @@ func (t *tokenizer) nextToken() (Token, error) {
 		}
 	}
 
-	return Token{}, errors.New("Unexpected character.")
+	return Token{}, errors.New("unexpected character")
 }
 
 func (t *tokenizer) skipWhitespace() {
@@ -249,7 +249,7 @@ func (t *tokenizer) string() (Token, error) {
 	}
 
 	if t.isAtEnd() {
-		return Token{}, errors.New("Unterminated string.")
+		return Token{}, errors.New("unterminated string")
 	}
 
 	t.advance()

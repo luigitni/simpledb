@@ -114,7 +114,7 @@ func TestTokenizer(t *testing.T) {
 	const src = "SELECT * FROM identifier"
 
 	tokenizer := newTokenizer(src)
-	tkns, err := tokenize(src, tokenizer)
+	tkns, err := tokenizer.tokenise()
 	if err != nil {
 		t.Fatal(err)
 	}
