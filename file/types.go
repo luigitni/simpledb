@@ -64,6 +64,14 @@ func (v Value) Equals(other Value) bool {
 	return v.strVal == other.strVal
 }
 
+func (v Value) Less(other Value) bool {
+	if v.isInt {
+		return v.intVal < other.intVal
+	}
+
+	return v.strVal < other.strVal
+}
+
 func (c Value) String() string {
 	if c.isInt {
 		return strconv.FormatInt(int64(c.intVal), 10)
