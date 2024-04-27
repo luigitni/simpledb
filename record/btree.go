@@ -87,6 +87,15 @@ func (page bTreePage) setVal(slot int, fieldName string, val file.Value) error {
 	return page.setString(slot, fieldName, val.AsStringVal())
 }
 
+func (page bTreePage) mustGetVal(slot int, fieldName string) file.Value {
+	v, err := page.getVal(slot, fieldName)
+	if err != nil {
+		panic(err)
+	}
+
+	return v
+}
+
 func (page bTreePage) getVal(slot int, fieldName string) (file.Value, error) {
 	t := page.layout.schema.Type(fieldName)
 	if t == file.INTEGER {
@@ -98,16 +107,72 @@ func (page bTreePage) getVal(slot int, fieldName string) (file.Value, error) {
 	return file.ValueFromString(v), err
 }
 
+func (page bTreePage) mustGetDataVal(slot int) file.Value {
+	v, err := page.getDataVal(slot)
+	if err != nil {
+		panic(err)
+	}
+
+	return v
+}
+
 func (page bTreePage) getDataVal(slot int) (file.Value, error) {
 	return page.getVal(slot, "dataval")
+}
+
+func (page bTreePage) mustGetDataRID(slot int) RID {
+	rid, err := page.getDataRID(slot)
+	if err != nil {
+		panic(err)
+	}
+
+	return rid
+}
+
+func (page bTreePage) getDataRID(slot int) (RID, error) {
+	block, err := page.getInt(slot, "block")
+	if err != nil {
+		return RID{}, err
+	}
+
+	id, err := page.getInt(slot, "id")
+	if err != nil {
+		return RID{}, err
+	}
+
+	return NewRID(block, id), nil
+}
+
+func (page bTreePage) mustGetFlag() int {
+	f, err := page.getFlag()
+	if err != nil {
+		panic(err)
+	}
+
+	return f
 }
 
 func (page bTreePage) getFlag() (int, error) {
 	return page.x.GetInt(page.blockID, 0)
 }
 
+func (page bTreePage) mustSetFlag(v int) {
+	if err := page.setFlag(v); err != nil {
+		panic(err)
+	}
+}
+
 func (page bTreePage) setFlag(v int) error {
 	return page.x.SetInt(page.blockID, bTreePageFlagOffset, v, true)
+}
+
+func (page bTreePage) mustGetNumRecords() int {
+	n, err := page.getNumRecords()
+	if err != nil {
+		panic(err)
+	}
+
+	return n
 }
 
 func (page bTreePage) getNumRecords() (int, error) {
@@ -122,6 +187,8 @@ func (page bTreePage) Close() {
 	page.x.Unpin(page.blockID)
 }
 
+// appendNew creates a new block and appends at the end of the file.
+// The block is then formatted as a bTreePage.
 func (page bTreePage) appendNew(flag int) (file.BlockID, error) {
 	block, err := page.x.Append(page.blockID.Filename())
 	if err != nil {
@@ -203,6 +270,10 @@ func (page bTreePage) isFull() (bool, error) {
 	return page.slotPosition(totalRecords+1) > page.x.BlockSize(), nil
 }
 
+// split splits the block into two.
+// It appends a new bTreePage to the underlying index file and copies there the records
+// starting from splitpos position.
+// Once records have been moved, it sets the flag to the new page and closes it.
 func (page bTreePage) split(splitpos int, flag int) (file.BlockID, error) {
 
 	block, err := page.appendNew(flag)
@@ -216,7 +287,10 @@ func (page bTreePage) split(splitpos int, flag int) (file.BlockID, error) {
 		return file.BlockID{}, fmt.Errorf("error in split when transferring records: %w", err)
 	}
 
-	newPage.setFlag(flag)
+	if err := newPage.setFlag(flag); err != nil {
+		return file.BlockID{}, err
+	}
+
 	newPage.Close()
 
 	return block, nil
@@ -295,6 +369,11 @@ func (page bTreePage) copyRecord(fromSlot int, toSlot int) error {
 	return nil
 }
 
+// transferRecords copies all records from the provided slot from the
+// current page to dst.
+// It deletes the record from the current page once it's successfully copied over.
+// Because the transfer happens from slot to the right, and records are in increasing
+// key order, the records that are moved are those with the highest key value.
 func (page bTreePage) transferRecords(slot int, dst bTreePage) error {
 	dstSlot := 0
 
@@ -323,7 +402,7 @@ func (page bTreePage) transferRecords(slot int, dst bTreePage) error {
 			}
 		}
 
-		if page.delete(slot); err != nil {
+		if err := page.delete(slot); err != nil {
 			return err
 		}
 
@@ -338,7 +417,7 @@ func (page bTreePage) getChildNum(slot int) (int, error) {
 }
 
 // insertDirectory insert a directory value into the page
-func (page bTreePage) insertDirectory(slot int, val file.Value, blockNumber int) error {
+func (page bTreePage) insertDirectoryRecord(slot int, val file.Value, blockNumber int) error {
 	if err := page.insert(slot); err != nil {
 		return err
 	}
@@ -354,22 +433,8 @@ func (page bTreePage) insertDirectory(slot int, val file.Value, blockNumber int)
 	return nil
 }
 
-func (page bTreePage) getDataRID(slot int) (RID, error) {
-	block, err := page.getInt(slot, "block")
-	if err != nil {
-		return RID{}, err
-	}
-
-	id, err := page.getInt(slot, "id")
-	if err != nil {
-		return RID{}, err
-	}
-
-	return NewRID(block, id), nil
-}
-
 // insertLeaf inserts a leaf value into the page
-func (page bTreePage) insertLeaf(slot int, val file.Value, rid RID) error {
+func (page bTreePage) insertLeafRecord(slot int, val file.Value, rid RID) error {
 	if err := page.insert(slot); err != nil {
 		return err
 	}
@@ -387,4 +452,411 @@ func (page bTreePage) insertLeaf(slot int, val file.Value, rid RID) error {
 	}
 
 	return nil
+}
+
+// bTreeLeaf represents the leaf block of a B+-Tree.
+// It embeds a bTreePage that contains ordered tuples of (key -> RID).
+// Remember that a RID is composed of:
+// - A block number to identify the block the record belongs to
+// - A slot number to identify where the record is located within the block
+// The page content is ordered by key.
+type bTreeLeaf struct {
+	x           tx.Transaction
+	layout      Layout
+	key         file.Value
+	contents    bTreePage
+	currentSlot int
+	fileName    string
+}
+
+// newBTreeLeaf creates a new bTreePage for the specified block, and then positions the slot
+// pointer to the slot immediately before the first record containing the search key.
+func newBTreeLeaf(x tx.Transaction, blk file.BlockID, layout Layout, key file.Value) (*bTreeLeaf, error) {
+	contents := newBTreePage(x, blk, layout)
+	currentSlot, err := contents.findSlotBefore(key)
+	if err != nil {
+		return nil, err
+	}
+
+	return &bTreeLeaf{
+		x:           x,
+		layout:      layout,
+		key:         key,
+		contents:    contents,
+		currentSlot: currentSlot,
+		fileName:    blk.Filename(),
+	}, nil
+}
+
+func (leaf *bTreeLeaf) Close() {
+	leaf.contents.Close()
+}
+
+// next moves to the next record and returns true if the search key is found.
+// if leaf.key is not found in the block, check in the overflow block.
+func (leaf *bTreeLeaf) next() (bool, error) {
+	leaf.currentSlot++
+
+	recs, err := leaf.contents.getNumRecords()
+	if err != nil {
+		return false, err
+	}
+
+	if leaf.currentSlot >= recs {
+		return leaf.tryOverflow()
+	}
+
+	dataval, err := leaf.contents.getDataVal(leaf.currentSlot)
+	if err != nil {
+		return false, err
+	}
+
+	if dataval.Equals(leaf.key) {
+		return true, nil
+	}
+
+	return leaf.tryOverflow()
+}
+
+// tryOverflow looks into an overflow block.
+// If the block starts with a different key, returns.
+// Otherwise, use an overflow block.
+func (leaf *bTreeLeaf) tryOverflow() (bool, error) {
+	firstKey, err := leaf.contents.getDataVal(0)
+	if err != nil {
+		return false, err
+	}
+
+	flag, err := leaf.contents.getFlag()
+	if err != nil {
+		return false, err
+	}
+
+	if !leaf.key.Equals(firstKey) || flag < 0 {
+		return false, nil
+	}
+
+	leaf.Close()
+
+	nextBlock := file.NewBlockID(leaf.fileName, flag)
+	leaf.contents = newBTreePage(leaf.x, nextBlock, leaf.layout)
+	leaf.currentSlot = 0
+
+	return true, nil
+}
+
+func (leaf *bTreeLeaf) getDataRID() (RID, error) {
+	return leaf.contents.getDataRID(leaf.currentSlot)
+}
+
+// delete deteletes a record.
+// It assumes that the slot pointer is set to the beginning of the page.
+// Iterates from left to right looking for the record with the given rid.
+// If found, deletes it.
+func (leaf *bTreeLeaf) delete(rid RID) error {
+	for {
+		ok, err := leaf.next()
+		if err != nil {
+			return err
+		}
+
+		if !ok {
+			return nil
+		}
+
+		other, err := leaf.getDataRID()
+		if other == rid {
+			return leaf.contents.delete(leaf.currentSlot)
+		}
+	}
+}
+
+type dirEntry struct {
+	value    file.Value
+	blockNum int
+}
+
+var emptyDirEntry = dirEntry{}
+
+// insert inserts a new record into the bTreeLeaf.
+// It assumes that findSlotBefore has already been called, and positions
+// the record pointer at the first record greater than or equal to the search key,
+// and inserts the value there.
+// If the page already contains records having that search key, then the new record
+// will be inserted at the front of the list.
+// The method returns a dirEntry, which is empty if the insertion does not cause the
+// block to split.
+// Otherwise, the dirEntry contains the (dataval, blocknumber) pair corresponding to the
+// new index block.
+func (leaf *bTreeLeaf) insert(rid RID) (entry dirEntry, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	flag := leaf.contents.mustGetFlag()
+	firstVal := leaf.contents.mustGetDataVal(0)
+
+	if flag > 0 && firstVal.More(leaf.key) {
+		// the first value in the page is greater than the key.
+		// Because the block is in ascending order, this means that the current
+		// RID needs to be included at the beginning of the block.
+		// We have to split the block and update the directory pages, otherwise they will point
+		// to the wrong block.
+		newBlock, err := leaf.contents.split(0, flag)
+		if err != nil {
+			return dirEntry{}, err
+		}
+
+		leaf.currentSlot = 0
+		leaf.contents.setFlag(-1)
+
+		if err := leaf.contents.insertLeafRecord(leaf.currentSlot, leaf.key, rid); err != nil {
+			return dirEntry{}, err
+		}
+
+		return dirEntry{
+			value:    firstVal,
+			blockNum: newBlock.BlockNumber(),
+		}, nil
+	}
+
+	// otherwise, insert the record at the current slot.
+	// Remember that insert assumes that findSlotBefore has already been called, so current slot
+	// points to the correct slot for the key.
+	leaf.currentSlot++
+	if err := leaf.contents.insertLeafRecord(leaf.currentSlot, leaf.key, rid); err != nil {
+		return dirEntry{}, err
+	}
+
+	full, err := leaf.contents.isFull()
+	if err != nil {
+		return dirEntry{}, err
+	}
+
+	// the block still has space, do nothing.
+	if !full {
+		return dirEntry{}, nil
+	}
+
+	// else, page is full, split it
+	firstKey := leaf.contents.mustGetDataVal(0)
+	lastKey := leaf.contents.mustGetDataVal(leaf.contents.mustGetNumRecords() - 1)
+
+	// the block contains the same record, create an overflow block to contain
+	// all but the first record
+	if lastKey.Equals(firstKey) {
+		nb, err := leaf.contents.split(1, leaf.contents.mustGetFlag())
+		if err != nil {
+			return dirEntry{}, err
+		}
+
+		leaf.contents.mustSetFlag(nb.BlockNumber())
+
+		return dirEntry{}, nil
+	}
+
+	// the block contains distinct values
+	// split it in half.
+	splitPos := leaf.contents.mustGetNumRecords() / 2
+	splitKey := leaf.contents.mustGetDataVal(splitPos)
+
+	// check on the right for duplicate records, as they must be kept in the same block
+	if splitKey.Equals(firstKey) {
+		for leaf.contents.mustGetDataVal(splitPos).Equals(splitKey) {
+			splitPos++
+		}
+
+		splitKey = leaf.contents.mustGetDataVal(splitPos)
+	} else {
+		// check on the left as well
+		for leaf.contents.mustGetDataVal(splitPos - 1).Equals(splitKey) {
+			splitPos--
+		}
+	}
+
+	// finally, split the block.
+	nb, err := leaf.contents.split(splitPos, -1)
+	if err != nil {
+		return dirEntry{}, err
+	}
+
+	return dirEntry{splitKey, nb.BlockNumber()}, nil
+}
+
+type bTreeDir struct {
+	x        tx.Transaction
+	layout   Layout
+	contents bTreePage
+	fileName string
+}
+
+func newBTreeDir(x tx.Transaction, block file.BlockID, layout Layout) bTreeDir {
+	return bTreeDir{
+		x:        x,
+		layout:   layout,
+		contents: newBTreePage(x, block, layout),
+		fileName: block.Filename(),
+	}
+}
+
+func (dir *bTreeDir) Close() {
+	dir.contents.Close()
+}
+
+func (dir *bTreeDir) makeNewRoot(entry dirEntry) error {
+	firstVal, err := dir.contents.getDataVal(0)
+	if err != nil {
+		return err
+	}
+
+	level, err := dir.contents.getFlag()
+	if err != nil {
+		return err
+	}
+
+	block, err := dir.contents.split(0, level)
+	if err != nil {
+		return err
+	}
+
+	oldRoot := dirEntry{firstVal, block.BlockNumber()}
+	if _, err := dir.insertEntry(oldRoot); err != nil {
+		return err
+	}
+
+	if _, err := dir.insertEntry(entry); err != nil {
+		return err
+	}
+
+	return dir.contents.setFlag(level + 1)
+}
+
+// search looks down the directory tree for the searched value and returns the block
+// containing the record, if found.
+// The method starts at the root of the tree and moves down the B+ tree levels.
+// Once the level 0 is found, it searches that page and returns the block number
+// of the leaf containing the search key.
+func (dir *bTreeDir) search(key file.Value) (int, error) {
+	child, err := dir.findChildBlock(key)
+	if err != nil {
+		return 0, err
+	}
+
+	n := dir.contents.getFlag
+
+	for flag, err := n(); flag > 0; flag, err = n() {
+		if err != nil {
+			return 0, err
+		}
+
+		dir.Close()
+		dir.contents = newBTreePage(dir.x, child, dir.layout)
+		child, err = dir.findChildBlock(key)
+		if err != nil {
+			return 0, err
+		}
+	}
+
+	return child.BlockNumber(), nil
+}
+
+func (dir *bTreeDir) findChildBlock(key file.Value) (file.BlockID, error) {
+	slot, err := dir.contents.findSlotBefore(key)
+	if err != nil {
+		return file.BlockID{}, err
+	}
+
+	val, err := dir.contents.getDataVal(slot + 1)
+	if err != nil {
+		return file.BlockID{}, err
+	}
+
+	if val.Equals(key) {
+		slot++
+	}
+
+	blockNum, err := dir.contents.getChildNum(slot)
+	if err != nil {
+		return file.BlockID{}, err
+	}
+
+	return file.NewBlockID(dir.fileName, blockNum), nil
+}
+
+// insert recursively traverses the tree, starting from the root, and
+// inserts a new directory record.
+// If the dirEntry value is not empty, the insertion has caused the page to split.
+func (dir *bTreeDir) insert(entry dirEntry) (dirEntry, error) {
+	flag, err := dir.contents.getFlag()
+	if err != nil {
+		return dirEntry{}, err
+	}
+
+	if flag == 0 {
+		return dir.insertEntry(entry)
+	}
+
+	childBlock, err := dir.findChildBlock(entry.value)
+	if err != nil {
+		return dirEntry{}, err
+	}
+
+	child := newBTreeDir(dir.x, childBlock, dir.layout)
+	ce, err := child.insert(entry)
+	if err != nil {
+		return dirEntry{}, err
+	}
+
+	child.Close()
+
+	if ce == emptyDirEntry {
+		return dirEntry{}, nil
+	}
+
+	return dir.insertEntry(ce)
+}
+
+func (dir *bTreeDir) insertEntry(entry dirEntry) (out dirEntry, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = r.(error)
+		}
+	}()
+
+	slot, err := dir.contents.findSlotBefore(entry.value)
+	if err != nil {
+		return
+	}
+
+	slot++
+
+	err = dir.contents.insertDirectoryRecord(slot, entry.value, entry.blockNum)
+	if err != nil {
+		return
+	}
+
+	full, err := dir.contents.isFull()
+	if err != nil {
+		return dirEntry{}, err
+	}
+
+	if !full {
+		return dirEntry{}, nil
+	}
+
+	// page is full, split it
+	splitPos := dir.contents.mustGetNumRecords() / 2
+
+	splitVal := dir.contents.mustGetDataVal(splitPos)
+
+	level := dir.contents.mustGetFlag()
+
+	newblock, err := dir.contents.split(splitPos, level)
+
+	return dirEntry{
+		value:    splitVal,
+		blockNum: newblock.BlockNumber(),
+	}, nil
 }

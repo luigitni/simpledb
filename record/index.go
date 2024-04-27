@@ -3,6 +3,7 @@ package record
 import (
 	"io"
 
+	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
 )
 
@@ -13,30 +14,77 @@ const (
 	fieldFieldName      = "fieldName"
 )
 
-type IndexInfo struct {
-	idxName   string
-	fieldName string
-	x         tx.Transaction
-	schema    Schema
-	layout    Layout
-	stats     StatInfo
+type Index interface {
+	BeforeFirst(searchKey file.Value) error
+	Next() error
+	DataRID() (RID, error)
+	Insert(v file.Value, rid RID) error
+	Delete(v file.Value, rid RID) error
+	Close()
 }
 
-func NewIndexInfo(x tx.Transaction, idxName string, fieldName string, schema Schema, stats StatInfo) IndexInfo {
-	return IndexInfo{
-		idxName:   idxName,
-		fieldName: fieldName,
-		x:         x,
-		schema:    schema,
-		layout:    Layout{},
-		stats:     stats,
+type IndexInfo struct {
+	idxName     string
+	fieldName   string
+	x           tx.Transaction
+	tableSchema Schema
+	idxLayout   Layout
+	stats       StatInfo
+}
+
+func NewIndexInfo(x tx.Transaction, idxName string, fieldName string, tableSchema Schema, stats StatInfo) *IndexInfo {
+	return &IndexInfo{
+		idxName:     idxName,
+		fieldName:   fieldName,
+		x:           x,
+		tableSchema: tableSchema,
+		idxLayout:   idxLayout(tableSchema, fieldName),
+		stats:       stats,
 	}
+}
+
+func idxLayout(tableSchema Schema, fieldName string) Layout {
+	schema := NewSchema()
+	schema.AddIntField("block")
+	schema.AddIntField("id")
+	switch tableSchema.Type(fieldName) {
+	case file.INTEGER:
+		schema.AddIntField("dataval")
+	case file.STRING:
+		schema.AddStringField("dataval", tableSchema.Length(fieldName))
+	}
+
+	return NewLayout(schema)
 }
 
 // Open returns the index.
 // Not yet implemented
-func (ii IndexInfo) Open() interface{} {
-	return nil
+func (ii *IndexInfo) Open() Index {
+	ii.tableSchema = NewSchema()
+	idx, err := NewBTreeIndex(ii.x, ii.idxName, ii.idxLayout)
+	if err != nil {
+		panic(err)
+	}
+
+	return idx
+}
+
+func (ii *IndexInfo) RecordsOutput() int {
+	return ii.stats.Records / ii.stats.DistinctValues(ii.fieldName)
+}
+
+func (ii *IndexInfo) BlocksAccessed() int {
+	rpb := ii.x.BlockSize() / ii.idxLayout.slotsize
+	numBlocks := ii.stats.Records / rpb
+	return BTreeIndexSearchCost(numBlocks, rpb)
+}
+
+func (ii *IndexInfo) DistinctValues(fieldName string) int {
+	if ii.fieldName == fieldName {
+		return 1
+	}
+
+	return ii.stats.DistinctValues(fieldName)
 }
 
 type IndexManager struct {
@@ -87,9 +135,9 @@ func (im *IndexManager) CreateIndex(x tx.Transaction, idxName string, tblName st
 	return nil
 }
 
-func (im *IndexManager) IndexInfo(x tx.Transaction, tblName string) (map[string]IndexInfo, error) {
+func (im *IndexManager) IndexInfo(x tx.Transaction, tblName string) (map[string]*IndexInfo, error) {
 
-	m := map[string]IndexInfo{}
+	m := map[string]*IndexInfo{}
 
 	scan := NewTableScan(x, tblName, im.layout)
 	defer scan.Close()

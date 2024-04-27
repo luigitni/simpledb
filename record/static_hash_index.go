@@ -35,20 +35,22 @@ func StaticHashIndexSearchCost(numBlocks int, recordsPerBucket int) int {
 	return numBlocks / bucketsNum
 }
 
-func NewStaticHashIndex(x tx.Transaction, name string, layout Layout) StaticHashIndex {
-	return StaticHashIndex{
+func NewStaticHashIndex(x tx.Transaction, name string, layout Layout) *StaticHashIndex {
+	return &StaticHashIndex{
 		x:      x,
 		name:   name,
 		layout: layout,
 	}
 }
 
-func (idx *StaticHashIndex) BeforeFirst(searchKey file.Value) {
+func (idx *StaticHashIndex) BeforeFirst(searchKey file.Value) error {
 	idx.Close()
 	idx.searchKey = searchKey
 	bucket := searchKey.Hash() % bucketsNum
 	tableName := fmt.Sprintf("%s%d", idx.name, bucket)
 	idx.scan = NewTableScan(idx.x, tableName, idx.layout)
+
+	return nil
 }
 
 func (idx *StaticHashIndex) Next() error {
