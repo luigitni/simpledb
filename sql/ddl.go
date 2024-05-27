@@ -57,7 +57,7 @@ func (p Parser) isDDL() bool {
 	return p.matchKeyword("create")
 }
 
-func (p Parser) create() (Command, error) {
+func (p Parser) ddl() (Command, error) {
 	if err := p.eatKeyword("create"); err != nil {
 		return nil, err
 	}

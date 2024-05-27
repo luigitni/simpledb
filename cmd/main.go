@@ -4,7 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"os"
+	"strings"
 
 	"github.com/luigitni/simpledb/db"
 )
@@ -38,7 +38,10 @@ func main() {
 
 func handleSession(conn net.Conn, db *db.DB) {
 	for {
-		cmd, err := bufio.NewReader(conn).ReadString('\n')
+		cmd, err := bufio.NewReader(conn).ReadString(';')
+		cmd = cmd[:len(cmd) - 1]
+		cmd = strings.TrimSpace(cmd)
+
 		if err != nil {
 			fmt.Println(err)
 			return
@@ -47,9 +50,9 @@ func handleSession(conn net.Conn, db *db.DB) {
 		// parse the incoming command and feed it to the database
 		out, err := db.Exec(cmd)
 		if err != nil {
-			fmt.Println(err)
+			fmt.Fprintln(conn, err)
 		}
 
-		fmt.Fprint(os.Stdout, out)
+		fmt.Fprint(conn, out)
 	}
 }

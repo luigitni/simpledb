@@ -31,7 +31,7 @@ func createAndInsertTable(t *testing.T, fm *file.Manager, lm *log.Manager, bm *b
 		return nil
 	}
 
-	if _, err := updPlanner.ExecuteCreateTableFromSchema(
+	if _, err := updPlanner.executeCreateTableFromSchema(
 		"students",
 		schema,
 		cx,
@@ -64,7 +64,7 @@ func createAndInsertTable(t *testing.T, fm *file.Manager, lm *log.Manager, bm *b
 	flist := []string{"sname", "ssurname", "gradyear", "dob"}
 
 	for _, v := range vals {
-		if _, err := updPlanner.ExecuteInsert(
+		if _, err := updPlanner.executeInsert(
 			sql.NewInsertCommand("students", flist, v),
 			cx,
 		); err != nil {
@@ -172,7 +172,7 @@ func TestDeletePlanner(t *testing.T) {
 
 	planner := NewBasicUpdatePlanner(mdm)
 
-	deleted, err := planner.ExecuteDelete(data.(sql.DeleteCommand), x)
+	deleted, err := planner.executeDelete(data.(sql.DeleteCommand), x)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -44,7 +44,7 @@ func (p Parser) Parse() (Command, error) {
 		return p.dml()
 	}
 
-	return p.create()
+	return p.ddl()
 }
 
 func (p Parser) Field() (string, error) {

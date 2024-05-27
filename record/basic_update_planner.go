@@ -7,16 +7,6 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-type UpdatePlanner interface {
-	// ExecuteInsert inserts
-	ExecuteInsert(data sql.InsertCommand, x tx.Transaction) (int, error)
-	ExecuteDelete(data sql.DeleteCommand, x tx.Transaction) (int, error)
-	ExecuteModify(data sql.UpdateCommand, x tx.Transaction) (int, error)
-	ExecuteCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error)
-	ExecuteCreateView(data sql.CreateViewCommand, x tx.Transaction) (int, error)
-	ExecuteCreateIndex(data sql.CreateIndexCommand, x tx.Transaction) (int, error)
-}
-
 type BasicUpdatePlanner struct {
 	mdm *MetadataManager
 }
@@ -62,7 +52,7 @@ func (bup BasicUpdatePlanner) iterateAndExecute(x tx.Transaction, tableName stri
 	return c, nil
 }
 
-func (bup BasicUpdatePlanner) ExecuteUpdate(data sql.UpdateCommand, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Transaction) (int, error) {
 	exec := func(us UpdateScan) error {
 		val, err := data.NewValue.Evaluate(us)
 		if err != nil {
@@ -79,7 +69,7 @@ func (bup BasicUpdatePlanner) ExecuteUpdate(data sql.UpdateCommand, x tx.Transac
 	return bup.iterateAndExecute(x, data.TableName, data.Predicate, exec)
 }
 
-func (bup BasicUpdatePlanner) ExecuteDelete(data sql.DeleteCommand, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Transaction) (int, error) {
 	exec := func(us UpdateScan) error {
 		return us.Delete()
 	}
@@ -87,7 +77,7 @@ func (bup BasicUpdatePlanner) ExecuteDelete(data sql.DeleteCommand, x tx.Transac
 	return bup.iterateAndExecute(x, data.TableName, data.Predicate, exec)
 }
 
-func (bup BasicUpdatePlanner) ExecuteInsert(data sql.InsertCommand, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Transaction) (int, error) {
 	p, err := NewTablePlan(x, data.TableName, bup.mdm)
 	if err != nil {
 		return 0, err
@@ -110,12 +100,12 @@ func (bup BasicUpdatePlanner) ExecuteInsert(data sql.InsertCommand, x tx.Transac
 	return 1, nil
 }
 
-func (bup BasicUpdatePlanner) ExecuteCreateTableFromSchema(tableName string, schema Schema, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) executeCreateTableFromSchema(tableName string, schema Schema, x tx.Transaction) (int, error) {
 	err := bup.mdm.CreateTable(tableName, schema, x)
 	return 0, err
 }
 
-func (bup BasicUpdatePlanner) ExecuteCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) executeCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error) {
 	schema := NewSchema()
 	for _, field := range data.Fields {
 		schema.AddField(field.Name, field.Type, field.Len)
@@ -125,12 +115,12 @@ func (bup BasicUpdatePlanner) ExecuteCreateTable(data sql.CreateTableCommand, x 
 	return 0, err
 }
 
-func (bup BasicUpdatePlanner) ExecuteCreateView(data sql.CreateViewCommand, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) executeCreateView(data sql.CreateViewCommand, x tx.Transaction) (int, error) {
 	err := bup.mdm.CreateView(data.ViewName, data.Definition(), x)
 	return 0, err
 }
 
-func (bup BasicUpdatePlanner) ExecuteCreateIndex(data sql.CreateIndexCommand, x tx.Transaction) (int, error) {
+func (bup BasicUpdatePlanner) executeCreateIndex(data sql.CreateIndexCommand, x tx.Transaction) (int, error) {
 	err := bup.mdm.CreateIndex(x, data.IndexName, data.TableName, data.TargetField)
 	return 0, err
 }

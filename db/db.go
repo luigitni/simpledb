@@ -60,9 +60,9 @@ func (db *DB) Exec(command string) (fmt.Stringer, error) {
 	case sql.CommandTypeQuery:
 		return db.runQuery(data.(sql.Query))
 	case sql.CommandTypeDML:
-		// execute the command
+		return db.execDML(data)
 	case sql.CommandTypeDDL:
-		// execute the command
+		return db.execDDL(data)
 	}
 
 	return nil, errors.New("invalid command")
@@ -124,4 +124,42 @@ func (db *DB) runQuery(q sql.Query) (Rows, error) {
 	}
 
 	return rows, err
+}
+
+type Result struct {
+	affected int
+}
+
+func (r Result) String() string {
+	return fmt.Sprintf("%d", r.affected)
+}
+
+func (db *DB) execDDL(cmd sql.Command) (Result, error) {
+	planner := record.NewUpdatePlanner(db.mdm)
+
+	x := db.beginTx()
+
+	res, err := record.ExecuteDDLStatement(planner, cmd, x)
+	if err != nil {
+		x.Rollback()
+	} else {
+		x.Commit()
+	}
+
+	return Result{res}, err
+}
+
+func (db *DB) execDML(cmd sql.Command) (Result, error) {
+	planner := record.NewUpdatePlanner(db.mdm)
+
+	x := db.beginTx()
+
+	res, err := record.ExecuteDMLStatement(planner, cmd, x)
+	if err != nil {
+		x.Rollback()
+	} else {
+		x.Commit()
+	}
+
+	return Result{res}, err
 }

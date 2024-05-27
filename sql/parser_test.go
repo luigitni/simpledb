@@ -2,6 +2,8 @@ package sql
 
 import (
 	"testing"
+
+	"github.com/luigitni/simpledb/file"
 )
 
 func TestParseField(t *testing.T) {
@@ -178,5 +180,45 @@ func TestInsertCommand(t *testing.T) {
 
 	if v := ins.Values[1].AsIntVal(); v != 5 {
 		t.Fatalf("expected value to be %d, got %d", 5, v)
+	}
+}
+
+func TestCreateTableCommand(t *testing.T) {
+	const src = "CREATE TABLE atable (name VARCHAR(10), age INT)"
+
+	p := NewParser(src)
+
+	cmd, err := p.ddl()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	cr, ok := cmd.(CreateTableCommand)
+	if !ok {
+		t.Fatal("expected CreateTableCommand")
+	}
+
+	if cr.TableName != "atable" {
+		t.Fatalf("expected table name to be %q, got %q", "atable", cr.TableName)
+	}
+
+	expF := []FieldDef{
+		{
+			Name: "name",
+			Type: file.STRING,
+			Len:  10,
+		},
+		{
+			Name: "age",
+			Type: file.INTEGER,
+			Len:  0,
+		},
+	}
+
+	for i, f := range cr.Fields {
+		e := expF[i]
+		if f != e {
+			t.Fatalf("expected field to be %+v at %d, got %+v", e, i, f)
+		}
 	}
 }

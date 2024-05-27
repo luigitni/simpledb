@@ -28,7 +28,7 @@ func (dml DMLCommandType) Type() CommandType {
 type DDLCommandType struct{}
 
 func (DDL DDLCommandType) Type() CommandType {
-	return CommandTypeDML
+	return CommandTypeDDL
 }
 
 type Command interface {
@@ -110,7 +110,7 @@ func (p Parser) dml() (Command, error) {
 		return p.delete()
 	}
 
-	return p.create()
+	return p.ddl()
 }
 
 // <Delete> := DELETE FROM TokenIdentifier [ WHERE <Predicate> ]
