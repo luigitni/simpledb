@@ -13,33 +13,35 @@ const (
 	maxViewDefinition    = 100
 )
 
-// ViewManager stores view definitions in the view catalog.
+// viewManager stores view definitions in the view catalog.
 // Each view is stored as a single record into the viewcat table.
-type ViewManager struct {
-	*TableManager
+type viewManager struct {
+	*tableManager
 }
 
-func NewViewManager(tm *TableManager) *ViewManager {
-	return &ViewManager{
+func newViewManager(tm *tableManager) *viewManager {
+	return &viewManager{
 		tm,
 	}
 }
 
-func (vm ViewManager) Init(trans tx.Transaction) {
+func (vm viewManager) init(trans tx.Transaction) error {
 	schema := newSchema()
 	schema.addStringField(fieldViewName, NameMaxLen)
 	schema.addStringField(fieldViewDef, maxViewDefinition)
-	vm.createTable(viewCatalogTableName, schema, trans)
+	return vm.createTable(viewCatalogTableName, schema, trans)
 }
 
 // createView adds a view entry into the view catalog.
-func (vm ViewManager) createView(vname string, vdef string, trans tx.Transaction) error {
+func (vm viewManager) createView(vname string, vdef string, trans tx.Transaction) error {
 	layout, err := vm.layout("viewcat", trans)
 	if err != nil {
 		return err
 	}
 
 	ts := newTableScan(trans, "viewcat", layout)
+	defer ts.Close()
+
 	if err := ts.SetString("viewname", vname); err != nil {
 		return err
 	}
@@ -48,18 +50,20 @@ func (vm ViewManager) createView(vname string, vdef string, trans tx.Transaction
 		return err
 	}
 
-	ts.Close()
 	return nil
 }
 
 // viewDefinition looks within the view catalog table for the requested view definition.
-func (vm ViewManager) viewDefinition(vname string, trans tx.Transaction) (string, error) {
+// If the view cannot be found returns an ErrViewNotFound
+func (vm viewManager) viewDefinition(vname string, trans tx.Transaction) (string, error) {
 	layout, err := vm.layout("viewcat", trans)
 	if err != nil {
 		return "", err
 	}
 
 	ts := newTableScan(trans, "viewcat", layout)
+	defer ts.Close()
+
 	for {
 		err := ts.Next()
 		if err == io.EOF {
@@ -84,5 +88,5 @@ func (vm ViewManager) viewDefinition(vname string, trans tx.Transaction) (string
 		}
 	}
 
-	return "", io.EOF
+	return "", ErrViewNotFound
 }

@@ -14,7 +14,7 @@ type IndexUpdatePlanner struct {
 	mdm *MetadataManager
 }
 
-func NewIndexUpdatePlanner(mdm *MetadataManager) *IndexUpdatePlanner {
+func newIndexUpdatePlanner(mdm *MetadataManager) *IndexUpdatePlanner {
 	return &IndexUpdatePlanner{
 		mdm: mdm,
 	}

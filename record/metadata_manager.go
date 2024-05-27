@@ -14,23 +14,42 @@ import (
 //   - Stats metadata describes the size of each table and the distribution of its
 //     field values.
 type MetadataManager struct {
-	*TableManager
-	*ViewManager
-	*IndexManager
-	*StatManager
+	*tableManager
+	*viewManager
+	*indexManager
+	*statManager
 }
 
 func NewMetadataManager() *MetadataManager {
-	tm := NewTableManager()
+	tm := newTableManager()
+	sm := newStatManager(tm)
+	im := newIndexManager(tm, sm)
+	vm := newViewManager(tm)
+
 	return &MetadataManager{
-		TableManager: tm,
-		ViewManager:  NewViewManager(tm),
-		StatManager:  NewStatManager(tm),
+		tableManager: tm,
+		viewManager:  vm,
+		indexManager: im,
+		statManager:  sm,
 	}
 }
 
 func (man *MetadataManager) Init(trans tx.Transaction) error {
-	man.TableManager.Init(trans)
-	man.ViewManager.Init(trans)
-	return man.StatManager.Init(trans)
+	if err := man.tableManager.init(trans); err != nil {
+		return err
+	}
+
+	if err := man.viewManager.init(trans); err != nil {
+		return err
+	}
+
+	if err := man.statManager.init(trans); err != nil {
+		return err
+	}
+
+	if err := man.indexManager.init(trans); err != nil {
+		return err
+	}
+
+	return nil
 }

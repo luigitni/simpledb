@@ -77,6 +77,5 @@ func (r Rows) String() string {
 }
 
 func padString(s string, w int) string {
-
 	return fmt.Sprintf("%*s", -w, fmt.Sprintf("%*s", (w+len(s))/2, s))
 }

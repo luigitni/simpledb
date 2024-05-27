@@ -129,7 +129,7 @@ type ProjectPlan struct {
 	schema Schema
 }
 
-func NewProjectPlan(p Plan, fields []string) ProjectPlan {
+func newProjectPlan(p Plan, fields []string) ProjectPlan {
 	schema := newSchema()
 	for _, f := range fields {
 		schema.add(f, p.Schema())
@@ -167,7 +167,7 @@ type ProductPlan struct {
 	schema Schema
 }
 
-func NewProductPlan(p1 Plan, p2 Plan) ProductPlan {
+func newProductPlan(p1 Plan, p2 Plan) ProductPlan {
 	schema := newSchema()
 	schema.addAll(p1.Schema())
 	schema.addAll(p2.Schema())

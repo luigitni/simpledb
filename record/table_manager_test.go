@@ -11,8 +11,8 @@ import (
 func TestTableManager(t *testing.T) {
 	trans := tx.NewTx(test.MakeManagers(t))
 
-	tm := NewTableManager()
-	tm.Init(trans)
+	tm := newTableManager()
+	tm.init(trans)
 
 	schema := newSchema()
 	schema.addIntField("A")
@@ -39,6 +39,8 @@ func TestTableManager(t *testing.T) {
 			t.Logf("%s VARCHAR(%d)", fname, sch.flen(fname))
 		}
 	}
+
+	// check the table catalog that the 
 
 	trans.Commit()
 }

@@ -9,7 +9,7 @@ import (
 
 const (
 	idxCatalogTableName = "idxcat"
-	fieldIdxName        = "indexName"
+	fieldIdxName        = "indexname"
 )
 
 type Index interface {
@@ -87,40 +87,38 @@ func (ii *indexInfo) DistinctValues(fieldName string) int {
 	return ii.stats.distinctValues(fieldName)
 }
 
-// IndexManager manages the catalog of indexes and keeps track
+// indexManager manages the catalog of indexes and keeps track
 // of the tables and fields that each index is indexing.
-// The IndexManager looks into the index catalog to determine if a given field
+// The indexManager looks into the index catalog to determine if a given field
 // has a defined index and returns it to the planner.
-type IndexManager struct {
+type indexManager struct {
 	l  Layout
-	tm *TableManager
-	sm *StatManager
+	tm *tableManager
+	sm *statManager
 }
 
-func NewIndexManager(isNew bool, tm *TableManager, sm *StatManager, x tx.Transaction) (*IndexManager, error) {
-	if isNew {
-		schema := newSchema()
-		schema.addStringField(fieldIdxName, NameMaxLen)
-		schema.addStringField(catFieldTableName, NameMaxLen)
-		schema.addStringField(catFieldFieldName, NameMaxLen)
-		tm.createTable(idxCatalogTableName, schema, x)
-	}
+func indexCatalogSchema() Schema {
+	schema := newSchema()
+	schema.addStringField(fieldIdxName, NameMaxLen)
+	schema.addStringField(catFieldTableName, NameMaxLen)
+	schema.addStringField(catFieldFieldName, NameMaxLen)
+	return schema
+}
 
-	// retrieves the layout of the index catalog page
-	layout, err := tm.layout(idxCatalogTableName, x)
-	if err != nil {
-		return nil, err
-	}
-
-	return &IndexManager{
-		l:  layout,
+func newIndexManager(tm *tableManager, sm *statManager) *indexManager {
+	return &indexManager{
+		l:  NewLayout(indexCatalogSchema()),
 		tm: tm,
 		sm: sm,
-	}, nil
+	}
+}
+
+func (im indexManager) init(x tx.Transaction) error {
+	return im.tm.createTable(idxCatalogTableName, im.l.schema, x)
 }
 
 // createIndex stores the index metadata into the catalog.
-func (im *IndexManager) createIndex(x tx.Transaction, idxName string, tblName string, fldName string) error {
+func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName string, fldName string) error {
 	ts := newTableScan(x, idxCatalogTableName, im.l)
 
 	ts.Insert()
@@ -142,7 +140,7 @@ func (im *IndexManager) createIndex(x tx.Transaction, idxName string, tblName st
 }
 
 // indexInfo returns a map of indexInfo defined over the fields of the provided table.
-func (im *IndexManager) indexInfo(x tx.Transaction, tblName string) (map[string]*indexInfo, error) {
+func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]*indexInfo, error) {
 
 	m := map[string]*indexInfo{}
 

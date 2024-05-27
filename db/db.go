@@ -27,18 +27,33 @@ type DB struct {
 	mdm *record.MetadataManager
 }
 
-func NewDB() *DB {
+func NewDB() (*DB, error) {
 	fm := file.NewFileManager(defaultPath, blockSize)
 	lm := log.NewLogManager(fm, defaultLogFile)
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
 	mdm := record.NewMetadataManager()
+
+	if fm.IsNew() {
+		fmt.Println("initialising new database")
+		if err := mdm.Init(x); err != nil {
+			return nil, err
+		}
+
+	} else {
+		fmt.Println("recovering existing database")
+		x.Recover()
+	}
 
 	return &DB{
 		fm:  fm,
 		lm:  lm,
 		bm:  bm,
 		mdm: mdm,
-	}
+	}, nil
 }
 
 func (db *DB) beginTx() tx.Transaction {

@@ -16,7 +16,7 @@ func (si statInfo) distinctValues(fieldName string) int {
 	return 1 + si.records/3 // todo: this is just a stub
 }
 
-// StatManager manages the statistical information about each table
+// statManager manages the statistical information about each table
 // in the database, for example how many records the table has and
 // how are they distributed.
 // This information is used by the query planner to estimate plans cost
@@ -25,26 +25,26 @@ func (si statInfo) distinctValues(fieldName string) int {
 // - The number of blocks used by each table
 // - The number of records in each table
 // - For each field of a table, the number of distinct field values it contains.
-// StatManager keeps the statistics of the engine in memory, in the tableStats map.
+// statManager keeps the statistics of the engine in memory, in the tableStats map.
 // It holds cost information for each table.
 // The statInfo method returns the statstics for the requested table and every so often
 // prompts a recomputation of the cost values.
-type StatManager struct {
-	*TableManager
+type statManager struct {
+	*tableManager
 	sync.Mutex
 
 	tableStats map[string]statInfo
 	calls      int
 }
 
-func NewStatManager(tm *TableManager) *StatManager {
-	return &StatManager{
-		TableManager: tm,
+func newStatManager(tm *tableManager) *statManager {
+	return &statManager{
+		tableManager: tm,
 		tableStats:   map[string]statInfo{},
 	}
 }
 
-func (sm *StatManager) Init(trans tx.Transaction) error {
+func (sm *statManager) init(trans tx.Transaction) error {
 	return sm.refreshStatistics(trans)
 }
 
@@ -56,7 +56,7 @@ const statsMinCallsToRefresh = 1000
 // After statsMinCallsToRefresh invocations, it prompts an update of the statistics
 // for all the tables.
 // This is highly inefficient.
-func (sm *StatManager) statInfo(tname string, layout Layout, trans tx.Transaction) (statInfo, error) {
+func (sm *statManager) statInfo(tname string, layout Layout, trans tx.Transaction) (statInfo, error) {
 	sm.Lock()
 	defer sm.Unlock()
 
@@ -84,17 +84,17 @@ func (sm *StatManager) statInfo(tname string, layout Layout, trans tx.Transactio
 
 // refreshStatistics is invoked by statInfo. It reads the table catalogue and
 // re-computes the statInfo object for each table.
-func (sm *StatManager) refreshStatistics(trans tx.Transaction) error {
+func (sm *statManager) refreshStatistics(x tx.Transaction) error {
 
 	sm.calls = 0
 	stats := map[string]statInfo{}
 
-	tcat, err := sm.layout("tblcat", trans)
+	tcat, err := sm.layout(tableCatalogTableName, x)
 	if err != nil {
 		return err
 	}
 
-	ts := newTableScan(trans, "tblcat", tcat)
+	ts := newTableScan(x, tableCatalogTableName, tcat)
 	defer ts.Close()
 	for {
 		err := ts.Next()
@@ -106,17 +106,17 @@ func (sm *StatManager) refreshStatistics(trans tx.Transaction) error {
 			return err
 		}
 
-		tname, err := ts.GetString("tblname")
+		tname, err := ts.GetString(catFieldTableName)
 		if err != nil {
 			return err
 		}
 
-		layout, err := sm.layout(tname, trans)
+		layout, err := sm.layout(tname, x)
 		if err != nil {
 			return err
 		}
 
-		si, err := sm.calcTableStats(tname, layout, trans)
+		si, err := sm.calcTableStats(tname, layout, x)
 		if err != nil {
 			return err
 		}
@@ -131,7 +131,7 @@ func (sm *StatManager) refreshStatistics(trans tx.Transaction) error {
 
 // calcTableStats scans the whole provided table to count records and blocks and refresh the statInfo
 // for the provided table
-func (sm *StatManager) calcTableStats(tname string, layout Layout, trans tx.Transaction) (statInfo, error) {
+func (sm *statManager) calcTableStats(tname string, layout Layout, trans tx.Transaction) (statInfo, error) {
 	var recs, blocks int
 	ts := newTableScan(trans, tname, layout)
 	defer ts.Close()

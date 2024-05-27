@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"net"
+	"os"
 	"strings"
 
 	"github.com/luigitni/simpledb/db"
@@ -15,7 +16,11 @@ const (
 
 func main() {
 
-	db := db.NewDB()
+	db, err := db.NewDB()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
 
 	// listen to incoming tcp connections
 	l, err := net.Listen("tcp4", port)
@@ -63,6 +68,7 @@ func handleSession(conn net.Conn, db *db.DB) {
 		}
 
 		fmt.Fprint(conn, out)
+		fmt.Fprint(conn, "\n>")
 	}
 }
 

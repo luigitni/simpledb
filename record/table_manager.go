@@ -12,7 +12,7 @@ import (
 
 const (
 	tableCatalogTableName = "tblcat"
-	catFieldTableName     = "tblName"
+	catFieldTableName     = "tblname"
 	catFieldSlotSize      = "slotsize"
 
 	fieldsCatalogTableName = "fldcat"
@@ -27,7 +27,7 @@ const (
 
 var ErrViewNotFound = errors.New("cannot find table in catalog")
 
-// TableManager handles table metadata, which describes the structure
+// tableManager handles table metadata, which describes the structure
 // of each table's records.
 // Table metadata is held in two tables:
 //   - "tblcat" stores metadata specific to each table and has the following fields:
@@ -40,14 +40,14 @@ var ErrViewNotFound = errors.New("cannot find table in catalog")
 //     -- Type: type of the field.
 //     -- Length: size of the single field.
 //     -- Offset: offset of the fields from the beginning of the record.
-type TableManager struct {
+type tableManager struct {
 	// tcat is the catalog table for tables
 	tcat Layout
 	// fcat is the catalog table for fields
 	fcat Layout
 }
 
-func NewTableManager() *TableManager {
+func newTableManager() *tableManager {
 	tcats := newSchema()
 	tcats.addStringField(catFieldTableName, NameMaxLen)
 	tcats.addIntField(catFieldSlotSize)
@@ -61,18 +61,25 @@ func NewTableManager() *TableManager {
 	fcats.addIntField(catFieldOffset)
 	fcat := NewLayout(fcats)
 
-	return &TableManager{
+	return &tableManager{
 		tcat: tcat,
 		fcat: fcat,
 	}
 }
 
-func (tm TableManager) Init(trans tx.Transaction) {
-	tm.createTable(tableCatalogTableName, *tm.tcat.Schema(), trans)
-	tm.createTable(fieldsCatalogTableName, *tm.tcat.Schema(), trans)
+func (tm tableManager) init(x tx.Transaction) error {
+	if err := tm.createTable(tableCatalogTableName, *tm.tcat.Schema(), x); err != nil {
+		return err
+	}
+
+	if err := tm.createTable(fieldsCatalogTableName, *tm.fcat.Schema(), x); err != nil {
+		return err
+	}
+
+	return nil
 }
 
-func (tm TableManager) TableExists(tblname string, tr tx.Transaction) bool {
+func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 
 	tcat := newTableScan(tr, tableCatalogTableName, tm.tcat)
 
@@ -111,11 +118,16 @@ func (tm TableManager) TableExists(tblname string, tr tx.Transaction) bool {
 // by calculating each fields offset.
 // It adds the newly created table as a record into the table catalog file and then
 // adds each field of the table to the field catalog.
-func (tm TableManager) createTable(tblname string, sch Schema, tr tx.Transaction) error {
+func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction) error {
 	layout := NewLayout(sch)
 
-	tcat := newTableScan(tr, tableCatalogTableName, tm.tcat)
-	tcat.Insert()
+	tcat := newTableScan(x, tableCatalogTableName, tm.tcat)
+	defer tcat.Close()
+
+	if err := tcat.Insert(); err != nil {
+		return err
+	}
+
 	if err := tcat.SetString(catFieldTableName, tblname); err != nil {
 		return err
 	}
@@ -124,10 +136,10 @@ func (tm TableManager) createTable(tblname string, sch Schema, tr tx.Transaction
 		return err
 	}
 
-	tcat.Close()
-
 	// for each schema field, insert a record into the field catalog.
-	fcat := newTableScan(tr, fieldsCatalogTableName, tm.fcat)
+	fcat := newTableScan(x, fieldsCatalogTableName, tm.fcat)
+	defer fcat.Close()
+
 	for _, fname := range sch.fields {
 		// scan up to the first available slot and add the field data to the field catalog
 		if err := fcat.Insert(); err != nil {
@@ -154,13 +166,13 @@ func (tm TableManager) createTable(tblname string, sch Schema, tr tx.Transaction
 			return err
 		}
 	}
-	fcat.Close()
+
 	return nil
 }
 
 // layout opens two table scans, one into the table catalog table and the other one
 // into the fields catalog, and retrieves the layout of the requested table.
-func (tm TableManager) layout(tblname string, trans tx.Transaction) (Layout, error) {
+func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, error) {
 
 	var empty Layout
 

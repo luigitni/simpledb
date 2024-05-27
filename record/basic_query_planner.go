@@ -65,10 +65,10 @@ func (bqp BasicQueryPlanner) CreatePlan(data sql.Query, x tx.Transaction) (Plan,
 	// Create the product of all plans
 	p := plans[0]
 	for _, next := range plans[1:] {
-		p = NewProductPlan(p, next)
+		p = newProductPlan(p, next)
 	}
 
 	p = newSelectPlan(p, data.Predicate())
 
-	return NewProjectPlan(p, data.Fields()), nil
+	return newProjectPlan(p, data.Fields()), nil
 }

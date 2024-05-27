@@ -27,7 +27,7 @@ func createAndInsertTable(t *testing.T, fm *file.Manager, lm *log.Manager, bm *b
 	cx := tx.NewTx(fm, lm, bm)
 	defer cx.Commit()
 
-	if mdm.TableManager.TableExists("students", cx) {
+	if mdm.tableManager.tableExists("students", cx) {
 		return nil
 	}
 

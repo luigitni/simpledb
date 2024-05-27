@@ -157,7 +157,7 @@ func (ts *TableScan) SetVal(fieldname string, val file.Value) error {
 	panic(pm)
 }
 
-// Insert looks for an empty slot to flag as used
+// Insert looks for an empty slot to flag as used.
 // It starts scanning the current block until such a slot is found.
 // If the current block does not contain free slots, it attempts to move to the next block
 // If the next block is at the end of the file, appends a new block and start scanning from there.
