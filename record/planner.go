@@ -10,14 +10,14 @@ import (
 type UpdatePlanner interface {
 	executeInsert(data sql.InsertCommand, x tx.Transaction) (int, error)
 	executeDelete(data sql.DeleteCommand, x tx.Transaction) (int, error)
-	executeModify(data sql.UpdateCommand, x tx.Transaction) (int, error)
+	executeUpdate(data sql.UpdateCommand, x tx.Transaction) (int, error)
 	executeCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error)
 	executeCreateView(data sql.CreateViewCommand, x tx.Transaction) (int, error)
 	executeCreateIndex(data sql.CreateIndexCommand, x tx.Transaction) (int, error)
 }
 
 func NewUpdatePlanner(mdm *MetadataManager) UpdatePlanner {
-	return NewIndexUpdatePlanner(mdm)
+	return NewBasicUpdatePlanner(mdm)
 }
 
 func ExecuteDMLStatement(planner UpdatePlanner, cmd sql.Command, x tx.Transaction) (int, error) {
@@ -29,7 +29,7 @@ func ExecuteDMLStatement(planner UpdatePlanner, cmd sql.Command, x tx.Transactio
 	case sql.InsertCommand:
 		return planner.executeInsert(c, x)
 	case sql.UpdateCommand:
-		return planner.executeModify(c, x)
+		return planner.executeUpdate(c, x)
 	case sql.DeleteCommand:
 		return planner.executeDelete(c, x)
 	}

@@ -62,7 +62,7 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 	return 1, nil
 }
 
-func (planner *IndexUpdatePlanner) executeModify(data sql.UpdateCommand, x tx.Transaction) (int, error) {
+func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Transaction) (int, error) {
 	plan, err := NewTablePlan(x, data.TableName, planner.mdm)
 	if err != nil {
 		return 0, err
