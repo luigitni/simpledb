@@ -125,7 +125,7 @@ func (db *DB) runQuery(q sql.Query) (Rows, error) {
 		}
 
 		if len(rows.rows) == 0 {
-			return Rows{}, errors.New("no results found")
+			return Rows{}, nil
 		}
 
 		return rows, nil

@@ -65,14 +65,15 @@ func handleSession(conn net.Conn, db *db.DB) {
 		out, err := db.Exec(cmd)
 		if err != nil {
 			fmt.Fprintln(conn, err)
+			return
 		}
 
 		fmt.Fprint(conn, out)
-		fmt.Fprint(conn, "\n>")
+		fmt.Fprint(conn, "\n> ")
 	}
 }
 
 func greet(conn net.Conn) {
-	const msg = "Hello user! Thanks for using SimpleDB!\n"
+	const msg = "Hello user! Thanks for using SimpleDB!\n> "
 	fmt.Fprint(conn, msg)
 }
