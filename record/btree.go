@@ -80,7 +80,7 @@ func (page bTreePage) getString(slot int, fieldName string) (string, error) {
 }
 
 func (page bTreePage) setVal(slot int, fieldName string, val file.Value) error {
-	if t := page.layout.schema.Type(fieldName); t == file.INTEGER {
+	if t := page.layout.schema.ftype(fieldName); t == file.INTEGER {
 		return page.setInt(slot, fieldName, val.AsIntVal())
 	}
 
@@ -97,7 +97,7 @@ func (page bTreePage) mustGetVal(slot int, fieldName string) file.Value {
 }
 
 func (page bTreePage) getVal(slot int, fieldName string) (file.Value, error) {
-	t := page.layout.schema.Type(fieldName)
+	t := page.layout.schema.ftype(fieldName)
 	if t == file.INTEGER {
 		v, err := page.getInt(slot, fieldName)
 		return file.ValueFromInt(v), err
@@ -224,11 +224,11 @@ func (page bTreePage) format(block file.BlockID, flag int) error {
 func (page bTreePage) makeDefaultRecord(block file.BlockID, pos int) error {
 	for _, f := range page.layout.schema.fields {
 		offset := page.layout.Offset(f)
-		if page.layout.schema.Type(f) == file.INTEGER {
+		if page.layout.schema.ftype(f) == file.INTEGER {
 			if err := page.x.SetInt(block, pos+offset, 0, false); err != nil {
 				return fmt.Errorf("error creating default int record: %w", err)
 			}
-		} else if page.layout.schema.Type(f) == file.STRING {
+		} else if page.layout.schema.ftype(f) == file.STRING {
 			if err := page.x.SetString(block, pos+offset, "", false); err != nil {
 				return fmt.Errorf("error creating default string record: %w", err)
 			}
@@ -355,7 +355,7 @@ func (page bTreePage) delete(slot int) error {
 }
 
 func (page bTreePage) copyRecord(fromSlot int, toSlot int) error {
-	for _, f := range page.layout.schema.Fields() {
+	for _, f := range page.layout.schema.fields {
 		v, err := page.getVal(fromSlot, f)
 		if err != nil {
 			return err
@@ -391,7 +391,7 @@ func (page bTreePage) transferRecords(slot int, dst bTreePage) error {
 			return err
 		}
 
-		for _, f := range page.layout.schema.Fields() {
+		for _, f := range page.layout.schema.fields {
 			v, err := page.getVal(slot, f)
 			if err != nil {
 				return err

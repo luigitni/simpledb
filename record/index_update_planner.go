@@ -35,7 +35,7 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 
 	rid := s.GetRID()
 
-	ii, err := planner.mdm.IndexInfo(x, data.TableName)
+	ii, err := planner.mdm.indexInfo(x, data.TableName)
 	if err != nil {
 		return 0, err
 	}
@@ -68,11 +68,11 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 		return 0, err
 	}
 
-	selectPlan := NewSelectPlan(plan, data.Predicate)
+	selectPlan := newSelectPlan(plan, data.Predicate)
 	updateScan := selectPlan.Open().(UpdateScan)
 	defer updateScan.Close()
 
-	ii, err := planner.mdm.IndexInfo(x, data.TableName)
+	ii, err := planner.mdm.indexInfo(x, data.TableName)
 	if err != nil {
 		return 0, err
 	}
@@ -139,9 +139,9 @@ func (planner *IndexUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Tr
 		return 0, err
 	}
 
-	selectPlan := NewSelectPlan(plan, data.Predicate)
+	selectPlan := newSelectPlan(plan, data.Predicate)
 
-	ii, err := planner.mdm.IndexInfo(x, data.TableName)
+	ii, err := planner.mdm.indexInfo(x, data.TableName)
 	if err != nil {
 		return 0, err
 	}
@@ -193,7 +193,7 @@ func (planner *IndexUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Tr
 }
 
 func (planner *IndexUpdatePlanner) executeCreateIndex(data sql.CreateIndexCommand, x tx.Transaction) (int, error) {
-	if err := planner.mdm.CreateIndex(x, data.IndexName, data.TableName, data.TargetField); err != nil {
+	if err := planner.mdm.createIndex(x, data.IndexName, data.TableName, data.TargetField); err != nil {
 		return 0, err
 	}
 
@@ -201,13 +201,13 @@ func (planner *IndexUpdatePlanner) executeCreateIndex(data sql.CreateIndexComman
 }
 
 func (planner *IndexUpdatePlanner) executeCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error) {
-	schema := NewSchema()
+	schema := newSchema()
 	for _, f := range data.Fields {
-		schema.AddField(f.Name, f.Type, f.Len)
+		schema.addField(f.Name, f.Type, f.Len)
 	}
-	return 0, planner.mdm.CreateTable(data.TableName, schema, x)
+	return 0, planner.mdm.createTable(data.TableName, schema, x)
 }
 
 func (planner *IndexUpdatePlanner) executeCreateView(data sql.CreateViewCommand, x tx.Transaction) (int, error) {
-	return 0, planner.mdm.CreateView(data.ViewName, data.Definition(), x)
+	return 0, planner.mdm.createView(data.ViewName, data.Definition(), x)
 }

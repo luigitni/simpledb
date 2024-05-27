@@ -6,11 +6,11 @@ var _ Plan = &IndexSelectPlan{}
 
 type IndexSelectPlan struct {
 	p         Plan
-	indexInfo IndexInfo
+	indexInfo indexInfo
 	val       file.Value
 }
 
-func NewIndexSelectPlan(p Plan, ii IndexInfo, val file.Value) *IndexSelectPlan {
+func NewIndexSelectPlan(p Plan, ii indexInfo, val file.Value) *IndexSelectPlan {
 	return &IndexSelectPlan{
 		p:         p,
 		indexInfo: ii,

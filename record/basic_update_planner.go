@@ -11,7 +11,7 @@ type BasicUpdatePlanner struct {
 	mdm *MetadataManager
 }
 
-func NewBasicUpdatePlanner(mdm *MetadataManager) BasicUpdatePlanner {
+func newBasicUpdatePlanner(mdm *MetadataManager) BasicUpdatePlanner {
 	return BasicUpdatePlanner{
 		mdm: mdm,
 	}
@@ -26,7 +26,7 @@ func (bup BasicUpdatePlanner) iterateAndExecute(x tx.Transaction, tableName stri
 		return 0, err
 	}
 
-	p = NewSelectPlan(p, predicate)
+	p = newSelectPlan(p, predicate)
 	us := p.Open().(UpdateScan)
 	defer us.Close()
 
@@ -101,26 +101,26 @@ func (bup BasicUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Transac
 }
 
 func (bup BasicUpdatePlanner) executeCreateTableFromSchema(tableName string, schema Schema, x tx.Transaction) (int, error) {
-	err := bup.mdm.CreateTable(tableName, schema, x)
+	err := bup.mdm.createTable(tableName, schema, x)
 	return 0, err
 }
 
 func (bup BasicUpdatePlanner) executeCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error) {
-	schema := NewSchema()
+	schema := newSchema()
 	for _, field := range data.Fields {
-		schema.AddField(field.Name, field.Type, field.Len)
+		schema.addField(field.Name, field.Type, field.Len)
 	}
 
-	err := bup.mdm.CreateTable(data.TableName, schema, x)
+	err := bup.mdm.createTable(data.TableName, schema, x)
 	return 0, err
 }
 
 func (bup BasicUpdatePlanner) executeCreateView(data sql.CreateViewCommand, x tx.Transaction) (int, error) {
-	err := bup.mdm.CreateView(data.ViewName, data.Definition(), x)
+	err := bup.mdm.createView(data.ViewName, data.Definition(), x)
 	return 0, err
 }
 
 func (bup BasicUpdatePlanner) executeCreateIndex(data sql.CreateIndexCommand, x tx.Transaction) (int, error) {
-	err := bup.mdm.CreateIndex(x, data.IndexName, data.TableName, data.TargetField)
+	err := bup.mdm.createIndex(x, data.IndexName, data.TableName, data.TargetField)
 	return 0, err
 }

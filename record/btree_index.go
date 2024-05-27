@@ -44,9 +44,9 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 		}
 	}
 
-	dirSchema := NewSchema()
-	dirSchema.Add("block", leafLayout.schema)
-	dirSchema.Add("dataval", leafLayout.schema)
+	dirSchema := newSchema()
+	dirSchema.add("block", leafLayout.schema)
+	dirSchema.add("dataval", leafLayout.schema)
 
 	dirTable := idxName + "_dir"
 
@@ -70,7 +70,7 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 			return nil, err
 		}
 
-		fldType := dirSchema.Type("dataval")
+		fldType := dirSchema.ftype("dataval")
 
 		var minVal file.Value
 		switch fldType {

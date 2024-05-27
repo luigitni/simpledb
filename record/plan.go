@@ -30,16 +30,16 @@ type TablePlan struct {
 	tx        tx.Transaction
 	tableName string
 	layout    Layout
-	info      StatInfo
+	info      statInfo
 }
 
 func NewTablePlan(tx tx.Transaction, table string, md *MetadataManager) (TablePlan, error) {
-	layout, err := md.Layout(table, tx)
+	layout, err := md.layout(table, tx)
 	if err != nil {
 		return TablePlan{}, err
 	}
 
-	statInfo, err := md.StatInfo(table, layout, tx)
+	statInfo, err := md.statInfo(table, layout, tx)
 	if err != nil {
 		return TablePlan{}, err
 	}
@@ -53,19 +53,19 @@ func NewTablePlan(tx tx.Transaction, table string, md *MetadataManager) (TablePl
 }
 
 func (p TablePlan) Open() Scan {
-	return NewTableScan(p.tx, p.tableName, p.layout)
+	return newTableScan(p.tx, p.tableName, p.layout)
 }
 
 func (p TablePlan) BlocksAccessed() int {
-	return p.info.Blocks
+	return p.info.blocks
 }
 
 func (p TablePlan) RecordsOutput() int {
-	return p.info.Records
+	return p.info.records
 }
 
 func (p TablePlan) DistinctValues(fname string) int {
-	return p.info.DistinctValues(fname)
+	return p.info.distinctValues(fname)
 }
 
 func (p TablePlan) Schema() Schema {
@@ -84,7 +84,7 @@ type SelectPlan struct {
 	predicate Predicate
 }
 
-func NewSelectPlan(plan Plan, predicate Predicate) SelectPlan {
+func newSelectPlan(plan Plan, predicate Predicate) SelectPlan {
 	return SelectPlan{
 		plan:      plan,
 		predicate: predicate,
@@ -130,9 +130,9 @@ type ProjectPlan struct {
 }
 
 func NewProjectPlan(p Plan, fields []string) ProjectPlan {
-	schema := NewSchema()
+	schema := newSchema()
 	for _, f := range fields {
-		schema.Add(f, p.Schema())
+		schema.add(f, p.Schema())
 	}
 	return ProjectPlan{
 		plan:   p,
@@ -142,7 +142,7 @@ func NewProjectPlan(p Plan, fields []string) ProjectPlan {
 
 func (p ProjectPlan) Open() Scan {
 	s := p.plan.Open()
-	return NewProjectScan(s, p.schema.Fields())
+	return NewProjectScan(s, p.schema.fields)
 }
 
 func (p ProjectPlan) BlocksAccessed() int {
@@ -168,9 +168,9 @@ type ProductPlan struct {
 }
 
 func NewProductPlan(p1 Plan, p2 Plan) ProductPlan {
-	schema := NewSchema()
-	schema.AddAll(p1.Schema())
-	schema.AddAll(p2.Schema())
+	schema := newSchema()
+	schema.addAll(p1.Schema())
+	schema.addAll(p2.Schema())
 	return ProductPlan{
 		p1:     p1,
 		p2:     p2,
@@ -194,7 +194,7 @@ func (p ProductPlan) RecordsOutput() int {
 }
 
 func (p ProductPlan) DistinctValues(fieldName string) int {
-	if p.p1.Schema().HasField(fieldName) {
+	if p.p1.Schema().hasField(fieldName) {
 		return p.p1.DistinctValues(fieldName)
 	}
 

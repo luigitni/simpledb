@@ -2,8 +2,7 @@ package record
 
 import "github.com/luigitni/simpledb/file"
 
-
-type FieldInfo struct {
+type fieldInfo struct {
 	Type   file.FieldType
 	Lenght int
 }
@@ -13,60 +12,56 @@ type FieldInfo struct {
 // As well as the length of each varchar field
 type Schema struct {
 	fields []string
-	info   map[string]FieldInfo
+	info   map[string]fieldInfo
 }
 
-func NewSchema() Schema {
+func newSchema() Schema {
 	return Schema{
 		fields: make([]string, 0),
-		info:   map[string]FieldInfo{},
+		info:   map[string]fieldInfo{},
 	}
 }
 
-func (s *Schema) Type(name string) file.FieldType {
+func (s *Schema) ftype(name string) file.FieldType {
 	return s.info[name].Type
 }
 
-func (s *Schema) Length(name string) int {
+func (s *Schema) flen(name string) int {
 	return s.info[name].Lenght
 }
 
-func (s *Schema) Fields() []string {
-	return s.fields
-}
-
-func (s *Schema) AddField(name string, typ file.FieldType, lenght int) {
+func (s *Schema) addField(name string, typ file.FieldType, lenght int) {
 	s.fields = append(s.fields, name)
-	s.info[name] = FieldInfo{
+	s.info[name] = fieldInfo{
 		Type:   typ,
 		Lenght: lenght,
 	}
 }
 
-func (s *Schema) AddIntField(name string) {
-	s.AddField(name, file.INTEGER, 0)
+func (s *Schema) addIntField(name string) {
+	s.addField(name, file.INTEGER, 0)
 }
 
-// AddStringField adds a string field to the schema, of type VARCHAR
+// addStringField adds a string field to the schema, of type VARCHAR
 // The length is the conceptual length of the field.
 // For example, if the field is described as VARCHAR(8), then length is 8
-func (s *Schema) AddStringField(name string, length int) {
-	s.AddField(name, file.STRING, length)
+func (s *Schema) addStringField(name string, length int) {
+	s.addField(name, file.STRING, length)
 }
 
-func (s *Schema) Add(fname string, schema Schema) {
-	t := schema.Type(fname)
-	l := schema.Length(fname)
-	s.AddField(fname, t, l)
+func (s *Schema) add(fname string, schema Schema) {
+	t := schema.ftype(fname)
+	l := schema.flen(fname)
+	s.addField(fname, t, l)
 }
 
-func (s *Schema) AddAll(schema Schema) {
-	for _, f := range schema.Fields() {
-		s.Add(f, schema)
+func (s *Schema) addAll(schema Schema) {
+	for _, f := range schema.fields {
+		s.add(f, schema)
 	}
 }
 
-func (s Schema) HasField(fname string) bool {
+func (s Schema) hasField(fname string) bool {
 	_, ok := s.info[fname]
 	return ok
 }

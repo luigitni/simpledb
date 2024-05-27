@@ -1,7 +1,6 @@
 package record
 
 import (
-
 	"github.com/luigitni/simpledb/file"
 )
 

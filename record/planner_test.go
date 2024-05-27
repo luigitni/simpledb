@@ -16,13 +16,13 @@ func createAndInsertTable(t *testing.T, fm *file.Manager, lm *log.Manager, bm *b
 	t.Helper()
 
 	// STUDENTS table definition
-	schema := NewSchema()
-	schema.AddStringField("sname", 15)
-	schema.AddStringField("ssurname", 20)
-	schema.AddIntField("gradyear")
-	schema.AddIntField("dob")
+	schema := newSchema()
+	schema.addStringField("sname", 15)
+	schema.addStringField("ssurname", 20)
+	schema.addIntField("gradyear")
+	schema.addIntField("dob")
 
-	updPlanner := NewBasicUpdatePlanner(mdm)
+	updPlanner := newBasicUpdatePlanner(mdm)
 
 	cx := tx.NewTx(fm, lm, bm)
 	defer cx.Commit()
@@ -170,7 +170,7 @@ func TestDeletePlanner(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	planner := NewBasicUpdatePlanner(mdm)
+	planner := newBasicUpdatePlanner(mdm)
 
 	deleted, err := planner.executeDelete(data.(sql.DeleteCommand), x)
 	if err != nil {

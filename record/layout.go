@@ -12,11 +12,11 @@ type Layout struct {
 
 func NewLayout(schema Schema) Layout {
 
-	offsets := make(map[string]int, len(schema.Fields()))
+	offsets := make(map[string]int, len(schema.fields))
 
 	s := file.IntBytes
 	// compute the offset of each field
-	for _, f := range schema.Fields() {
+	for _, f := range schema.fields {
 		offsets[f] = s
 		s += lenInBytes(schema, f)
 	}
@@ -28,7 +28,7 @@ func NewLayout(schema Schema) Layout {
 	}
 }
 
-func NewLayoutFromMetadata(schema Schema, offsets map[string]int, slotSize int) Layout {
+func newLayoutFromMetadata(schema Schema, offsets map[string]int, slotSize int) Layout {
 	return Layout{
 		schema:   schema,
 		offsets:  offsets,
@@ -37,12 +37,12 @@ func NewLayoutFromMetadata(schema Schema, offsets map[string]int, slotSize int) 
 }
 
 func lenInBytes(schema Schema, field string) int {
-	t := schema.Type(field)
+	t := schema.ftype(field)
 	switch t {
 	case file.INTEGER:
 		return file.IntBytes
 	case file.STRING:
-		return file.MaxLength(schema.Length(field))
+		return file.MaxLength(schema.flen(field))
 	}
 	panic("unsupported type")
 }

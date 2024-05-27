@@ -12,9 +12,9 @@ import (
 func TestRecord(t *testing.T) {
 	fm, lm, bm := test.MakeManagers(t)
 
-	schema := NewSchema()
-	schema.AddIntField("A")
-	schema.AddStringField("B", 9)
+	schema := newSchema()
+	schema.addIntField("A")
+	schema.addStringField("B", 9)
 	// slot has size 33
 
 	layout := NewLayout(schema)

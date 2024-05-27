@@ -11,12 +11,12 @@ import (
 )
 
 func TestTableScan(t *testing.T) {
-	schema := NewSchema()
-	schema.AddIntField("A")
-	schema.AddStringField("B", 9)
+	schema := newSchema()
+	schema.addIntField("A")
+	schema.addStringField("B", 9)
 
 	layout := NewLayout(schema)
-	for _, field := range layout.schema.Fields() {
+	for _, field := range layout.schema.fields {
 		t.Logf("field %q has offset %d", field, layout.Offset(field))
 	}
 
@@ -24,7 +24,7 @@ func TestTableScan(t *testing.T) {
 
 	trans := tx.NewTx(fm, lm, bm)
 
-	scan := NewTableScan(trans, "TEST", layout)
+	scan := newTableScan(trans, "TEST", layout)
 	t.Log("Filling the table with 50 random records")
 	scan.BeforeFirst()
 

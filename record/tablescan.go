@@ -21,19 +21,19 @@ import (
 // The number of distinct values in the underlying table
 type TableScan struct {
 	tx          tx.Transaction
-	layout      Layout
+	l           Layout
 	rp          *RecordPage
-	fname       string
+	filename    string
 	currentSlot int
 }
 
-func NewTableScan(tx tx.Transaction, tablename string, layout Layout) *TableScan {
+func newTableScan(tx tx.Transaction, tablename string, layout Layout) *TableScan {
 	fname := tablename + ".tbl"
 
 	ts := &TableScan{
-		tx:     tx,
-		layout: layout,
-		fname:  fname,
+		tx:       tx,
+		l:        layout,
+		filename: fname,
 	}
 
 	size, err := tx.Size(fname)
@@ -54,6 +54,7 @@ func (ts *TableScan) BeforeFirst() {
 	ts.moveToBlock(0)
 }
 
+// Close unpins the underlying buffer over the record page.
 func (ts *TableScan) Close() {
 	if ts.rp != nil {
 		ts.tx.Unpin(ts.rp.Block())
@@ -111,7 +112,7 @@ func (ts *TableScan) GetString(fieldname string) (string, error) {
 }
 
 func (ts *TableScan) GetVal(fieldname string) (file.Value, error) {
-	switch ts.layout.schema.Type(fieldname) {
+	switch ts.l.schema.ftype(fieldname) {
 	case file.INTEGER:
 		v, err := ts.GetInt(fieldname)
 		if err != nil {
@@ -131,7 +132,7 @@ func (ts *TableScan) GetVal(fieldname string) (file.Value, error) {
 }
 
 func (ts *TableScan) HasField(fieldname string) bool {
-	return ts.layout.schema.HasField(fieldname)
+	return ts.l.schema.hasField(fieldname)
 }
 
 // write methods
@@ -145,7 +146,7 @@ func (ts *TableScan) SetString(fieldname string, val string) error {
 }
 
 func (ts *TableScan) SetVal(fieldname string, val file.Value) error {
-	switch ts.layout.schema.Type(fieldname) {
+	switch ts.l.schema.ftype(fieldname) {
 	case file.INTEGER:
 		return ts.SetInt(fieldname, val.AsIntVal())
 	case file.STRING:
@@ -206,8 +207,8 @@ func (ts *TableScan) Delete() error {
 
 func (ts *TableScan) MoveToRID(rid RID) {
 	ts.Close()
-	block := file.NewBlockID(ts.fname, rid.Blocknum)
-	ts.rp = NewRecordPage(ts.tx, block, ts.layout)
+	block := file.NewBlockID(ts.filename, rid.Blocknum)
+	ts.rp = NewRecordPage(ts.tx, block, ts.l)
 	ts.currentSlot = rid.Slot
 }
 
@@ -219,8 +220,8 @@ func (ts *TableScan) GetRID() RID {
 // After the page has been changed, the TableScan positions itself before the first slot of the new block
 func (ts *TableScan) moveToBlock(block int) {
 	ts.Close()
-	b := file.NewBlockID(ts.fname, block)
-	ts.rp = NewRecordPage(ts.tx, b, ts.layout)
+	b := file.NewBlockID(ts.filename, block)
+	ts.rp = NewRecordPage(ts.tx, b, ts.l)
 	ts.currentSlot = -1
 }
 
@@ -229,11 +230,11 @@ func (ts *TableScan) moveToBlock(block int) {
 // formats the page according to the layout and sets the current slot pointer to -1
 func (ts *TableScan) moveToNewBlock() error {
 	ts.Close()
-	block, err := ts.tx.Append(ts.fname)
+	block, err := ts.tx.Append(ts.filename)
 	if err != nil {
 		return err
 	}
-	ts.rp = NewRecordPage(ts.tx, block, ts.layout)
+	ts.rp = NewRecordPage(ts.tx, block, ts.l)
 	ts.rp.Format()
 	ts.currentSlot = -1
 	return nil
@@ -244,7 +245,7 @@ func (ts *TableScan) moveToNewBlock() error {
 // Returns an error if the transaction fails to acquire a read lock on the final block
 func (ts *TableScan) isAtLastBlock() (bool, error) {
 	// get the number of blocks in the associated file
-	size, err := ts.tx.Size(ts.fname)
+	size, err := ts.tx.Size(ts.filename)
 	if err != nil {
 		return false, err
 	}

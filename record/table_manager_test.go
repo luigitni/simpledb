@@ -14,15 +14,15 @@ func TestTableManager(t *testing.T) {
 	tm := NewTableManager()
 	tm.Init(trans)
 
-	schema := NewSchema()
-	schema.AddIntField("A")
-	schema.AddStringField("B", 9)
+	schema := newSchema()
+	schema.addIntField("A")
+	schema.addStringField("B", 9)
 
-	if err := tm.CreateTable("MyTable", schema, trans); err != nil {
+	if err := tm.createTable("MyTable", schema, trans); err != nil {
 		t.Fatal(err)
 	}
 
-	layout, err := tm.Layout("MyTable", trans)
+	layout, err := tm.layout("MyTable", trans)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -31,12 +31,12 @@ func TestTableManager(t *testing.T) {
 
 	t.Log("MyTable fields:")
 	sch := layout.Schema()
-	for _, fname := range sch.Fields() {
-		switch sch.Type(fname) {
+	for _, fname := range sch.fields {
+		switch sch.ftype(fname) {
 		case file.INTEGER:
 			t.Logf("%s INTEGER", fname)
 		case file.STRING:
-			t.Logf("%s VARCHAR(%d)", fname, sch.Length(fname))
+			t.Logf("%s VARCHAR(%d)", fname, sch.flen(fname))
 		}
 	}
 

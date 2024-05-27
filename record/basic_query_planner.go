@@ -34,7 +34,7 @@ func (bqp BasicQueryPlanner) CreatePlan(data sql.Query, x tx.Transaction) (Plan,
 	}
 	var plans []Plan
 	for _, tName := range data.Tables() {
-		viewDef, err := bqp.mdm.ViewDefinition(tName, x)
+		viewDef, err := bqp.mdm.viewDefinition(tName, x)
 
 		// the table is a view, recurse on T
 		if err == nil {
@@ -68,7 +68,7 @@ func (bqp BasicQueryPlanner) CreatePlan(data sql.Query, x tx.Transaction) (Plan,
 		p = NewProductPlan(p, next)
 	}
 
-	p = NewSelectPlan(p, data.Predicate())
+	p = newSelectPlan(p, data.Predicate())
 
 	return NewProjectPlan(p, data.Fields()), nil
 }

@@ -85,9 +85,9 @@ func (p RecordPage) Format() error {
 		}
 		p.tx.SetInt(p.block, p.offset(slot), EMPTY, false)
 		schema := p.layout.Schema()
-		for _, f := range schema.Fields() {
+		for _, f := range schema.fields {
 			fpos := p.offset(slot) + p.layout.Offset(f)
-			switch schema.Type(f) {
+			switch schema.ftype(f) {
 			case file.INTEGER:
 				if err := p.tx.SetInt(p.block, fpos, 0, false); err != nil {
 					return err

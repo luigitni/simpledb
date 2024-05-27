@@ -48,7 +48,7 @@ func (idx *StaticHashIndex) BeforeFirst(searchKey file.Value) error {
 	idx.searchKey = searchKey
 	bucket := searchKey.Hash() % bucketsNum
 	tableName := fmt.Sprintf("%s%d", idx.name, bucket)
-	idx.scan = NewTableScan(idx.x, tableName, idx.layout)
+	idx.scan = newTableScan(idx.x, tableName, idx.layout)
 
 	return nil
 }

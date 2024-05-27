@@ -17,7 +17,7 @@ type UpdatePlanner interface {
 }
 
 func NewUpdatePlanner(mdm *MetadataManager) UpdatePlanner {
-	return NewBasicUpdatePlanner(mdm)
+	return newBasicUpdatePlanner(mdm)
 }
 
 func ExecuteDMLStatement(planner UpdatePlanner, cmd sql.Command, x tx.Transaction) (int, error) {
