@@ -361,5 +361,5 @@ func isDigit(b byte) bool {
 
 func isAlpha(b byte) bool {
 	return b >= 'a' && b <= 'z' ||
-		b >= 'A' && b <= 'Z'
+		b >= 'A' && b <= 'Z' || b == '_'
 }
