@@ -9,7 +9,7 @@ type FieldDef struct {
 }
 
 type CreateTableCommand struct {
-	Command
+	DDLCommandType
 	TableName string
 	Fields    []FieldDef
 }
@@ -22,7 +22,7 @@ func NewCreateTableCommand(name string, fieldsDef []FieldDef) CreateTableCommand
 }
 
 type CreateIndexCommand struct {
-	Command
+	DDLCommandType
 	IndexName   string
 	TableName   string
 	TargetField string
@@ -37,7 +37,7 @@ func NewCreateIndexCommand(name string, table string, field string) CreateIndexC
 }
 
 type CreateViewCommand struct {
-	Command
+	DDLCommandType
 	ViewName string
 	Query    Query
 }
@@ -51,6 +51,10 @@ func NewCreateViewCommand(name string, query Query) CreateViewCommand {
 
 func (cvd CreateViewCommand) Definition() string {
 	return cvd.Query.String()
+}
+
+func (p Parser) isDDL() bool {
+	return p.matchKeyword("create")
 }
 
 func (p Parser) create() (Command, error) {

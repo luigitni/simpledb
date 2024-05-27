@@ -3,6 +3,7 @@ package sql
 import "strings"
 
 type Query struct {
+	QueryCommandType
 	fields    []string
 	tables    []string
 	predicate Predicate
@@ -18,6 +19,10 @@ func (qd Query) Fields() []string {
 
 func (qd Query) Predicate() Predicate {
 	return qd.predicate
+}
+
+func (p Parser) isQuery() bool {
+	return p.matchKeyword("select")
 }
 
 func NewQuery(selects []string, tables []string) Query {

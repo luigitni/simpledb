@@ -2,10 +2,41 @@ package sql
 
 import "github.com/luigitni/simpledb/file"
 
-type Command interface{}
+type CommandType byte
+
+const (
+	// Query Command Type
+	CommandTypeQuery CommandType = iota
+	// Data Manipulation Language statement (INSERT, UPDATE, DELETE)
+	CommandTypeDML
+	// Data Definition Language statement (CREATE, ALTER, TRUNCATE, DROP)
+	CommandTypeDDL
+)
+
+type QueryCommandType struct{}
+
+func (qct QueryCommandType) Type() CommandType {
+	return CommandTypeQuery
+}
+
+type DMLCommandType struct{}
+
+func (dml DMLCommandType) Type() CommandType {
+	return CommandTypeDML
+}
+
+type DDLCommandType struct{}
+
+func (DDL DDLCommandType) Type() CommandType {
+	return CommandTypeDML
+}
+
+type Command interface {
+	Type() CommandType
+}
 
 type InsertCommand struct {
-	Command
+	DMLCommandType
 	TableName string
 	Fields    []string
 	Values    []file.Value
@@ -20,7 +51,7 @@ func NewInsertCommand(table string, fields []string, values []file.Value) Insert
 }
 
 type DeleteCommand struct {
-	Command
+	DMLCommandType
 	TableName string
 	Predicate Predicate
 }
@@ -40,7 +71,7 @@ func NewDeleteCommandWithPredicate(table string, predicate Predicate) DeleteComm
 }
 
 type UpdateCommand struct {
-	Command
+	DMLCommandType
 	TableName string
 	Field     string
 	NewValue  Expression
@@ -62,7 +93,11 @@ func NewUpdateCommandWithPredicate(table string, field string, expression Expres
 	return m
 }
 
-func (p Parser) WriteCmd() (Command, error) {
+func (p Parser) isDML() bool {
+	return p.matchKeyword("insert") || p.matchKeyword("update") || p.matchKeyword("delete")
+}
+
+func (p Parser) dml() (Command, error) {
 	if p.matchKeyword("insert") {
 		return p.insert()
 	}

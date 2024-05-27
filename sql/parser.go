@@ -35,6 +35,18 @@ func NewParser(src string) Parser {
 	}
 }
 
+func (p Parser) Parse() (Command, error) {
+	if p.isQuery() {
+		return p.Query()
+	}
+
+	if p.isDML() {
+		return p.dml()
+	}
+
+	return p.create()
+}
+
 func (p Parser) Field() (string, error) {
 	return p.eatIdentifier()
 }

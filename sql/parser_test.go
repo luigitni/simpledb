@@ -88,7 +88,7 @@ func TestUpdateCommandSimple(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.WriteCmd()
+	cmd, err := p.dml()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -109,7 +109,7 @@ func TestUpdateCommandPredicate(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.WriteCmd()
+	cmd, err := p.dml()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -134,7 +134,7 @@ func TestDeleteCommand(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.WriteCmd()
+	cmd, err := p.dml()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -155,7 +155,7 @@ func TestInsertCommand(t *testing.T) {
 
 	p := NewParser(src)
 
-	cmd, err := p.WriteCmd()
+	cmd, err := p.dml()
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -165,7 +165,7 @@ func TestDeletePlanner(t *testing.T) {
 	const q = "DELETE FROM students WHERE gradyear = 2001"
 
 	parser := sql.NewParser(q)
-	data, err := parser.WriteCmd()
+	data, err := parser.Parse()
 	if err != nil {
 		t.Fatal(err)
 	}
