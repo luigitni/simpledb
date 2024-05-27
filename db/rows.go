@@ -24,7 +24,7 @@ func (r Rows) String() string {
 		return printRowsNoResult
 	}
 
-	padLen := 4
+	padLen := 2
 
 	max := make([]int, len(r.cols))
 

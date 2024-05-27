@@ -24,10 +24,10 @@ func TestRowsString(t *testing.T) {
 
 	t.Run("expect correct table", func(t *testing.T) {
 		const expected = "\n" +
-			"|  first col  |  second col which is very long  |              third              |\n" +
-			"|-------------|---------------------------------|---------------------------------|\n" +
-			"|     123     |              'abc'              |  'This is a much longer value'  |\n" +
-			"|      0      |  'This is a much longer value'  |             'short'             |\n"
+			"| first col | second col which is very long |             third             |\n" +
+			"|-----------|-------------------------------|-------------------------------|\n" +
+			"|    123    |             'abc'             | 'This is a much longer value' |\n" +
+			"|     0     | 'This is a much longer value' |            'short'            |\n"
 
 		rows := Rows{
 			cols: []string{
