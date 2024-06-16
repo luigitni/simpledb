@@ -8,6 +8,8 @@ import (
 	"sync"
 )
 
+const TmpTablePrefix = "tmp_%d"
+
 // Implements methods that read and write pages to disk blocks.
 // It always reads and writes a block-sized number of bytes from a file, always at a block bounduary.
 // This ensures that each call to read, write or apped will incour exactly one disk access
