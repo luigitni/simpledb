@@ -18,10 +18,15 @@ func NewIndexSelectPlan(p Plan, ii indexInfo, val file.Value) *IndexSelectPlan {
 	}
 }
 
-func (plan *IndexSelectPlan) Open() Scan {
-	scan := plan.p.Open().(*TableScan)
+func (plan *IndexSelectPlan) Open() (Scan, error) {
+	s, err := plan.p.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	scan := s.(*TableScan)
 	idx := plan.indexInfo.Open()
-	return NewIndexSelectScan(scan, idx, plan.val)
+	return NewIndexSelectScan(scan, idx, plan.val), nil
 }
 
 func (plan *IndexSelectPlan) BlocksAccessed() int {

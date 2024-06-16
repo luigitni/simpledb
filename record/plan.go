@@ -15,7 +15,7 @@ import (
 type Plan interface {
 	// Creates the desired Scan after the Plan has been selected
 	// by the query planner
-	Open() Scan
+	Open() (Scan, error)
 	BlocksAccessed() int
 	RecordsOutput() int
 	DistinctValues(fieldName string) int
@@ -52,8 +52,8 @@ func NewTablePlan(tx tx.Transaction, table string, md *MetadataManager) (TablePl
 	}, nil
 }
 
-func (p TablePlan) Open() Scan {
-	return newTableScan(p.tx, p.tableName, p.layout)
+func (p TablePlan) Open() (Scan, error) {
+	return newTableScan(p.tx, p.tableName, p.layout), nil
 }
 
 func (p TablePlan) BlocksAccessed() int {
@@ -91,9 +91,13 @@ func newSelectPlan(plan Plan, predicate Predicate) SelectPlan {
 	}
 }
 
-func (sp SelectPlan) Open() Scan {
-	sub := sp.plan.Open()
-	return NewSelectScan(sub, sp.predicate)
+func (sp SelectPlan) Open() (Scan, error) {
+	sub, err := sp.plan.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	return NewSelectScan(sub, sp.predicate), nil
 }
 
 func (p SelectPlan) BlocksAccessed() int {
@@ -140,9 +144,12 @@ func newProjectPlan(p Plan, fields []string) ProjectPlan {
 	}
 }
 
-func (p ProjectPlan) Open() Scan {
-	s := p.plan.Open()
-	return NewProjectScan(s, p.schema.fields)
+func (p ProjectPlan) Open() (Scan, error) {
+	s, err := p.plan.Open()
+	if err != nil {
+		return nil, err
+	}
+	return newProjectScan(s, p.schema.fields), nil
 }
 
 func (p ProjectPlan) BlocksAccessed() int {
@@ -178,10 +185,18 @@ func newProductPlan(p1 Plan, p2 Plan) ProductPlan {
 	}
 }
 
-func (p ProductPlan) Open() Scan {
-	p1 := p.p1.Open()
-	p2 := p.p2.Open()
-	return NewProduct(p1, p2)
+func (p ProductPlan) Open() (Scan, error) {
+	p1, err := p.p1.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	p2, err := p.p2.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	return newProduct(p1, p2), nil
 }
 
 func (p ProductPlan) BlocksAccessed() int {

@@ -94,7 +94,11 @@ func (db *DB) runQuery(q sql.Query) (Rows, error) {
 			return Rows{}, err
 		}
 
-		scan := plan.Open()
+		scan, err := plan.Open()
+		if err != nil {
+			return Rows{}, err
+		}
+
 		defer scan.Close()
 
 		var rows Rows

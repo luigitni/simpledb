@@ -26,14 +26,19 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 		return 0, err
 	}
 
-	s := plan.Open().(UpdateScan)
-	defer s.Close()
-
-	if err := s.Insert(); err != nil {
+	scan, err := plan.Open()
+	if err != nil {
 		return 0, err
 	}
 
-	rid := s.GetRID()
+	us := scan.(UpdateScan)
+	defer us.Close()
+
+	if err := us.Insert(); err != nil {
+		return 0, err
+	}
+
+	rid := us.GetRID()
 
 	ii, err := planner.mdm.indexInfo(x, data.TableName)
 	if err != nil {
@@ -42,7 +47,7 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 
 	for i, field := range data.Fields {
 		val := data.Values[i]
-		if err := s.SetVal(field, val); err != nil {
+		if err := us.SetVal(field, val); err != nil {
 			return 0, err
 		}
 
@@ -69,7 +74,13 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 	}
 
 	selectPlan := newSelectPlan(plan, data.Predicate)
-	updateScan := selectPlan.Open().(UpdateScan)
+
+	s, err := selectPlan.Open()
+	if err != nil {
+		return 0, err
+	}
+
+	updateScan := s.(UpdateScan)
 	defer updateScan.Close()
 
 	ii, err := planner.mdm.indexInfo(x, data.TableName)
@@ -146,7 +157,12 @@ func (planner *IndexUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Tr
 		return 0, err
 	}
 
-	updateScan := selectPlan.Open().(UpdateScan)
+	s, err := selectPlan.Open()
+	if err != nil {
+		return 0, err
+	}
+
+	updateScan := s.(UpdateScan)
 	defer updateScan.Close()
 
 	delFromIdx := func() error {

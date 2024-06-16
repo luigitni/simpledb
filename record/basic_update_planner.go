@@ -27,7 +27,12 @@ func (bup BasicUpdatePlanner) iterateAndExecute(x tx.Transaction, tableName stri
 	}
 
 	p = newSelectPlan(p, predicate)
-	us := p.Open().(UpdateScan)
+	s, err := p.Open()
+	if err != nil {
+		return 0, err
+	}
+
+	us := s.(UpdateScan)
 	defer us.Close()
 
 	c := 0
@@ -83,7 +88,12 @@ func (bup BasicUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Transac
 		return 0, err
 	}
 
-	us := p.Open().(UpdateScan)
+	s, err := p.Open()
+	if err != nil {
+		return 0, err
+	}
+
+	us := s.(UpdateScan)
 	defer us.Close()
 
 	if err := us.Insert(); err != nil {

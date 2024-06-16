@@ -34,11 +34,21 @@ func (plan *IndexJoinPlan) Schema() Schema {
 	return plan.schema
 }
 
-func (plan *IndexJoinPlan) Open() Scan {
-	s := plan.firstPlan.Open()
-	ts := plan.secondPlan.Open().(*TableScan)
+func (plan *IndexJoinPlan) Open() (Scan, error) {
+	s, err := plan.firstPlan.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	ss, err := plan.secondPlan.Open()
+	if err != nil {
+		return nil, err
+	}
+
+	ts := ss.(*TableScan)
+
 	idx := plan.ii.Open()
-	return newIndexJoinScan(s, idx, plan.joinField, ts)
+	return newIndexJoinScan(s, idx, plan.joinField, ts), nil
 }
 
 func (plan *IndexJoinPlan) BlocksAccessed() int {

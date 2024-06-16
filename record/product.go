@@ -18,7 +18,7 @@ type Product struct {
 	second Scan
 }
 
-func NewProduct(first Scan, second Scan) Scan {
+func newProduct(first Scan, second Scan) Scan {
 	first.Next()
 	return Product{
 		first:  first,

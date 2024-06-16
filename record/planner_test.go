@@ -118,7 +118,11 @@ func TestBasicQueryPlanner(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	scan := plan.Open()
+	scan, err := plan.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer scan.Close()
 
 	records := 0
@@ -192,7 +196,11 @@ func TestDeletePlanner(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	scan := plan.Open()
+	scan, err := plan.Open()
+	if err != nil {
+		t.Fatal(err)
+	}
+
 	defer scan.Close()
 
 	// test that no student has a "gradyear" value of 2001
