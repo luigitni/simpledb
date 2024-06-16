@@ -33,7 +33,7 @@ type Select struct {
 
 // NewSelect scan creates a new Select operator.
 // It takes a table (Scan) as input and a Predicate.
-func NewSelectScan(scan Scan, pred Predicate) *Select {
+func newSelectScan(scan Scan, pred Predicate) *Select {
 	return &Select{
 		scan:      scan,
 		predicate: pred,
@@ -43,8 +43,8 @@ func NewSelectScan(scan Scan, pred Predicate) *Select {
 // Scan methods
 
 // BeforeFirst implements Scan.
-func (sel *Select) BeforeFirst() {
-	sel.scan.BeforeFirst()
+func (sel *Select) BeforeFirst() error {
+	return sel.scan.BeforeFirst()
 }
 
 // Close implements Scan.

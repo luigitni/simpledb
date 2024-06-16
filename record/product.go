@@ -1,6 +1,10 @@
 package record
 
-import "github.com/luigitni/simpledb/file"
+import (
+	"io"
+
+	"github.com/luigitni/simpledb/file"
+)
 
 // Product is a relational algebra operator.
 // Product takes two tables as input and returns
@@ -27,10 +31,16 @@ func newProduct(first Scan, second Scan) Scan {
 }
 
 // BeforeFirst implements Scan.
-func (pr Product) BeforeFirst() {
-	pr.first.BeforeFirst()
-	pr.first.Next()
-	pr.second.BeforeFirst()
+func (pr Product) BeforeFirst() error {
+	if err := pr.first.BeforeFirst(); err != nil {
+		return err
+	}
+
+	if err := pr.first.Next(); err != nil && err != io.EOF {
+		return err
+	}
+
+	return pr.second.BeforeFirst()
 }
 
 // Close implements Scan.

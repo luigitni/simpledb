@@ -45,7 +45,7 @@ func (plan *IndexJoinPlan) Open() (Scan, error) {
 		return nil, err
 	}
 
-	ts := ss.(*TableScan)
+	ts := ss.(*tableScan)
 
 	idx := plan.ii.Open()
 	return newIndexJoinScan(s, idx, plan.joinField, ts), nil
@@ -75,10 +75,10 @@ type IndexJoinScan struct {
 	lhs       Scan
 	idx       Index
 	joinField string
-	rhs       *TableScan
+	rhs       *tableScan
 }
 
-func newIndexJoinScan(lhs Scan, idx Index, joinField string, rhs *TableScan) *IndexJoinScan {
+func newIndexJoinScan(lhs Scan, idx Index, joinField string, rhs *tableScan) *IndexJoinScan {
 	ijs := &IndexJoinScan{
 		lhs:       lhs,
 		idx:       idx,
@@ -96,10 +96,16 @@ func (ijs *IndexJoinScan) Close() {
 	ijs.rhs.Close()
 }
 
-func (ijs *IndexJoinScan) BeforeFirst() {
-	ijs.lhs.BeforeFirst()
-	ijs.lhs.Next()
-	ijs.resetIndex()
+func (ijs *IndexJoinScan) BeforeFirst() error {
+	if err := ijs.lhs.BeforeFirst(); err != nil {
+		return err
+	}
+
+	if err := ijs.lhs.Next(); err != nil && err != io.EOF {
+		return err
+	}
+
+	return ijs.resetIndex()
 }
 
 func (ijs *IndexJoinScan) Next() error {

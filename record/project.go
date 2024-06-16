@@ -20,7 +20,7 @@ type Project struct {
 
 var ErrNoField = errors.New("field not found")
 
-func NewProjectScan(scan Scan, fields []string) Project {
+func newProjectScan(scan Scan, fields []string) Project {
 	m := make(map[string]struct{})
 	for _, f := range fields {
 		m[f] = struct{}{}
@@ -37,8 +37,8 @@ func (project Project) HasField(fname string) bool {
 }
 
 // BeforeFirst implements Scan.
-func (project Project) BeforeFirst() {
-	project.scan.BeforeFirst()
+func (project Project) BeforeFirst() error {
+	return project.scan.BeforeFirst()
 }
 
 // Close implements Scan.

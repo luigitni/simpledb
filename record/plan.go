@@ -97,7 +97,7 @@ func (sp SelectPlan) Open() (Scan, error) {
 		return nil, err
 	}
 
-	return NewSelectScan(sub, sp.predicate), nil
+	return newSelectScan(sub, sp.predicate), nil
 }
 
 func (p SelectPlan) BlocksAccessed() int {

@@ -1,6 +1,8 @@
 package record
 
 import (
+	"io"
+
 	"github.com/luigitni/simpledb/file"
 )
 
@@ -9,7 +11,7 @@ import (
 // The output of a query is a table and values are accessed in the same way.
 // A Scan corresponds also to a node in a query tree.
 type Scan interface {
-	BeforeFirst()
+	BeforeFirst() error
 
 	Next() error
 
@@ -22,6 +24,19 @@ type Scan interface {
 	HasField(fname string) bool
 
 	Close()
+}
+
+func hasNextOrError(scan Scan) (bool, error) {
+	err := scan.Next()
+	if err == nil {
+		return true, nil
+	}
+
+	if err == io.EOF {
+		return false, nil
+	}
+
+	return false, err
 }
 
 // UpdateScan is an updatable scan, where an updatable scan

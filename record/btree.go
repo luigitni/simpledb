@@ -565,6 +565,10 @@ func (leaf *bTreeLeaf) delete(rid RID) error {
 		}
 
 		other, err := leaf.getDataRID()
+		if err != nil {
+			return err
+		}
+
 		if other == rid {
 			return leaf.contents.delete(leaf.currentSlot)
 		}

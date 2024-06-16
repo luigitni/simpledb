@@ -1,6 +1,10 @@
 package record
 
-import "github.com/luigitni/simpledb/file"
+import (
+	"io"
+
+	"github.com/luigitni/simpledb/file"
+)
 
 var _ Plan = &IndexSelectPlan{}
 
@@ -24,9 +28,9 @@ func (plan *IndexSelectPlan) Open() (Scan, error) {
 		return nil, err
 	}
 
-	scan := s.(*TableScan)
+	scan := s.(*tableScan)
 	idx := plan.indexInfo.Open()
-	return NewIndexSelectScan(scan, idx, plan.val), nil
+	return newIndexSelectScan(scan, idx, plan.val)
 }
 
 func (plan *IndexSelectPlan) BlocksAccessed() int {
@@ -45,32 +49,33 @@ func (plan *IndexSelectPlan) Schema() Schema {
 	return plan.p.Schema()
 }
 
-var _ Scan = &IndexSelectScan{}
+var _ Scan = &indexSelectScan{}
 
-type IndexSelectScan struct {
-	tableScan *TableScan
+type indexSelectScan struct {
+	tableScan *tableScan
 	idx       Index
 	val       file.Value
 }
 
-func NewIndexSelectScan(ts *TableScan, idx Index, val file.Value) *IndexSelectScan {
-	scan := &IndexSelectScan{
+func newIndexSelectScan(ts *tableScan, idx Index, val file.Value) (*indexSelectScan, error) {
+	scan := &indexSelectScan{
 		tableScan: ts,
 		idx:       idx,
 		val:       val,
 	}
 
-	scan.BeforeFirst()
-	return scan
-}
-
-func (scan *IndexSelectScan) BeforeFirst() {
-	if err := scan.idx.BeforeFirst(scan.val); err != nil {
-		panic(err)
+	if err := scan.BeforeFirst(); err != nil && err != io.EOF {
+		return nil, err
 	}
+
+	return scan, nil
 }
 
-func (scan *IndexSelectScan) Next() error {
+func (scan *indexSelectScan) BeforeFirst() error {
+	return scan.idx.BeforeFirst(scan.val)
+}
+
+func (scan *indexSelectScan) Next() error {
 	err := scan.idx.Next()
 	if err == nil {
 		rid, err := scan.idx.DataRID()
@@ -84,23 +89,23 @@ func (scan *IndexSelectScan) Next() error {
 	return err
 }
 
-func (scan *IndexSelectScan) GetInt(fname string) (int, error) {
+func (scan *indexSelectScan) GetInt(fname string) (int, error) {
 	return scan.tableScan.GetInt(fname)
 }
 
-func (scan *IndexSelectScan) GetString(fname string) (string, error) {
+func (scan *indexSelectScan) GetString(fname string) (string, error) {
 	return scan.tableScan.GetString(fname)
 }
 
-func (scan *IndexSelectScan) GetVal(fname string) (file.Value, error) {
+func (scan *indexSelectScan) GetVal(fname string) (file.Value, error) {
 	return scan.tableScan.GetVal(fname)
 }
 
-func (scan *IndexSelectScan) HasField(fname string) bool {
+func (scan *indexSelectScan) HasField(fname string) bool {
 	return scan.tableScan.HasField(fname)
 }
 
-func (scan *IndexSelectScan) Close() {
+func (scan *indexSelectScan) Close() {
 	scan.idx.Close()
 	scan.tableScan.Close()
 }

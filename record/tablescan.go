@@ -7,8 +7,10 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-// TableScan store arbitrarily many records in multiple blocks of a file.
-// The TableScan manages the records in a table: it hides the block structure
+var _ Scan = &tableScan{}
+
+// tableScan store arbitrarily many records in multiple blocks of a file.
+// The tableScan manages the records in a table: it hides the block structure
 // from its clients, which will not know or care which block is currently being accessed.
 // Each table scan in a query holds its current record page, which holds a buffer, which pins a page.
 // When records in that page have been read, its buffer is unpinned
@@ -19,7 +21,7 @@ import (
 // The number of blocks in the underlying table +
 // The number of records in the underlying table +
 // The number of distinct values in the underlying table
-type TableScan struct {
+type tableScan struct {
 	tx          tx.Transaction
 	l           Layout
 	rp          *RecordPage
@@ -27,10 +29,10 @@ type TableScan struct {
 	currentSlot int
 }
 
-func newTableScan(tx tx.Transaction, tablename string, layout Layout) *TableScan {
+func newTableScan(tx tx.Transaction, tablename string, layout Layout) *tableScan {
 	fname := tablename + ".tbl"
 
-	ts := &TableScan{
+	ts := &tableScan{
 		tx:       tx,
 		l:        layout,
 		filename: fname,
@@ -50,12 +52,13 @@ func newTableScan(tx tx.Transaction, tablename string, layout Layout) *TableScan
 	return ts
 }
 
-func (ts *TableScan) BeforeFirst() {
+func (ts *tableScan) BeforeFirst() error {
 	ts.moveToBlock(0)
+	return nil
 }
 
 // Close unpins the underlying buffer over the record page.
-func (ts *TableScan) Close() {
+func (ts *tableScan) Close() {
 	if ts.rp != nil {
 		ts.tx.Unpin(ts.rp.Block())
 	}
@@ -65,7 +68,7 @@ func (ts *TableScan) Close() {
 // If there are no more records in that page, then moves to the next block of the file
 // and gets its next record.
 // It then continues until either a next record is found or the end of the file is encountered, in which case returns false
-func (ts *TableScan) Next() error {
+func (ts *tableScan) Next() error {
 	slot, err := ts.rp.NextAfter(ts.currentSlot)
 	if err != nil {
 		return err
@@ -103,15 +106,15 @@ func (ts *TableScan) Next() error {
 	return nil
 }
 
-func (ts *TableScan) GetInt(fieldname string) (int, error) {
+func (ts *tableScan) GetInt(fieldname string) (int, error) {
 	return ts.rp.GetInt(ts.currentSlot, fieldname)
 }
 
-func (ts *TableScan) GetString(fieldname string) (string, error) {
+func (ts *tableScan) GetString(fieldname string) (string, error) {
 	return ts.rp.GetString(ts.currentSlot, fieldname)
 }
 
-func (ts *TableScan) GetVal(fieldname string) (file.Value, error) {
+func (ts *tableScan) GetVal(fieldname string) (file.Value, error) {
 	switch ts.l.schema.ftype(fieldname) {
 	case file.INTEGER:
 		v, err := ts.GetInt(fieldname)
@@ -131,21 +134,21 @@ func (ts *TableScan) GetVal(fieldname string) (file.Value, error) {
 	panic(pm)
 }
 
-func (ts *TableScan) HasField(fieldname string) bool {
+func (ts *tableScan) HasField(fieldname string) bool {
 	return ts.l.schema.hasField(fieldname)
 }
 
 // write methods
 
-func (ts *TableScan) SetInt(fieldname string, val int) error {
+func (ts *tableScan) SetInt(fieldname string, val int) error {
 	return ts.rp.SetInt(ts.currentSlot, fieldname, val)
 }
 
-func (ts *TableScan) SetString(fieldname string, val string) error {
+func (ts *tableScan) SetString(fieldname string, val string) error {
 	return ts.rp.SetString(ts.currentSlot, fieldname, val)
 }
 
-func (ts *TableScan) SetVal(fieldname string, val file.Value) error {
+func (ts *tableScan) SetVal(fieldname string, val file.Value) error {
 	switch ts.l.schema.ftype(fieldname) {
 	case file.INTEGER:
 		return ts.SetInt(fieldname, val.AsIntVal())
@@ -161,7 +164,7 @@ func (ts *TableScan) SetVal(fieldname string, val file.Value) error {
 // It starts scanning the current block until such a slot is found.
 // If the current block does not contain free slots, it attempts to move to the next block
 // If the next block is at the end of the file, appends a new block and start scanning from there.
-func (ts *TableScan) Insert() error {
+func (ts *tableScan) Insert() error {
 
 	slot, err := ts.rp.InsertAfter(ts.currentSlot)
 	if err != nil {
@@ -201,24 +204,24 @@ func (ts *TableScan) Insert() error {
 	return nil
 }
 
-func (ts *TableScan) Delete() error {
+func (ts *tableScan) Delete() error {
 	return ts.rp.Delete(ts.currentSlot)
 }
 
-func (ts *TableScan) MoveToRID(rid RID) {
+func (ts *tableScan) MoveToRID(rid RID) {
 	ts.Close()
 	block := file.NewBlockID(ts.filename, rid.Blocknum)
 	ts.rp = NewRecordPage(ts.tx, block, ts.l)
 	ts.currentSlot = rid.Slot
 }
 
-func (ts *TableScan) GetRID() RID {
+func (ts *tableScan) GetRID() RID {
 	return NewRID(ts.rp.block.BlockNumber(), ts.currentSlot)
 }
 
 // moveToBlock closes the current page record page and opens a new one for the specified block.
 // After the page has been changed, the TableScan positions itself before the first slot of the new block
-func (ts *TableScan) moveToBlock(block int) {
+func (ts *tableScan) moveToBlock(block int) {
 	ts.Close()
 	b := file.NewBlockID(ts.filename, block)
 	ts.rp = NewRecordPage(ts.tx, b, ts.l)
@@ -228,7 +231,7 @@ func (ts *TableScan) moveToBlock(block int) {
 // moveToNewBlock attempts to append a new block to the file
 // If the operation succeeds, it associates the new block with a new record page
 // formats the page according to the layout and sets the current slot pointer to -1
-func (ts *TableScan) moveToNewBlock() error {
+func (ts *tableScan) moveToNewBlock() error {
 	ts.Close()
 	block, err := ts.tx.Append(ts.filename)
 	if err != nil {
@@ -243,7 +246,7 @@ func (ts *TableScan) moveToNewBlock() error {
 // isAtLastBlock returns true if the block the underlying record page is pointing to
 // is the last block of the file.
 // Returns an error if the transaction fails to acquire a read lock on the final block
-func (ts *TableScan) isAtLastBlock() (bool, error) {
+func (ts *tableScan) isAtLastBlock() (bool, error) {
 	// get the number of blocks in the associated file
 	size, err := ts.tx.Size(ts.filename)
 	if err != nil {

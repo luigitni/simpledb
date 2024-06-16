@@ -28,7 +28,7 @@ type StaticHashIndex struct {
 	name      string
 	layout    Layout
 	searchKey file.Value
-	scan      *TableScan
+	scan      *tableScan
 }
 
 func StaticHashIndexSearchCost(numBlocks int, recordsPerBucket int) int {

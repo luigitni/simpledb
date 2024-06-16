@@ -90,7 +90,7 @@ func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 		panic(err)
 	}
 
-	sel := NewSelectScan(tcat, data.Predicate())
+	sel := newSelectScan(tcat, data.Predicate())
 	for {
 		err := sel.Next()
 		if err == io.EOF {
