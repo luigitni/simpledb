@@ -41,6 +41,7 @@ const (
 	TokenSelect
 	TokenUpdate
 	TokenWhere
+	TokenOrderBy
 
 	TokenAnd
 	TokenValues
@@ -268,11 +269,15 @@ func (t *tokenizer) number() (Token, error) {
 }
 
 func (t *tokenizer) identifier() (Token, error) {
+	t.toNextWhitespace()
+
+	return t.makeToken(t.identifierType()), nil
+}
+
+func (t *tokenizer) toNextWhitespace() {
 	for isAlpha(t.peek()) || isDigit(t.peek()) {
 		t.advance()
 	}
-
-	return t.makeToken(t.identifierType()), nil
 }
 
 func (t *tokenizer) isKeyword(start int, len int, keyword string) bool {
@@ -281,7 +286,13 @@ func (t *tokenizer) isKeyword(start int, len int, keyword string) bool {
 }
 
 func isKeyword(src string, from int, to int, start int, l int, keyword string) bool {
-	return to-from == start+l && keyword == src[from+start:from+start+l]
+	size := to-from == start+l
+	match := ""
+	if size {
+		match = src[from+start : from+start+l]
+	}
+
+	return size && keyword == match
 }
 
 func (t *tokenizer) identifierType() tokenType {
@@ -321,6 +332,12 @@ func (t *tokenizer) identifierType() tokenType {
 	case 'o':
 		if t.isKeyword(1, 1, "n") {
 			return TokenOn
+		}
+		if t.isKeyword(1, 4, "rder") && t.match(' ') {
+			t.toNextWhitespace()
+			if t.isKeyword(6, 2, "by") {
+				return TokenOrderBy
+			}
 		}
 	case 's':
 		if t.isKeyword(1, 2, "et") {

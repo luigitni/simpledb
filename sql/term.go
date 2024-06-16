@@ -17,7 +17,7 @@ type Term struct {
 	rhs Expression
 }
 
-func NewTerm(lhs Expression, rhs Expression) Term {
+func newTerm(lhs Expression, rhs Expression) Term {
 	return Term{lhs: lhs, rhs: rhs}
 }
 

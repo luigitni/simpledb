@@ -9,7 +9,7 @@ import (
 func TestParseField(t *testing.T) {
 	p := NewParser("field")
 
-	v, err := p.Field()
+	v, err := p.field()
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -22,7 +22,7 @@ func TestFieldList(t *testing.T) {
 	const src = "first, second, third"
 	p := NewParser(src)
 
-	sl, err := p.SelectList()
+	sl, err := p.selectList()
 
 	if err != nil {
 		t.Fatal(err)
@@ -59,7 +59,7 @@ func TestConstant(t *testing.T) {
 	} {
 		p := NewParser(v.src)
 
-		c, err := p.Constant()
+		c, err := p.constant()
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -71,7 +71,7 @@ func TestConstant(t *testing.T) {
 }
 
 func TestQuery(t *testing.T) {
-	const src = "SELECT first, second FROM atable WHERE first = 1 AND second = 'second'"
+	const src = "SELECT first, second FROM atable WHERE first = 1 AND second = 'second' ORDER BY second"
 	p := NewParser(src)
 
 	qd, err := p.Query()

@@ -22,7 +22,7 @@ func NewPredicate() Predicate {
 	}
 }
 
-func NewPredicateWithTerm(t Term) Predicate {
+func newPredicateWithTerm(t Term) Predicate {
 	var ts []Term
 	ts = append(ts, t)
 	return Predicate{terms: ts}

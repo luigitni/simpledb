@@ -128,7 +128,7 @@ func (p Parser) delete() (DeleteCommand, error) {
 
 	if p.matchKeyword("where") {
 		p.eatKeyword("where")
-		pred, err := p.Predicate()
+		pred, err := p.predicate()
 		if err != nil {
 			return DeleteCommand{}, err
 		}
@@ -158,7 +158,7 @@ func (p Parser) insert() (InsertCommand, error) {
 		return InsertCommand{}, err
 	}
 
-	fields, err := p.FieldList()
+	fields, err := p.fieldList()
 	if err != nil {
 		return InsertCommand{}, err
 	}
@@ -175,7 +175,7 @@ func (p Parser) insert() (InsertCommand, error) {
 		return InsertCommand{}, err
 	}
 
-	constants, err := p.ConstantList()
+	constants, err := p.constantList()
 	if err != nil {
 		return InsertCommand{}, err
 	}
@@ -187,9 +187,9 @@ func (p Parser) insert() (InsertCommand, error) {
 	return NewInsertCommand(table, fields, constants), nil
 }
 
-func (p Parser) FieldList() ([]string, error) {
+func (p Parser) fieldList() ([]string, error) {
 	var list []string
-	v, err := p.Field()
+	v, err := p.field()
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +202,7 @@ func (p Parser) FieldList() ([]string, error) {
 
 	p.eatTokenType(TokenComma)
 
-	others, err := p.FieldList()
+	others, err := p.fieldList()
 	if err != nil {
 		return nil, err
 	}
@@ -212,9 +212,9 @@ func (p Parser) FieldList() ([]string, error) {
 	return list, nil
 }
 
-func (p Parser) ConstantList() ([]file.Value, error) {
+func (p Parser) constantList() ([]file.Value, error) {
 	var list []file.Value
-	c, err := p.Constant()
+	c, err := p.constant()
 	if err != nil {
 		return nil, err
 	}
@@ -229,7 +229,7 @@ func (p Parser) ConstantList() ([]file.Value, error) {
 		return nil, err
 	}
 
-	others, err := p.ConstantList()
+	others, err := p.constantList()
 	if err != nil {
 		return nil, err
 	}
@@ -254,7 +254,7 @@ func (p Parser) modify() (UpdateCommand, error) {
 		return UpdateCommand{}, err
 	}
 
-	field, err := p.Field()
+	field, err := p.field()
 	if err != nil {
 		return UpdateCommand{}, err
 	}
@@ -263,7 +263,7 @@ func (p Parser) modify() (UpdateCommand, error) {
 		return UpdateCommand{}, err
 	}
 
-	expr, err := p.Expression()
+	expr, err := p.expression()
 	if err != nil {
 		return UpdateCommand{}, err
 	}
@@ -273,7 +273,7 @@ func (p Parser) modify() (UpdateCommand, error) {
 			return UpdateCommand{}, err
 		}
 
-		pred, err := p.Predicate()
+		pred, err := p.predicate()
 		if err != nil {
 			return UpdateCommand{}, err
 		}

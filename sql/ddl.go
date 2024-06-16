@@ -118,7 +118,7 @@ func (p Parser) fieldDefs() ([]FieldDef, error) {
 }
 
 func (p Parser) fieldDef() ([]FieldDef, error) {
-	field, err := p.Field()
+	field, err := p.field()
 	if err != nil {
 		return nil, err
 	}

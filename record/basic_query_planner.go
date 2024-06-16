@@ -70,5 +70,12 @@ func (bqp BasicQueryPlanner) CreatePlan(data sql.Query, x tx.Transaction) (Plan,
 
 	p = newSelectPlan(p, data.Predicate())
 
-	return newProjectPlan(p, data.Fields()), nil
+	orderByFields := data.OrderByFields()
+
+	project := newProjectPlan(p, data.Fields())
+	if len(orderByFields) == 0 {
+		return project, nil
+	}
+
+	return newSortPlan(x, project, orderByFields), nil
 }

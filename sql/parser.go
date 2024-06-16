@@ -3,12 +3,12 @@ package sql
 import "github.com/luigitni/simpledb/file"
 
 // Entire grammar for the SQL subset supported by SimpleDB
-// <Field> := TokeIdentifier
+// <Field> := TokenIdentifier
 // <Constant> := TokenString | TokenNumber
 // <Expression> := <Field> | <Constant>
 // <Term> := <Expression> = <Expression>
 // <Predicate> := <Term> [AND <Predicate>]
-// <Query> := SELECT <SelectList> FROM <TableList> [ WHERE <Predicate> ]
+// <Query> := SELECT <SelectList> FROM <TableList> [ WHERE <Predicate> ] [ORDER BY <Field> [, <FieldList>]]
 // <SelectList> := <Field> [, <SelectList> ]
 // <TableList> := TokenIdentifier [, <TableList> ]
 // <UpdateCmd> := <Insert> | <Delete> | <Modify> | <Create>
@@ -47,11 +47,11 @@ func (p Parser) Parse() (Command, error) {
 	return p.ddl()
 }
 
-func (p Parser) Field() (string, error) {
+func (p Parser) field() (string, error) {
 	return p.eatIdentifier()
 }
 
-func (p Parser) Constant() (file.Value, error) {
+func (p Parser) constant() (file.Value, error) {
 	if p.matchStringValue() {
 		s, err := p.eatStringValue()
 		if err != nil {
@@ -68,24 +68,24 @@ func (p Parser) Constant() (file.Value, error) {
 	return file.ValueFromInt(v), nil
 }
 
-func (p Parser) Expression() (Expression, error) {
+func (p Parser) expression() (Expression, error) {
 	if p.matchIdentifier() {
-		f, err := p.Field()
+		f, err := p.field()
 		if err != nil {
 			return Expression{}, err
 		}
 		return NewExpressionWithField(f), nil
 	}
 
-	c, err := p.Constant()
+	c, err := p.constant()
 	if err != nil {
 		return Expression{}, err
 	}
 	return NewExpressionWithVal(c), nil
 }
 
-func (p Parser) Term() (Term, error) {
-	lhs, err := p.Expression()
+func (p Parser) term() (Term, error) {
+	lhs, err := p.expression()
 	if err != nil {
 		return Term{}, err
 	}
@@ -94,20 +94,20 @@ func (p Parser) Term() (Term, error) {
 		return Term{}, err
 	}
 
-	rhs, err := p.Expression()
+	rhs, err := p.expression()
 	if err != nil {
 		return Term{}, err
 	}
-	return NewTerm(lhs, rhs), nil
+	return newTerm(lhs, rhs), nil
 }
 
-func (p Parser) Predicate() (Predicate, error) {
-	term, err := p.Term()
+func (p Parser) predicate() (Predicate, error) {
+	term, err := p.term()
 	if err != nil {
 		return Predicate{}, err
 	}
 
-	pred := NewPredicateWithTerm(term)
+	pred := newPredicateWithTerm(term)
 	// check if the next token is an AND
 	// if not, we are done, otherwise recursively add another predicate
 	if !p.matchTokenType(TokenAnd) {
@@ -118,7 +118,7 @@ func (p Parser) Predicate() (Predicate, error) {
 		return Predicate{}, err
 	}
 
-	other, err := p.Predicate()
+	other, err := p.predicate()
 	if err != nil {
 		return Predicate{}, nil
 	}
@@ -128,13 +128,13 @@ func (p Parser) Predicate() (Predicate, error) {
 }
 
 // Query parsing methods
-// <Query> := SELECT <SelectList> FROM <TableList> [ WHERE <Predicate> ]
+// <Query> := SELECT <SelectList> FROM <TableList> [ WHERE <Predicate> ] [ ORDER BY <Field>,]
 func (p Parser) Query() (Query, error) {
 	if err := p.eatTokenType(TokenSelect); err != nil {
 		return Query{}, err
 	}
 
-	selects, err := p.SelectList()
+	selects, err := p.selectList()
 	if err != nil {
 		return Query{}, err
 	}
@@ -143,30 +143,52 @@ func (p Parser) Query() (Query, error) {
 		return Query{}, err
 	}
 
-	tables, err := p.TableList()
+	tables, err := p.tableList()
 	if err != nil {
 		return Query{}, err
 	}
 
-	if !p.matchTokenType(TokenWhere) {
-		return NewQuery(selects, tables), nil
+	q := NewQuery(selects, tables)
+
+	if p.matchTokenType(TokenWhere) {
+		if err := p.eatTokenType(TokenWhere); err != nil {
+			return Query{}, err
+		}
+
+		pred, err := p.predicate()
+		if err != nil {
+			return Query{}, err
+		}
+
+		q.predicate = pred
 	}
 
-	if err := p.eatTokenType(TokenWhere); err != nil {
-		return Query{}, err
+	if p.matchTokenType(TokenOrderBy) {
+		orderByFields, err := p.orderBy()
+		if err != nil {
+			return Query{}, err
+		}
+
+		q.orderByFields = orderByFields
 	}
 
-	pred, err := p.Predicate()
-	if err != nil {
-		return Query{}, err
-	}
-
-	return NewQueryWithPredicate(selects, tables, pred), nil
+	return q, nil
 }
 
-func (p Parser) SelectList() ([]string, error) {
+func (p Parser) orderBy() ([]string, error) {
+	p.eatTokenType(TokenOrderBy)
+
+	ff, err := p.fieldList()
+	if err != nil {
+		return nil, err
+	}
+
+	return ff, nil
+}
+
+func (p Parser) selectList() ([]string, error) {
 	var sl []string
-	f, err := p.Field()
+	f, err := p.field()
 	if err != nil {
 		return nil, err
 	}
@@ -178,7 +200,7 @@ func (p Parser) SelectList() ([]string, error) {
 
 	p.eatTokenType(TokenComma)
 
-	other, err := p.SelectList()
+	other, err := p.selectList()
 	if err != nil {
 		return nil, err
 	}
@@ -187,7 +209,7 @@ func (p Parser) SelectList() ([]string, error) {
 	return sl, nil
 }
 
-func (p Parser) TableList() ([]string, error) {
+func (p Parser) tableList() ([]string, error) {
 	var tl []string
 	f, err := p.eatIdentifier()
 	if err != nil {
@@ -203,7 +225,7 @@ func (p Parser) TableList() ([]string, error) {
 		return nil, err
 	}
 
-	other, err := p.TableList()
+	other, err := p.tableList()
 	if err != nil {
 		return nil, err
 	}

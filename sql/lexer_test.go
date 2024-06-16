@@ -53,6 +53,7 @@ func TestMatchKeywords(t *testing.T) {
 		"as",
 		"index",
 		"on",
+		"order by",
 	} {
 		lx := NewLexer(newTokenizer(v))
 

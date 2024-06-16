@@ -4,9 +4,10 @@ import "strings"
 
 type Query struct {
 	QueryCommandType
-	fields    []string
-	tables    []string
-	predicate Predicate
+	fields        []string
+	tables        []string
+	predicate     Predicate
+	orderByFields []string
 }
 
 func (qd Query) Tables() []string {
@@ -21,6 +22,10 @@ func (qd Query) Predicate() Predicate {
 	return qd.predicate
 }
 
+func (qd Query) OrderByFields() []string {
+	return qd.orderByFields
+}
+
 func (p Parser) isQuery() bool {
 	return p.matchKeyword("select")
 }
@@ -29,14 +34,6 @@ func NewQuery(selects []string, tables []string) Query {
 	return Query{
 		fields: selects,
 		tables: tables,
-	}
-}
-
-func NewQueryWithPredicate(selects []string, tables []string, pred Predicate) Query {
-	return Query{
-		fields:    selects,
-		tables:    tables,
-		predicate: pred,
 	}
 }
 
@@ -63,5 +60,18 @@ func (qd Query) String() string {
 
 	sb.WriteString(" WHERE ")
 	sb.WriteString(qd.predicate.String())
+
+	if len(qd.orderByFields) == 0 {
+		return sb.String()
+	}
+
+	sb.WriteString(" ORDER BY ")
+	for i, f := range qd.orderByFields {
+		sb.WriteString(f)
+		if i != len(qd.tables)-1 {
+			sb.WriteString(", ")
+		}
+	}
+
 	return sb.String()
 }

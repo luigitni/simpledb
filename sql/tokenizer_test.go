@@ -18,6 +18,8 @@ func TestIsKeyword(t *testing.T) {
 }
 
 func TestKeywords(t *testing.T) {
+	t.Parallel()
+
 	type test struct {
 		src string
 		exp tokenType
@@ -96,16 +98,28 @@ func TestKeywords(t *testing.T) {
 			src: "ON",
 			exp: TokenOn,
 		},
+		{
+			src: "ORDER BY",
+			exp: TokenOrderBy,
+		},
 	} {
-		tokenizer := newTokenizer(tc.src)
-		tkn, err := tokenizer.nextToken()
-		if err != nil {
-			t.Fatal(err)
-		}
 
-		if tkn.TokenType != tc.exp {
-			t.Fatalf("expected token of type %+v for keyword %q. Got %+v", tc.exp, tc.src, tkn.TokenType)
-		}
+		tc := tc
+
+		t.Run(tc.src, func(t *testing.T) {
+			// t.Parallel()
+
+			tokenizer := newTokenizer(tc.src)
+			tkn, err := tokenizer.nextToken()
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if tkn.TokenType != tc.exp {
+				t.Fatalf("expected token of type %+v for keyword %q. Got %+v", tc.exp, tc.src, tkn.TokenType)
+			}
+		})
+
 	}
 }
 

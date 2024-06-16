@@ -65,7 +65,6 @@ func handleSession(conn net.Conn, db *db.DB) {
 		out, err := db.Exec(cmd)
 		if err != nil {
 			fmt.Fprintln(conn, err)
-			return
 		}
 
 		fmt.Fprint(conn, out)
