@@ -14,8 +14,8 @@ import (
 )
 
 const (
-	defaultPath      = "data"
-	defaultLogFile   = "wal"
+	defaultPath      = "../data"
+	defaultLogFile   = "../data/wal"
 	blockSize        = 4000
 	buffersAvaialble = 500
 )

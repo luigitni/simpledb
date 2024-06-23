@@ -4,11 +4,15 @@ import (
 	"io"
 	"os"
 	"path"
+	"path/filepath"
 	"strings"
 	"sync"
 )
 
-const TmpTablePrefix = "tmp_%d"
+const (
+	tmpTablePrefix = "__tmp_"
+	TmpTablePrefix = tmpTablePrefix + "%d"
+)
 
 // Implements methods that read and write pages to disk blocks.
 // It always reads and writes a block-sized number of bytes from a file, always at a block bounduary.
@@ -43,8 +47,11 @@ func NewFileManager(path string, blockSize int) *Manager {
 	}
 
 	for _, v := range entries {
-		if strings.HasPrefix(v.Name(), "tmp") {
-			os.Remove(v.Name())
+		if strings.HasPrefix(v.Name(), tmpTablePrefix) {
+			fn := filepath.Join(path, v.Name())
+			if err := os.Remove(fn); err != nil {
+				panic(err)
+			}
 		}
 	}
 
