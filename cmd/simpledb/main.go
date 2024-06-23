@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/luigitni/simpledb/db"
 )
@@ -41,6 +42,20 @@ func main() {
 	}
 }
 
+type timedResult struct {
+	res      fmt.Stringer
+	duration time.Duration
+}
+
+func (tr timedResult) String() string {
+	var builder strings.Builder
+	builder.WriteString(tr.res.String())
+	builder.WriteByte('\n')
+	elapsed := float64(tr.duration) / float64(time.Millisecond)
+	builder.WriteString(fmt.Sprintf("(%.2f ms)", elapsed))
+	return builder.String()
+}
+
 func handleSession(conn net.Conn, db *db.DB) {
 	greet(conn)
 
@@ -61,10 +76,15 @@ func handleSession(conn net.Conn, db *db.DB) {
 			return
 		}
 
-		// parse the incoming command and feed it to the database
-		out, err := db.Exec(cmd)
+		start := time.Now()
+		res, err := db.Exec(cmd)
 		if err != nil {
 			fmt.Fprintln(conn, err)
+		}
+
+		out := timedResult{
+			res:      res,
+			duration: time.Since(start),
 		}
 
 		fmt.Fprint(conn, out)

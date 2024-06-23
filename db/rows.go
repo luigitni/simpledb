@@ -7,7 +7,7 @@ import (
 	"github.com/luigitni/simpledb/file"
 )
 
-const printRowsNoResult = "No records"
+const printRowsNoResult = "No records found."
 
 type Row struct {
 	vals []file.Value
@@ -73,6 +73,12 @@ func (r Rows) String() string {
 		builder.WriteString("\n")
 	}
 
+	count := "---\n%d records found."
+	if len(r.rows) == 1 {
+		count = "---\n%d record found."
+	}
+
+	builder.WriteString(fmt.Sprintf(count, len(r.rows)))
 	return builder.String()
 }
 
