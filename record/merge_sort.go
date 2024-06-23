@@ -40,6 +40,8 @@ func (sp *sortPlan) Open() (Scan, error) {
 		return nil, err
 	}
 
+	defer src.Close()
+
 	// a run is a sorted portion of a block, for example
 	// 2 6 20 4 1 16 19 3 18 is made of the following runs:
 	// 2 6 20
@@ -58,7 +60,7 @@ func (sp *sortPlan) Open() (Scan, error) {
 		}
 	}
 
-	return newSortScan(runs)
+	return newSortScan(sp.recordComparator, runs)
 }
 
 // splitIntoRuns reads records from the source Scan into temporary tables
@@ -68,7 +70,9 @@ func (sp *sortPlan) Open() (Scan, error) {
 func (sp *sortPlan) splitIntoRuns(src Scan) ([]*tmpTable, error) {
 	var tables []*tmpTable
 
-	src.BeforeFirst()
+	if err := src.BeforeFirst(); err != nil {
+		return nil, err
+	}
 
 	if err := src.Next(); err != nil {
 		return nil, err
@@ -78,7 +82,6 @@ func (sp *sortPlan) splitIntoRuns(src Scan) ([]*tmpTable, error) {
 	tables = append(tables, currentTmpTable)
 
 	currentScan := currentTmpTable.Open()
-	defer currentScan.Close()
 
 	for {
 		err := sp.copy(src, currentScan)
@@ -87,11 +90,13 @@ func (sp *sortPlan) splitIntoRuns(src Scan) ([]*tmpTable, error) {
 		}
 
 		if err != nil {
+			currentScan.Close()
 			return nil, err
 		}
 
 		less, err := sp.Less(src, currentScan)
 		if err != nil {
+			currentScan.Close()
 			return nil, err
 		}
 
@@ -105,6 +110,7 @@ func (sp *sortPlan) splitIntoRuns(src Scan) ([]*tmpTable, error) {
 		}
 	}
 
+	currentScan.Close()
 	return tables, nil
 }
 
@@ -156,6 +162,10 @@ func (sp *sortPlan) merge(first *tmpTable, second *tmpTable) (*tmpTable, error) 
 			return nil, rightHasMore
 		}
 
+		if leftHasMore == io.EOF && rightHasMore == io.EOF {
+			break
+		}
+
 		if leftHasMore == nil && rightHasMore == nil {
 			less, err := sp.Less(left, right)
 			if err != nil {
@@ -167,36 +177,28 @@ func (sp *sortPlan) merge(first *tmpTable, second *tmpTable) (*tmpTable, error) 
 			} else {
 				rightHasMore = sp.copy(right, dst)
 			}
-		}
-
-		if rightHasMore == io.EOF {
+		} else if rightHasMore == io.EOF {
 			for {
-				err := sp.copy(left, dst)
-				if err == io.EOF {
+				leftHasMore = sp.copy(left, dst)
+				if leftHasMore == io.EOF {
 					break
 				}
 
-				if err != nil {
-					return nil, err
+				if leftHasMore != nil {
+					return nil, leftHasMore
 				}
 			}
-		}
-
-		if leftHasMore == io.EOF {
+		} else if leftHasMore == io.EOF {
 			for {
-				err := sp.copy(right, dst)
-				if err == io.EOF {
+				rightHasMore = sp.copy(right, dst)
+				if rightHasMore == io.EOF {
 					break
 				}
 
-				if err != nil {
-					return nil, err
+				if rightHasMore != nil {
+					return nil, rightHasMore
 				}
 			}
-		}
-
-		if leftHasMore == io.EOF && rightHasMore == io.EOF {
-			break
 		}
 	}
 
@@ -269,8 +271,10 @@ type sortScan struct {
 	savedPositions [2]RID
 }
 
-func newSortScan(runs []*tmpTable) (*sortScan, error) {
-	ss := &sortScan{}
+func newSortScan(recordComparator recordComparator, runs []*tmpTable) (*sortScan, error) {
+	ss := &sortScan{
+		recordComparator: recordComparator,
+	}
 
 	firstScan := runs[0].Open()
 	firstHasMore, err := hasNextOrError(firstScan)

@@ -40,7 +40,7 @@ func TestTableManager(t *testing.T) {
 		}
 	}
 
-	// check the table catalog that the 
+	// check the table catalog that the
 
 	trans.Commit()
 }

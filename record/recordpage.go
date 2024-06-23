@@ -33,7 +33,7 @@ type RecordPage struct {
 	layout Layout
 }
 
-func NewRecordPage(tx tx.Transaction, block file.BlockID, layout Layout) *RecordPage {
+func newRecordPage(tx tx.Transaction, block file.BlockID, layout Layout) *RecordPage {
 	tx.Pin(block)
 	return &RecordPage{
 		tx:     tx,

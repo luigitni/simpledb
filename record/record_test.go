@@ -31,7 +31,7 @@ func TestRecord(t *testing.T) {
 	}
 
 	trans.Pin(blockID)
-	recpage := NewRecordPage(trans, blockID, layout)
+	recpage := newRecordPage(trans, blockID, layout)
 	if err := recpage.Format(); err != nil {
 		t.Fatal(err)
 	}

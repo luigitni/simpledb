@@ -58,7 +58,10 @@ func (mp *materializePlan) Open() (Scan, error) {
 		}
 	}
 
-	dst.BeforeFirst()
+	if err := dst.BeforeFirst(); err != nil {
+		return nil, err
+	}
+
 	return dst, nil
 }
 
