@@ -135,7 +135,7 @@ func (ts *tableScan) GetVal(fieldname string) (file.Value, error) {
 }
 
 func (ts *tableScan) HasField(fieldname string) bool {
-	return ts.layout.schema.hasField(fieldname)
+	return ts.layout.schema.HasField(fieldname)
 }
 
 // write methods

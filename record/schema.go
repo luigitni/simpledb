@@ -22,6 +22,14 @@ func newSchema() Schema {
 	}
 }
 
+func newJoinedSchema(first Schema, second Schema) Schema {
+	schema := newSchema()
+	schema.addAll(first)
+	schema.addAll(second)
+
+	return schema
+}
+
 func (s *Schema) ftype(name string) file.FieldType {
 	return s.info[name].Type
 }
@@ -61,7 +69,7 @@ func (s *Schema) addAll(schema Schema) {
 	}
 }
 
-func (s Schema) hasField(fname string) bool {
+func (s Schema) HasField(fname string) bool {
 	_, ok := s.info[fname]
 	return ok
 }

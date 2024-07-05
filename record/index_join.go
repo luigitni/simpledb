@@ -11,12 +11,12 @@ var _ Plan = &IndexJoinPlan{}
 type IndexJoinPlan struct {
 	firstPlan  Plan
 	secondPlan Plan
-	ii         indexInfo
+	ii         *indexInfo
 	joinField  string
 	schema     Schema
 }
 
-func newIndexJoinPlan(firstPlan, secondPlan Plan, ii indexInfo, joinField string) *IndexJoinPlan {
+func newIndexJoinPlan(firstPlan, secondPlan Plan, ii *indexInfo, joinField string) *IndexJoinPlan {
 	schema := newSchema()
 	schema.addAll(firstPlan.Schema())
 	schema.addAll(secondPlan.Schema())
@@ -58,7 +58,7 @@ func (plan *IndexJoinPlan) BlocksAccessed() int {
 }
 
 func (plan *IndexJoinPlan) DistinctValues(fieldName string) int {
-	if plan.firstPlan.Schema().hasField(fieldName) {
+	if plan.firstPlan.Schema().HasField(fieldName) {
 		return plan.firstPlan.DistinctValues(fieldName)
 	}
 

@@ -209,7 +209,7 @@ func (p ProductPlan) RecordsOutput() int {
 }
 
 func (p ProductPlan) DistinctValues(fieldName string) int {
-	if p.p1.Schema().hasField(fieldName) {
+	if p.p1.Schema().HasField(fieldName) {
 		return p.p1.DistinctValues(fieldName)
 	}
 

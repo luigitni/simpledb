@@ -87,7 +87,7 @@ func (db *DB) runQuery(q sql.Query) (Rows, error) {
 	x := db.beginTx()
 
 	run := func() (Rows, error) {
-		planner := record.NewBasicQueryPlanner(db.mdm)
+		planner := record.NewHeuristicsQueryPlanner(db.mdm)
 
 		plan, err := planner.CreatePlan(q, x)
 		if err != nil {

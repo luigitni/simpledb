@@ -13,6 +13,11 @@ type Predicate interface {
 	EquatesWithConstant(fieldName string) (file.Value, bool)
 	EquatesWithField(fieldname string) (string, bool)
 	ReductionFactor(plan sql.Plan) int
+	// Return the subpredicate consisting of terms that apply
+	// to the joined schema, but not to either schema separately
+	JoinSubPredicate(joined sql.Schema, first sql.Schema, second sql.Schema) (sql.Predicate, bool)
+	// Return the sub-predicate that applies to schema
+	SelectSubPredicate(schema sql.Schema) (sql.Predicate, bool)
 }
 
 // Select is a relational algebra operator.
