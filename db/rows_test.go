@@ -27,7 +27,9 @@ func TestRowsString(t *testing.T) {
 			"| first col | second col which is very long |             third             |\n" +
 			"|-----------|-------------------------------|-------------------------------|\n" +
 			"|    123    |             'abc'             | 'This is a much longer value' |\n" +
-			"|     0     | 'This is a much longer value' |            'short'            |\n"
+			"|     0     | 'This is a much longer value' |            'short'            |\n" +
+			"---\n" +
+			"2 records found."
 
 		rows := Rows{
 			cols: []string{
