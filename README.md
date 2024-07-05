@@ -41,7 +41,7 @@ More complex queries and additional SQL statements will be added in future updat
 
 ### Prerequisites
 
-- Go (version 1.18 or later)
+- Go (version 1.22 or later)
 
 ### Installation
 
