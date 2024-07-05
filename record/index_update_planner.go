@@ -21,7 +21,7 @@ func newIndexUpdatePlanner(mdm *MetadataManager) *IndexUpdatePlanner {
 }
 
 func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Transaction) (int, error) {
-	plan, err := NewTablePlan(x, data.TableName, planner.mdm)
+	plan, err := newTablePlan(x, data.TableName, planner.mdm)
 	if err != nil {
 		return 0, err
 	}
@@ -68,7 +68,7 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 }
 
 func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Transaction) (int, error) {
-	plan, err := NewTablePlan(x, data.TableName, planner.mdm)
+	plan, err := newTablePlan(x, data.TableName, planner.mdm)
 	if err != nil {
 		return 0, err
 	}
@@ -145,7 +145,7 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 }
 
 func (planner *IndexUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Transaction) (int, error) {
-	plan, err := NewTablePlan(x, data.TableName, planner.mdm)
+	plan, err := newTablePlan(x, data.TableName, planner.mdm)
 	if err != nil {
 		return 0, err
 	}

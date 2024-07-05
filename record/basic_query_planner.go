@@ -53,7 +53,7 @@ func (bqp BasicQueryPlanner) CreatePlan(data sql.Query, x tx.Transaction) (Plan,
 		}
 
 		if errors.Is(err, ErrViewNotFound) {
-			plan, err := NewTablePlan(x, tName, bqp.mdm)
+			plan, err := newTablePlan(x, tName, bqp.mdm)
 			if err != nil {
 				return nil, err
 			}

@@ -25,26 +25,26 @@ type Plan interface {
 	Schema() Schema
 }
 
-// TablePlan obtains its cost estimates directly from the metadata manager.
-type TablePlan struct {
+// tablePlan obtains its cost estimates directly from the metadata manager.
+type tablePlan struct {
 	tx        tx.Transaction
 	tableName string
 	layout    Layout
 	info      statInfo
 }
 
-func NewTablePlan(tx tx.Transaction, table string, md *MetadataManager) (TablePlan, error) {
+func newTablePlan(tx tx.Transaction, table string, md *MetadataManager) (tablePlan, error) {
 	layout, err := md.layout(table, tx)
 	if err != nil {
-		return TablePlan{}, err
+		return tablePlan{}, err
 	}
 
 	statInfo, err := md.statInfo(table, layout, tx)
 	if err != nil {
-		return TablePlan{}, err
+		return tablePlan{}, err
 	}
 
-	return TablePlan{
+	return tablePlan{
 		tx:        tx,
 		tableName: table,
 		layout:    layout,
@@ -52,23 +52,23 @@ func NewTablePlan(tx tx.Transaction, table string, md *MetadataManager) (TablePl
 	}, nil
 }
 
-func (p TablePlan) Open() (Scan, error) {
+func (p tablePlan) Open() (Scan, error) {
 	return newTableScan(p.tx, p.tableName, p.layout), nil
 }
 
-func (p TablePlan) BlocksAccessed() int {
+func (p tablePlan) BlocksAccessed() int {
 	return p.info.blocks
 }
 
-func (p TablePlan) RecordsOutput() int {
+func (p tablePlan) RecordsOutput() int {
 	return p.info.records
 }
 
-func (p TablePlan) DistinctValues(fname string) int {
+func (p tablePlan) DistinctValues(fname string) int {
 	return p.info.distinctValues(fname)
 }
 
-func (p TablePlan) Schema() Schema {
+func (p tablePlan) Schema() Schema {
 	return *p.layout.Schema()
 }
 

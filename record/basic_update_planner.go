@@ -21,7 +21,7 @@ func newBasicUpdatePlanner(mdm *MetadataManager) BasicUpdatePlanner {
 func (bup BasicUpdatePlanner) iterateAndExecute(x tx.Transaction, tableName string, predicate sql.Predicate, exec func(us UpdateScan) error) (int, error) {
 	var p Plan
 
-	p, err := NewTablePlan(x, tableName, bup.mdm)
+	p, err := newTablePlan(x, tableName, bup.mdm)
 	if err != nil {
 		return 0, err
 	}
@@ -83,7 +83,7 @@ func (bup BasicUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Transac
 }
 
 func (bup BasicUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Transaction) (int, error) {
-	p, err := NewTablePlan(x, data.TableName, bup.mdm)
+	p, err := newTablePlan(x, data.TableName, bup.mdm)
 	if err != nil {
 		return 0, err
 	}
