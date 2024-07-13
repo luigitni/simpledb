@@ -74,13 +74,13 @@ func (vm viewManager) viewDefinition(vname string, trans tx.Transaction) (string
 			return "", err
 		}
 
-		s, err := ts.GetString("viewname")
+		s, err := ts.String("viewname")
 		if err != nil {
 			return "", err
 		}
 
 		if s == vname {
-			res, err := ts.GetString("viewdef")
+			res, err := ts.String("viewdef")
 			if err != nil {
 				return "", err
 			}

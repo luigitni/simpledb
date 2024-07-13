@@ -6,7 +6,7 @@ import (
 	"github.com/luigitni/simpledb/file"
 )
 
-type Manager struct {
+type LogManager struct {
 	fm           *file.Manager
 	logfile      string
 	logpage      *file.Page
@@ -16,14 +16,14 @@ type Manager struct {
 	sync.Mutex
 }
 
-func NewLogManager(fm *file.Manager, logfile string) *Manager {
+func NewLogManager(fm *file.Manager, logfile string) *LogManager {
 	b := make([]byte, fm.BlockSize())
 
 	logsize := fm.Size(logfile)
 
 	logpage := file.NewPageWithSlice(b)
 
-	man := &Manager{
+	man := &LogManager{
 		fm:           fm,
 		logfile:      logfile,
 		logpage:      logpage,
@@ -44,7 +44,7 @@ func NewLogManager(fm *file.Manager, logfile string) *Manager {
 
 // flush writes the contents of the logpage into the currentBlock
 // and updates the lastSavedLSN id
-func (man *Manager) flush() {
+func (man *LogManager) flush() {
 	man.fm.Write(man.currentBlock, man.logpage)
 	man.lastSavedLSN = man.latestLSN
 }
@@ -53,13 +53,13 @@ func (man *Manager) flush() {
 // with the latest that has been flushed to disk.
 // If the requested LSN is greater than the latest dumped
 // we need to access the disk and flush.
-func (man *Manager) Flush(lsn int) {
+func (man *LogManager) Flush(lsn int) {
 	if lsn >= man.lastSavedLSN {
 		man.flush()
 	}
 }
 
-func (man *Manager) Iterator() *Iterator {
+func (man *LogManager) Iterator() *Iterator {
 	man.flush()
 	return newIterator(man.fm, man.currentBlock)
 }
@@ -71,20 +71,23 @@ func (man *Manager) Iterator() *Iterator {
 // that keeps track of where to prepend new records:
 // ------
 // head of the buffer -> | recpos | . . . . . . . | existing records | <- end of the buffer
-//                           ^--------------------^
-//                     file.IntBytes        value of recpos
+//
+//	      ^--------------------^
+//	file.IntBytes        value of recpos
+//
 // when a new record is inserted, its lenght is computed.
 // if the record fits, its is prepended at the "recpos" index
 // and recpos is updated.
 // head of the buffer -> | recpos - sizeof(newRecord) | . . . . . .| sizeof(newRecord) | existing records | <- end of the buffer
-//                                   ^-----------------------------^
-//                             file.IntBytes               value of recpos
-func (man *Manager) Append(records []byte) int {
+//
+//	      ^-----------------------------^
+//	file.IntBytes               value of recpos
+func (man *LogManager) Append(records []byte) int {
 	man.Lock()
 	defer man.Unlock()
 
 	// boundary contains the offset of the most recently added record
-	spaceLeft := man.logpage.GetInt(0)
+	spaceLeft := man.logpage.Int(0)
 
 	recsize := len(records)
 
@@ -96,7 +99,7 @@ func (man *Manager) Append(records []byte) int {
 	if bytesneeded+file.IntBytes > spaceLeft {
 		man.flush()
 		man.currentBlock = man.appendNewBlock()
-		spaceLeft = man.logpage.GetInt(0)
+		spaceLeft = man.logpage.Int(0)
 	}
 
 	// compute the leading byte from where the record will start
@@ -112,7 +115,7 @@ func (man *Manager) Append(records []byte) int {
 // appendNewBlock appends a new block-sized array to the logfile via the file manager and returns it's index
 // It then writes the size of the block in the page first IntBytes (the page header?)
 // We will use the header to keep track of where we are when prepending data to the page.
-func (man *Manager) appendNewBlock() file.BlockID {
+func (man *LogManager) appendNewBlock() file.BlockID {
 	block := man.fm.Append(man.logfile)
 	man.logpage.SetInt(0, man.fm.BlockSize())
 

@@ -23,7 +23,7 @@ func (record CheckpointLogRecord) String() string {
 	return "<CHECKPOINT>"
 }
 
-func LogCheckpoint(lm *log.Manager) int {
+func LogCheckpoint(lm *log.LogManager) int {
 	rec := logCheckpoint()
 	return lm.Append(rec)
 }

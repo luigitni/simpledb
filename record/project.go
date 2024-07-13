@@ -46,34 +46,34 @@ func (project Project) Close() {
 	project.scan.Close()
 }
 
-// GetInt checks if the specified fieldname is in the list.
+// Int checks if the specified fieldname is in the list.
 // If it is, it calls the underlying scan, if not, it returns an
 // ErrNoField error
-func (project Project) GetInt(fname string) (int, error) {
+func (project Project) Int(fname string) (int, error) {
 	if !project.HasField(fname) {
 		return 0, ErrNoField
 	}
-	return project.scan.GetInt(fname)
+	return project.scan.Int(fname)
 }
 
-// GetString checks if the specified fieldname is in the list.
+// String checks if the specified fieldname is in the list.
 // If it is, it calls the underlying scan, if not, it returns an
 // ErrNoField error
-func (project Project) GetString(fname string) (string, error) {
+func (project Project) String(fname string) (string, error) {
 	if !project.HasField(fname) {
 		return "", ErrNoField
 	}
-	return project.scan.GetString(fname)
+	return project.scan.String(fname)
 }
 
-// GetVal checks if the specified fieldname is in the list.
+// Val checks if the specified fieldname is in the list.
 // If it is, it calls the underlying scan, if not, it returns an
 // ErrNoField error
-func (project Project) GetVal(fname string) (file.Value, error) {
+func (project Project) Val(fname string) (file.Value, error) {
 	if !project.HasField(fname) {
 		return file.Value{}, ErrNoField
 	}
-	return project.scan.GetVal(fname)
+	return project.scan.Val(fname)
 }
 
 // Next implements Scan.

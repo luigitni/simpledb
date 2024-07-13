@@ -63,7 +63,7 @@ func TestTableScan(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		a, err := scan.GetInt("A")
+		a, err := scan.Int("A")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -74,7 +74,7 @@ func TestTableScan(t *testing.T) {
 				t.Fatalf("Unexpected deletion of record %q", rid)
 			}
 
-			b, err := scan.GetString("B")
+			b, err := scan.String("B")
 			if err != nil {
 				t.Fatal(err)
 			}
@@ -103,12 +103,12 @@ func TestTableScan(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		a, err := scan.GetInt("A")
+		a, err := scan.Int("A")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		b, err := scan.GetString("B")
+		b, err := scan.String("B")
 		if err != nil {
 			t.Fatal(err)
 		}

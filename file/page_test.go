@@ -9,7 +9,7 @@ func TestWriteInt(t *testing.T) {
 	const v = 77
 	page.SetInt(0, 77)
 
-	if got := page.GetInt(0); got != v {
+	if got := page.Int(0); got != v {
 		t.Fatalf("expected %d, got %d", v, got)
 	}
 }
@@ -28,7 +28,7 @@ func TestWriteIntLoop(t *testing.T) {
 
 	j = 0
 	for i := 0; i < len(nums)*IntBytes; i += IntBytes {
-		v := page.GetInt(i)
+		v := page.Int(i)
 		if v != nums[j] {
 			t.Fatalf("expected %d got %d", nums[j], v)
 		}
@@ -43,7 +43,7 @@ func TestWriteString(t *testing.T) {
 	const v = "this is a test"
 	page.SetString(0, v)
 
-	if got := page.GetString(0); got != v {
+	if got := page.String(0); got != v {
 		t.Fatalf("expected %q got %q", v, got)
 	}
 }
@@ -60,11 +60,11 @@ func TestWriteStringMultiple(t *testing.T) {
 	off := MaxLength(len(v))
 	page.SetString(off, v2)
 
-	if got := page.GetString(0); got != v {
+	if got := page.String(0); got != v {
 		t.Fatalf("expected %q got %q", v, got)
 	}
 
-	if got := page.GetString(off); got != v2 {
+	if got := page.String(off); got != v2 {
 		t.Fatalf("expected %q got %q", v2, got)
 	}
 }

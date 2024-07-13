@@ -57,19 +57,19 @@ func (sel *Select) Close() {
 	sel.scan.Close()
 }
 
-// GetInt implements Scan.
-func (sel *Select) GetInt(fname string) (int, error) {
-	return sel.scan.GetInt(fname)
+// Int implements Scan.
+func (sel *Select) Int(fname string) (int, error) {
+	return sel.scan.Int(fname)
 }
 
-// GetString implements Scan.
-func (sel *Select) GetString(fname string) (string, error) {
-	return sel.scan.GetString(fname)
+// String implements Scan.
+func (sel *Select) String(fname string) (string, error) {
+	return sel.scan.String(fname)
 }
 
-// GetVal implements Scan.
-func (sel *Select) GetVal(fname string) (file.Value, error) {
-	return sel.scan.GetVal(fname)
+// Val implements Scan.
+func (sel *Select) Val(fname string) (file.Value, error) {
+	return sel.scan.Val(fname)
 }
 
 // HasField implements Scan.

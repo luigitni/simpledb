@@ -70,12 +70,12 @@ func TestRecord(t *testing.T) {
 
 	count := 0
 	for slot >= 0 {
-		v, err := recpage.GetInt(slot, "A")
+		v, err := recpage.Int(slot, "A")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		s, err := recpage.GetString(slot, "B")
+		s, err := recpage.String(slot, "B")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -108,12 +108,12 @@ func TestRecord(t *testing.T) {
 	}
 
 	for slot >= 0 {
-		a, err := recpage.GetInt(slot, "A")
+		a, err := recpage.Int(slot, "A")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		b, err := recpage.GetString(slot, "B")
+		b, err := recpage.String(slot, "B")
 		if err != nil {
 			t.Fatal(err)
 		}

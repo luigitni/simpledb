@@ -12,7 +12,7 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-func createAndInsertTable(t *testing.T, fm *file.Manager, lm *log.Manager, bm *buffer.Manager, mdm *MetadataManager) error {
+func createAndInsertTable(t *testing.T, fm *file.Manager, lm *log.LogManager, bm *buffer.Manager, mdm *MetadataManager) error {
 	t.Helper()
 
 	// STUDENTS table definition
@@ -136,12 +136,12 @@ func TestBasicQueryPlanner(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		name, err := scan.GetString("sname")
+		name, err := scan.String("sname")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		year, err := scan.GetInt("gradyear")
+		year, err := scan.Int("gradyear")
 		if err != nil {
 			t.Fatal(err)
 		}
@@ -215,7 +215,7 @@ func TestDeletePlanner(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		year, err := scan.GetInt("gradyear")
+		year, err := scan.Int("gradyear")
 		if err != nil {
 			t.Fatal(err)
 		}

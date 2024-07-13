@@ -14,7 +14,7 @@ type StartLogRecord struct {
 func NewStartLogRecord(p *file.Page) StartLogRecord {
 	const tpos = file.IntBytes
 	return StartLogRecord{
-		txnum: p.GetInt(tpos),
+		txnum: p.Int(tpos),
 	}
 }
 
@@ -34,7 +34,7 @@ func (record StartLogRecord) String() string {
 	return fmt.Sprintf("<START %d>", record.txnum)
 }
 
-func LogStart(lm *log.Manager, txnum int) int {
+func LogStart(lm *log.LogManager, txnum int) int {
 	r := logStart(txnum)
 	return lm.Append(r)
 }

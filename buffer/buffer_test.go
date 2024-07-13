@@ -19,7 +19,7 @@ func TestBuffer(t *testing.T) {
 
 	page := buff1.Contents()
 
-	n := page.GetInt(80)
+	n := page.Int(80)
 
 	// update the value in the page and flag the buffer as dirty
 	page.SetInt(80, n+1)
@@ -72,7 +72,7 @@ func TestBuffer(t *testing.T) {
 	blankPage := file.NewPageWithSize(fm.BlockSize())
 	fm.Read(file.NewBlockID(conf.BlockFile, 1), blankPage)
 
-	v := blankPage.GetInt(80)
+	v := blankPage.Int(80)
 
 	if v == 9999 {
 		t.Fatalf("expected contents of buff2 to not be written. Contents found in block 1")

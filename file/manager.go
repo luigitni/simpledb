@@ -78,7 +78,7 @@ func (manager *Manager) getFile(fname string) *os.File {
 	return f
 }
 
-func (manager Manager) IsNew() bool {
+func (manager *Manager) IsNew() bool {
 	return manager.isNew
 }
 

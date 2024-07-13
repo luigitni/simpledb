@@ -10,14 +10,14 @@ import (
 // (and its method could be implemented within the tx implementation tbh, out of a Java design)
 // As the name indicates, it manages transaction recovery from the WAL
 type RecoveryManager struct {
-	lm    *log.Manager
+	lm    *log.LogManager
 	bm    *buffer.Manager
 	tx    Transaction
 	txnum int
 }
 
 // RecoveryManagerForTx returns a recovery manager for the given transaction and txnum
-func NewRecoveryManagerForTx(tx Transaction, txnum int, lm *log.Manager, bm *buffer.Manager) RecoveryManager {
+func NewRecoveryManagerForTx(tx Transaction, txnum int, lm *log.LogManager, bm *buffer.Manager) RecoveryManager {
 	man := RecoveryManager{
 		lm:    lm,
 		bm:    bm,
@@ -34,7 +34,7 @@ func NewRecoveryManagerForTx(tx Transaction, txnum int, lm *log.Manager, bm *buf
 // val is the value to be written
 // todo: why is the actual implementation passing the oldval?
 func (man RecoveryManager) SetInt(buff *buffer.Buffer, offset int, val int) int {
-	oldval := buff.Contents().GetInt(offset)
+	oldval := buff.Contents().Int(offset)
 	block := buff.BlockID()
 	return LogSetInt(man.lm, man.txnum, block, offset, oldval)
 }
@@ -45,7 +45,7 @@ func (man RecoveryManager) SetInt(buff *buffer.Buffer, offset int, val int) int 
 // newval is the value to be written.
 // WHY IS IT PASSING OLDVAL??
 func (man RecoveryManager) SetString(buff *buffer.Buffer, offset int, val string) int {
-	oldval := buff.Contents().GetString(offset)
+	oldval := buff.Contents().String(offset)
 	block := buff.BlockID()
 	return LogSetString(man.lm, man.txnum, block, offset, oldval)
 }

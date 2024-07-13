@@ -33,7 +33,7 @@ func (it *Iterator) Next() []byte {
 		it.moveToBlock(it.block)
 	}
 
-	record := it.page.GetBytes(it.currentPos)
+	record := it.page.Bytes(it.currentPos)
 	// move the iterator position forward by the
 	it.currentPos += len(record) + file.IntBytes
 	return record
@@ -41,6 +41,6 @@ func (it *Iterator) Next() []byte {
 
 func (it *Iterator) moveToBlock(block file.BlockID) {
 	it.fm.Read(it.block, it.page)
-	it.boundary = it.page.GetInt(0)
+	it.boundary = it.page.Int(0)
 	it.currentPos = it.boundary
 }

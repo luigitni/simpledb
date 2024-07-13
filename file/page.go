@@ -38,25 +38,14 @@ func (p *Page) contents() []byte {
 	return p.buf
 }
 
-// The book class uses Java's ByteBuffer to represent the page.
-// While writing out of range data to a ByteBuffer throws an exception, golang slices are allowed to grow
-// To mimick the book spirit, we will panic if the data to insert exceeds a page's length
+
 func (p *Page) SetBytes(offset int, data []byte) {
 	p.assertSize(offset, len(data))
-	// append the byte array with size, using the first 4 bytes
 	copy(p.buf[offset:], intToBytes(int64(len(data))))
-	// copy the payload
 	copy(p.buf[offset+IntBytes:], data)
 }
 
-func (p *Page) GetBytes(offset int) []byte {
-
-	// get the size of the contingous slice
-	// todo: this supposes that records are prepended by their length
-	// while this makes sense in java, I am currently unsure it does in go
-	// because of slices.
-	// todo: return on this once it is clear what this method is used for
-	// at the moment, implement it by the book
+func (p *Page) Bytes(offset int) []byte {
 	size := bytesToInt(p.buf[offset : offset+IntBytes])
 	from := offset + IntBytes
 	to := offset + IntBytes + int(size)
@@ -72,7 +61,7 @@ func (p *Page) SetInt(offset int, val int) {
 	copy(p.buf[offset:], lb[:])
 }
 
-func (p *Page) GetInt(offset int) int {
+func (p *Page) Int(offset int) int {
 	v := bytesToInt(p.buf[offset : offset+IntBytes])
 	return int(v)
 }
@@ -83,8 +72,8 @@ func (p *Page) SetString(offset int, v string) {
 	p.SetBytes(offset, []byte(v))
 }
 
-func (p *Page) GetString(offset int) string {
-	buf := p.GetBytes(offset)
+func (p *Page) String(offset int) string {
+	buf := p.Bytes(offset)
 	return string(buf)
 }
 

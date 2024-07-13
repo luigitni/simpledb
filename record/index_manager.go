@@ -157,7 +157,7 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		t, err := scan.GetString("tablename")
+		t, err := scan.String("tablename")
 		if err != nil {
 			return nil, err
 		}
@@ -166,12 +166,12 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			continue
 		}
 
-		idxName, err := scan.GetString(fieldIdxName)
+		idxName, err := scan.String(fieldIdxName)
 		if err != nil {
 			return nil, err
 		}
 
-		fldName, err := scan.GetString(catFieldFieldName)
+		fldName, err := scan.String(catFieldFieldName)
 		if err != nil {
 			return nil, err
 		}

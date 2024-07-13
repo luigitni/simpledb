@@ -19,19 +19,19 @@ func NewSetIntRecord(p *file.Page) SetIntLogRecord {
 	const fpos = tpos + file.IntBytes
 
 	si := SetIntLogRecord{}
-	si.txnum = p.GetInt(tpos)
-	fname := p.GetString(fpos)
+	si.txnum = p.Int(tpos)
+	fname := p.String(fpos)
 
 	bpos := fpos + file.MaxLength(len(fname))
-	blockId := p.GetInt(bpos)
+	blockId := p.Int(bpos)
 
 	si.block = file.NewBlockID(fname, blockId)
 
 	opos := bpos + file.IntBytes
-	si.offset = p.GetInt(opos)
+	si.offset = p.Int(opos)
 
 	vpos := opos + file.IntBytes
-	si.val = p.GetInt(vpos)
+	si.val = p.Int(vpos)
 
 	return si
 }
@@ -57,7 +57,7 @@ func (si SetIntLogRecord) Undo(tx Transaction) {
 // LogSetInt appends a string records to the log file, by calling log.Manager.Append
 // An int log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func LogSetInt(lm *log.Manager, txnum int, block file.BlockID, offset int, val int) int {
+func LogSetInt(lm *log.LogManager, txnum int, block file.BlockID, offset int, val int) int {
 	r := logSetInt(txnum, block, offset, val)
 	return lm.Append(r)
 }

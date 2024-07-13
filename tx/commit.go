@@ -14,7 +14,7 @@ type CommitLogRecord struct {
 func NewCommitRecord(p *file.Page) CommitLogRecord {
 	const tpos = file.IntBytes
 	return CommitLogRecord{
-		txnum: p.GetInt(tpos),
+		txnum: p.Int(tpos),
 	}
 }
 
@@ -34,7 +34,7 @@ func (record CommitLogRecord) String() string {
 	return fmt.Sprintf("<COMMIT %d>", record.txnum)
 }
 
-func LogCommit(lm *log.Manager, txnum int) int {
+func LogCommit(lm *log.LogManager, txnum int) int {
 	record := logCommit(txnum)
 	return lm.Append(record)
 }

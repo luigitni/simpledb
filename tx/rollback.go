@@ -14,7 +14,7 @@ type RollbackLogRecord struct {
 func NewRollbackRecord(p *file.Page) RollbackLogRecord {
 	const tpos = file.IntBytes
 	return RollbackLogRecord{
-		txNum: p.GetInt(tpos),
+		txNum: p.Int(tpos),
 	}
 }
 
@@ -34,7 +34,7 @@ func (record RollbackLogRecord) String() string {
 	return fmt.Sprintf("<ROLLBACK %d>", record.txNum)
 }
 
-func LogRollback(lm *log.Manager, txnum int) int {
+func LogRollback(lm *log.LogManager, txnum int) int {
 	r := logRollback(txnum)
 	return lm.Append(r)
 }

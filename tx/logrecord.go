@@ -29,7 +29,7 @@ const (
 
 func CreateLogRecord(bytes []byte) logRecord {
 	p := file.NewPageWithSlice(bytes)
-	switch txType(p.GetInt(0)) {
+	switch txType(p.Int(0)) {
 	case CHECKPOINT:
 		return CheckpointLogRecord{}
 	case START:

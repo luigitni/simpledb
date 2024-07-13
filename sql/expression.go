@@ -3,7 +3,7 @@ package sql
 import "github.com/luigitni/simpledb/file"
 
 type Scan interface {
-	GetVal(fieldName string) (file.Value, error)
+	Val(fieldName string) (file.Value, error)
 }
 
 type Schema interface {
@@ -40,7 +40,7 @@ func (exp Expression) Evaluate(scan Scan) (file.Value, error) {
 		return exp.val, nil
 	}
 
-	return scan.GetVal(exp.fname)
+	return scan.Val(exp.fname)
 }
 
 func (exp Expression) AppliesTo(schema Schema) bool {

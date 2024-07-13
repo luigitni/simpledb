@@ -89,16 +89,16 @@ func (scan *indexSelectScan) Next() error {
 	return err
 }
 
-func (scan *indexSelectScan) GetInt(fname string) (int, error) {
-	return scan.tableScan.GetInt(fname)
+func (scan *indexSelectScan) Int(fname string) (int, error) {
+	return scan.tableScan.Int(fname)
 }
 
-func (scan *indexSelectScan) GetString(fname string) (string, error) {
-	return scan.tableScan.GetString(fname)
+func (scan *indexSelectScan) String(fname string) (string, error) {
+	return scan.tableScan.String(fname)
 }
 
-func (scan *indexSelectScan) GetVal(fname string) (file.Value, error) {
-	return scan.tableScan.GetVal(fname)
+func (scan *indexSelectScan) Val(fname string) (file.Value, error) {
+	return scan.tableScan.Val(fname)
 }
 
 func (scan *indexSelectScan) HasField(fname string) bool {

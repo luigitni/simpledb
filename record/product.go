@@ -49,31 +49,31 @@ func (pr Product) Close() {
 	pr.second.Close()
 }
 
-// GetInt implements Scan.
-func (pr Product) GetInt(fname string) (int, error) {
+// Int implements Scan.
+func (pr Product) Int(fname string) (int, error) {
 	if pr.first.HasField(fname) {
-		return pr.first.GetInt(fname)
+		return pr.first.Int(fname)
 	}
 
-	return pr.second.GetInt(fname)
+	return pr.second.Int(fname)
 }
 
-// GetString implements Scan.
-func (pr Product) GetString(fname string) (string, error) {
+// String implements Scan.
+func (pr Product) String(fname string) (string, error) {
 	if pr.first.HasField(fname) {
-		return pr.first.GetString(fname)
+		return pr.first.String(fname)
 	}
 
-	return pr.second.GetString(fname)
+	return pr.second.String(fname)
 }
 
-// GetVal implements Scan.
-func (pr Product) GetVal(fname string) (file.Value, error) {
+// Val implements Scan.
+func (pr Product) Val(fname string) (file.Value, error) {
 	if pr.first.HasField(fname) {
-		return pr.first.GetVal(fname)
+		return pr.first.Val(fname)
 	}
 
-	return pr.second.GetVal(fname)
+	return pr.second.Val(fname)
 }
 
 // HasField implements Scan.

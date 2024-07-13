@@ -67,7 +67,7 @@ func (idx *StaticHashIndex) Next() error {
 			return fmt.Errorf("index error scanning table: %w", err)
 		}
 
-		v, err := idx.scan.GetVal("dataval")
+		v, err := idx.scan.Val("dataval")
 		if err != nil {
 			return fmt.Errorf("invalid dataval for index: %w", err)
 		}
@@ -79,12 +79,12 @@ func (idx *StaticHashIndex) Next() error {
 }
 
 func (idx *StaticHashIndex) DataRID() (RID, error) {
-	block, err := idx.scan.GetInt("block")
+	block, err := idx.scan.Int("block")
 	if err != nil {
 		return RID{}, err
 	}
 
-	id, err := idx.scan.GetInt("id")
+	id, err := idx.scan.Int("id")
 	if err != nil {
 		return RID{}, err
 	}

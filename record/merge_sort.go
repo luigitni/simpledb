@@ -211,7 +211,7 @@ func (sp *sortPlan) copy(src Scan, dst UpdateScan) error {
 	}
 
 	for _, f := range sp.schema.fields {
-		v, err := src.GetVal(f)
+		v, err := src.Val(f)
 		if err != nil {
 			return err
 		}
@@ -243,12 +243,12 @@ type recordComparator struct {
 
 func (rc recordComparator) Less(first Scan, second Scan) (bool, error) {
 	for _, field := range rc.sortFields {
-		f, err := first.GetVal(field)
+		f, err := first.Val(field)
 		if err != nil {
 			return false, err
 		}
 
-		s, err := second.GetVal(field)
+		s, err := second.Val(field)
 		if err != nil {
 			return false, err
 		}
@@ -374,16 +374,16 @@ func (ss *sortScan) Close() {
 	}
 }
 
-func (ss *sortScan) GetVal(fieldName string) (file.Value, error) {
-	return ss.currentScan.GetVal(fieldName)
+func (ss *sortScan) Val(fieldName string) (file.Value, error) {
+	return ss.currentScan.Val(fieldName)
 }
 
-func (ss *sortScan) GetInt(fieldName string) (int, error) {
-	return ss.currentScan.GetInt(fieldName)
+func (ss *sortScan) Int(fieldName string) (int, error) {
+	return ss.currentScan.Int(fieldName)
 }
 
-func (ss *sortScan) GetString(fieldName string) (string, error) {
-	return ss.currentScan.GetString(fieldName)
+func (ss *sortScan) String(fieldName string) (string, error) {
+	return ss.currentScan.String(fieldName)
 }
 
 func (ss *sortScan) HasField(fieldName string) bool {

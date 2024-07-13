@@ -16,7 +16,7 @@ import (
 // assigned to a different block, or if the recovery manager needs to write to disk to guard agains a crash.
 type Buffer struct {
 	fm       *file.Manager
-	lm       *log.Manager
+	lm       *log.LogManager
 	contents *file.Page
 	block    file.BlockID
 	// how many pins
@@ -27,7 +27,7 @@ type Buffer struct {
 	lsn int
 }
 
-func NewBuffer(fm *file.Manager, lm *log.Manager) *Buffer {
+func NewBuffer(fm *file.Manager, lm *log.LogManager) *Buffer {
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,

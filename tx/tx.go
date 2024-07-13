@@ -38,15 +38,15 @@ type Transaction interface {
 	// The transaction looks up the buffer pinned to this block and unpins it
 	Unpin(blockID file.BlockID)
 
-	// GetInt returns the integer value stored at the specified offset of the specified block.
+	// Int returns the integer value stored at the specified offset of the specified block.
 	// It first attempts to obtrain an Slock on the block and then it calls the buffer to retrieve the value.
 	// Returns ErrLockAcquisitionTimeout if the Slock can't be acquired
-	GetInt(blockID file.BlockID, offset int) (int, error)
+	Int(blockID file.BlockID, offset int) (int, error)
 
-	// GetString returns the string value stored at offset of the given block.
+	// String returns the string value stored at offset of the given block.
 	// It first attempts to obtain an S lock on the block, and then retrieves the value from the underlying buffers
 	// Returns ErrLockAcquisitionTimeout if the Slock can't be acquired
-	GetString(blockID file.BlockID, offset int) (string, error)
+	String(blockID file.BlockID, offset int) (string, error)
 
 	// SetInt stores an integer at the specified offset of the given block.
 	// It first obtains an X lock on the block, then creates a SETINT log record.
@@ -92,7 +92,7 @@ type TransactionImpl struct {
 	num        int
 }
 
-func NewTx(fm *file.Manager, lm *log.Manager, bm *buffer.Manager) Transaction {
+func NewTx(fm *file.Manager, lm *log.LogManager, bm *buffer.Manager) Transaction {
 	tx := TransactionImpl{
 		bufMan:  bm,
 		fileMan: fm,
@@ -134,23 +134,23 @@ func (tx TransactionImpl) Unpin(block file.BlockID) {
 	tx.buffers.Unpin(block)
 }
 
-func (tx TransactionImpl) GetInt(block file.BlockID, offset int) (int, error) {
+func (tx TransactionImpl) Int(block file.BlockID, offset int) (int, error) {
 	if err := tx.concMan.SLock(block); err != nil {
 		return 0, err
 	}
 
 	buf := tx.buffers.GetBuffer(block)
-	v := buf.Contents().GetInt(offset)
+	v := buf.Contents().Int(offset)
 	return v, nil
 }
 
-func (tx TransactionImpl) GetString(block file.BlockID, offset int) (string, error) {
+func (tx TransactionImpl) String(block file.BlockID, offset int) (string, error) {
 	if err := tx.concMan.SLock(block); err != nil {
 		return "", err
 	}
 
 	buf := tx.buffers.GetBuffer(block)
-	v := buf.Contents().GetString(offset)
+	v := buf.Contents().String(offset)
 	return v, nil
 }
 

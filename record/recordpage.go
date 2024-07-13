@@ -46,17 +46,17 @@ func (p RecordPage) offset(slot int) int {
 	return slot * p.layout.SlotSize()
 }
 
-// GetInt returns the integer value stored for the specified field of a specified slot
-func (p RecordPage) GetInt(slot int, fieldname string) (int, error) {
+// Int returns the integer value stored for the specified field of a specified slot
+func (p RecordPage) Int(slot int, fieldname string) (int, error) {
 	// compute the field offset within the page
 	fieldpos := p.offset(slot) + p.layout.Offset(fieldname)
-	return p.tx.GetInt(p.block, fieldpos)
+	return p.tx.Int(p.block, fieldpos)
 }
 
-// GetString returns the string value stored for the specified field of a specified slot
-func (p RecordPage) GetString(slot int, fieldname string) (string, error) {
+// String returns the string value stored for the specified field of a specified slot
+func (p RecordPage) String(slot int, fieldname string) (string, error) {
 	fieldpos := p.offset(slot) + p.layout.Offset(fieldname)
-	return p.tx.GetString(p.block, fieldpos)
+	return p.tx.String(p.block, fieldpos)
 }
 
 // SetInt stores an integer value val for the specified field at the given slot
@@ -140,7 +140,7 @@ func (p RecordPage) Block() file.BlockID {
 func (p RecordPage) searchAfter(slot int, flag int) (int, error) {
 	slot++
 	for p.isValidSlot(slot) {
-		v, err := p.tx.GetInt(p.block, p.offset(slot))
+		v, err := p.tx.Int(p.block, p.offset(slot))
 		if err != nil {
 			return 0, err
 		}

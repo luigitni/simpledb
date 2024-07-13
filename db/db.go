@@ -22,7 +22,7 @@ const (
 
 type DB struct {
 	fm  *file.Manager
-	lm  *log.Manager
+	lm  *log.LogManager
 	bm  *buffer.Manager
 	mdm *record.MetadataManager
 }
@@ -117,7 +117,7 @@ func (db *DB) runQuery(q sql.Query) (Rows, error) {
 
 			row := Row{}
 			for _, f := range q.Fields() {
-				v, err := scan.GetVal(f)
+				v, err := scan.Val(f)
 				if err != nil {
 					return Rows{}, err
 				}

@@ -23,20 +23,20 @@ func NewSetStringRecord(p *file.Page) SetStringLogRecord {
 
 	ss := SetStringLogRecord{}
 
-	ss.txnum = p.GetInt(tpos)
+	ss.txnum = p.Int(tpos)
 
-	fname := p.GetString(fpos)
+	fname := p.String(fpos)
 
 	bpos := fpos + file.MaxLength(len(fname))
 
-	blocknum := p.GetInt(bpos)
+	blocknum := p.Int(bpos)
 	ss.block = file.NewBlockID(fname, blocknum)
 
 	opos := bpos + file.IntBytes
-	ss.offset = p.GetInt(opos)
+	ss.offset = p.Int(opos)
 
 	vpos := opos + file.IntBytes
-	ss.val = p.GetString(vpos)
+	ss.val = p.String(vpos)
 
 	return ss
 }
@@ -65,7 +65,7 @@ func (ss SetStringLogRecord) Undo(tx Transaction) {
 // LogSetString appends a string records to the log file, by calling log.Manager.Append
 // A string log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func LogSetString(lm *log.Manager, txnum int, block file.BlockID, offset int, val string) int {
+func LogSetString(lm *log.LogManager, txnum int, block file.BlockID, offset int, val string) int {
 	// precompute all the record offsets
 	// tx number
 	r := logSetString(txnum, block, offset, val)

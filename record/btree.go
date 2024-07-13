@@ -59,9 +59,9 @@ func (page bTreePage) fieldPosition(slot int, fieldName string) int {
 	return page.slotPosition(slot) + offset
 }
 
-func (page bTreePage) getInt(slot int, fieldName string) (int, error) {
+func (page bTreePage) int(slot int, fieldName string) (int, error) {
 	pos := page.fieldPosition(slot, fieldName)
-	return page.x.GetInt(page.blockID, pos)
+	return page.x.Int(page.blockID, pos)
 }
 
 func (page bTreePage) setInt(slot int, fieldName string, val int) error {
@@ -74,9 +74,9 @@ func (page bTreePage) setString(slot int, fieldName string, val string) error {
 	return page.x.SetString(page.blockID, pos, val, true)
 }
 
-func (page bTreePage) getString(slot int, fieldName string) (string, error) {
+func (page bTreePage) string(slot int, fieldName string) (string, error) {
 	pos := page.fieldPosition(slot, fieldName)
-	return page.x.GetString(page.blockID, pos)
+	return page.x.String(page.blockID, pos)
 }
 
 func (page bTreePage) setVal(slot int, fieldName string, val file.Value) error {
@@ -88,7 +88,7 @@ func (page bTreePage) setVal(slot int, fieldName string, val file.Value) error {
 }
 
 func (page bTreePage) mustGetVal(slot int, fieldName string) file.Value {
-	v, err := page.getVal(slot, fieldName)
+	v, err := page.val(slot, fieldName)
 	if err != nil {
 		panic(err)
 	}
@@ -96,14 +96,14 @@ func (page bTreePage) mustGetVal(slot int, fieldName string) file.Value {
 	return v
 }
 
-func (page bTreePage) getVal(slot int, fieldName string) (file.Value, error) {
+func (page bTreePage) val(slot int, fieldName string) (file.Value, error) {
 	t := page.layout.schema.ftype(fieldName)
 	if t == file.INTEGER {
-		v, err := page.getInt(slot, fieldName)
+		v, err := page.int(slot, fieldName)
 		return file.ValueFromInt(v), err
 	}
 
-	v, err := page.getString(slot, fieldName)
+	v, err := page.string(slot, fieldName)
 	return file.ValueFromString(v), err
 }
 
@@ -117,7 +117,7 @@ func (page bTreePage) mustGetDataVal(slot int) file.Value {
 }
 
 func (page bTreePage) getDataVal(slot int) (file.Value, error) {
-	return page.getVal(slot, "dataval")
+	return page.val(slot, "dataval")
 }
 
 func (page bTreePage) mustGetDataRID(slot int) RID {
@@ -130,12 +130,12 @@ func (page bTreePage) mustGetDataRID(slot int) RID {
 }
 
 func (page bTreePage) getDataRID(slot int) (RID, error) {
-	block, err := page.getInt(slot, "block")
+	block, err := page.int(slot, "block")
 	if err != nil {
 		return RID{}, err
 	}
 
-	id, err := page.getInt(slot, "id")
+	id, err := page.int(slot, "id")
 	if err != nil {
 		return RID{}, err
 	}
@@ -153,7 +153,7 @@ func (page bTreePage) mustGetFlag() int {
 }
 
 func (page bTreePage) getFlag() (int, error) {
-	return page.x.GetInt(page.blockID, 0)
+	return page.x.Int(page.blockID, 0)
 }
 
 func (page bTreePage) mustSetFlag(v int) {
@@ -176,7 +176,7 @@ func (page bTreePage) mustGetNumRecords() int {
 }
 
 func (page bTreePage) getNumRecords() (int, error) {
-	return page.x.GetInt(page.blockID, bTreePageNumRecordsOffset)
+	return page.x.Int(page.blockID, bTreePageNumRecordsOffset)
 }
 
 func (page bTreePage) setNumRecords(n int) error {
@@ -356,7 +356,7 @@ func (page bTreePage) delete(slot int) error {
 
 func (page bTreePage) copyRecord(fromSlot int, toSlot int) error {
 	for _, f := range page.layout.schema.fields {
-		v, err := page.getVal(fromSlot, f)
+		v, err := page.val(fromSlot, f)
 		if err != nil {
 			return err
 		}
@@ -392,7 +392,7 @@ func (page bTreePage) transferRecords(slot int, dst bTreePage) error {
 		}
 
 		for _, f := range page.layout.schema.fields {
-			v, err := page.getVal(slot, f)
+			v, err := page.val(slot, f)
 			if err != nil {
 				return err
 			}
@@ -413,7 +413,7 @@ func (page bTreePage) transferRecords(slot int, dst bTreePage) error {
 }
 
 func (page bTreePage) getChildNum(slot int) (int, error) {
-	return page.getInt(slot, "block")
+	return page.int(slot, "block")
 }
 
 // insertDirectory insert a directory value into the page

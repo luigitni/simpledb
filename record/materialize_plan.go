@@ -50,7 +50,7 @@ func (mp *materializePlan) Open() (Scan, error) {
 		}
 
 		for _, fname := range schema.fields {
-			v, err := src.GetVal(fname)
+			v, err := src.Val(fname)
 			if err != nil {
 				return nil, err
 			}

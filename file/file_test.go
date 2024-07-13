@@ -30,14 +30,14 @@ func TestFile(t *testing.T) {
 	p2 := file.NewPageWithSize(fman.BlockSize())
 	fman.Read(block, p2)
 
-	if got := p2.GetInt(pos2); got != intv {
+	if got := p2.Int(pos2); got != intv {
 		t.Fatalf("expected %d at offset %d. Got %d", intv, pos2, got)
 	}
-	t.Logf("offset %d contains %d", pos2, p2.GetInt(pos2))
+	t.Logf("offset %d contains %d", pos2, p2.Int(pos2))
 
-	if got := p2.GetString(pos); got != val {
+	if got := p2.String(pos); got != val {
 		t.Fatalf("expected %q at offset %d. Got %q", val, pos, got)
 	}
 
-	t.Logf("offset %d contains %s", pos, p2.GetString(pos))
+	t.Logf("offset %d contains %s", pos, p2.String(pos))
 }

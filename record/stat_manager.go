@@ -106,7 +106,7 @@ func (sm *statManager) refreshStatistics(x tx.Transaction) error {
 			return err
 		}
 
-		tname, err := ts.GetString(catFieldTableName)
+		tname, err := ts.String(catFieldTableName)
 		if err != nil {
 			return err
 		}

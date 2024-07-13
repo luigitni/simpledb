@@ -136,7 +136,7 @@ func (ijs *IndexJoinScan) Next() error {
 }
 
 func (ijs *IndexJoinScan) resetIndex() error {
-	key, err := ijs.lhs.GetVal(ijs.joinField)
+	key, err := ijs.lhs.Val(ijs.joinField)
 	if err != nil {
 		return err
 	}
@@ -148,26 +148,26 @@ func (ijs *IndexJoinScan) HasField(field string) bool {
 	return ijs.rhs.HasField(field) || ijs.lhs.HasField(field)
 }
 
-func (ijs *IndexJoinScan) GetVal(field string) (file.Value, error) {
+func (ijs *IndexJoinScan) Val(field string) (file.Value, error) {
 	if ijs.rhs.HasField(field) {
-		return ijs.rhs.GetVal(field)
+		return ijs.rhs.Val(field)
 	}
 
-	return ijs.lhs.GetVal(field)
+	return ijs.lhs.Val(field)
 }
 
-func (ijs *IndexJoinScan) GetInt(field string) (int, error) {
+func (ijs *IndexJoinScan) Int(field string) (int, error) {
 	if ijs.rhs.HasField(field) {
-		return ijs.rhs.GetInt(field)
+		return ijs.rhs.Int(field)
 	}
 
-	return ijs.lhs.GetInt(field)
+	return ijs.lhs.Int(field)
 }
 
-func (ijs *IndexJoinScan) GetString(field string) (string, error) {
+func (ijs *IndexJoinScan) String(field string) (string, error) {
 	if ijs.rhs.HasField(field) {
-		return ijs.rhs.GetString(field)
+		return ijs.rhs.String(field)
 	}
 
-	return ijs.lhs.GetString(field)
+	return ijs.lhs.String(field)
 }

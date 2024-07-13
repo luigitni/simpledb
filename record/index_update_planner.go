@@ -125,7 +125,7 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 			return c, err
 		}
 
-		oldVal, err := updateScan.GetVal(data.Field)
+		oldVal, err := updateScan.Val(data.Field)
 		if err != nil {
 			return c, err
 		}
@@ -168,7 +168,7 @@ func (planner *IndexUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Tr
 	delFromIdx := func() error {
 		rid := updateScan.GetRID()
 		for field, info := range ii {
-			val, err := updateScan.GetVal(field)
+			val, err := updateScan.Val(field)
 			if err != nil {
 				return err
 			}

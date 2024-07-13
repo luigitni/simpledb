@@ -15,11 +15,11 @@ type Scan interface {
 
 	Next() error
 
-	GetInt(fname string) (int, error)
+	Int(fname string) (int, error)
 
-	GetString(fname string) (string, error)
+	String(fname string) (string, error)
 
-	GetVal(fname string) (file.Value, error)
+	Val(fname string) (file.Value, error)
 
 	HasField(fname string) bool
 

@@ -36,7 +36,7 @@ func TestSerialTx(t *testing.T) {
 	tx2 := tx.NewTx(fm, lm, bm)
 	tx2.Pin(block)
 
-	ival, err := tx2.GetInt(block, 80)
+	ival, err := tx2.Int(block, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -45,7 +45,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatalf("expected intval to be %d, got %d", intVal1, ival)
 	}
 
-	sval, err := tx2.GetString(block, 40)
+	sval, err := tx2.String(block, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -71,7 +71,7 @@ func TestSerialTx(t *testing.T) {
 	tx3 := tx.NewTx(fm, lm, bm)
 	tx3.Pin(block)
 
-	ival, err = tx3.GetInt(block, 80)
+	ival, err = tx3.Int(block, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -80,7 +80,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatalf("expected intval to be %d, got %d", intVal2, ival)
 	}
 
-	sval, err = tx3.GetString(block, 40)
+	sval, err = tx3.String(block, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestSerialTx(t *testing.T) {
 	const intVal3 = 9999
 	tx3.SetInt(block, 80, intVal3, true)
 
-	v, err := tx3.GetInt(block, 80)
+	v, err := tx3.Int(block, 80)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -107,7 +107,7 @@ func TestSerialTx(t *testing.T) {
 	tx4 := tx.NewTx(fm, lm, bm)
 	tx4.Pin(block)
 
-	v, err = tx4.GetInt(block, 80)
+	v, err = tx4.Int(block, 80)
 	if err != nil {
 		t.Fatal(err)
 	}

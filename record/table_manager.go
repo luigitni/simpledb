@@ -101,7 +101,7 @@ func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 			panic(err)
 		}
 
-		v, err := sel.GetString(catFieldTableName)
+		v, err := sel.String(catFieldTableName)
 		if err != nil {
 			panic(err)
 		}
@@ -189,13 +189,13 @@ func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, err
 			return empty, err
 		}
 
-		tname, err := tcat.GetString(catFieldTableName)
+		tname, err := tcat.String(catFieldTableName)
 		if err != nil {
 			return empty, err
 		}
 
 		if tname == tblname {
-			size, err = tcat.GetInt(catFieldSlotSize)
+			size, err = tcat.Int(catFieldSlotSize)
 			if err != nil {
 				return empty, err
 			}
@@ -227,28 +227,28 @@ func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, err
 			return empty, err
 		}
 
-		tname, err := fcat.GetString(catFieldTableName)
+		tname, err := fcat.String(catFieldTableName)
 		if err != nil {
 			return empty, err
 		}
 
 		if tname == tblname {
-			fldname, err := fcat.GetString(catFieldFieldName)
+			fldname, err := fcat.String(catFieldFieldName)
 			if err != nil {
 				return empty, err
 			}
 
-			fldtype, err := fcat.GetInt(catFieldType)
+			fldtype, err := fcat.Int(catFieldType)
 			if err != nil {
 				return empty, err
 			}
 
-			fldlen, err := fcat.GetInt(catFieldLength)
+			fldlen, err := fcat.Int(catFieldLength)
 			if err != nil {
 				return empty, err
 			}
 
-			offset, err := fcat.GetInt(catFieldOffset)
+			offset, err := fcat.Int(catFieldOffset)
 			if err != nil {
 				return empty, err
 			}

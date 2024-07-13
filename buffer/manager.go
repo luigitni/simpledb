@@ -28,7 +28,7 @@ type Manager struct {
 	sync.Mutex
 }
 
-func NewBufferManager(fm *file.Manager, lm *log.Manager, size int) *Manager {
+func NewBufferManager(fm *file.Manager, lm *log.LogManager, size int) *Manager {
 	p := make([]*Buffer, size)
 	for i := 0; i < len(p); i++ {
 		p[i] = NewBuffer(fm, lm)

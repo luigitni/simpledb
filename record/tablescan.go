@@ -106,24 +106,24 @@ func (ts *tableScan) Next() error {
 	return nil
 }
 
-func (ts *tableScan) GetInt(fieldname string) (int, error) {
-	return ts.recordPage.GetInt(ts.currentSlot, fieldname)
+func (ts *tableScan) Int(fieldname string) (int, error) {
+	return ts.recordPage.Int(ts.currentSlot, fieldname)
 }
 
-func (ts *tableScan) GetString(fieldname string) (string, error) {
-	return ts.recordPage.GetString(ts.currentSlot, fieldname)
+func (ts *tableScan) String(fieldname string) (string, error) {
+	return ts.recordPage.String(ts.currentSlot, fieldname)
 }
 
-func (ts *tableScan) GetVal(fieldname string) (file.Value, error) {
+func (ts *tableScan) Val(fieldname string) (file.Value, error) {
 	switch ts.layout.schema.ftype(fieldname) {
 	case file.INTEGER:
-		v, err := ts.GetInt(fieldname)
+		v, err := ts.Int(fieldname)
 		if err != nil {
 			return file.Value{}, err
 		}
 		return file.ValueFromInt(v), nil
 	case file.STRING:
-		v, err := ts.GetString(fieldname)
+		v, err := ts.String(fieldname)
 		if err != nil {
 			return file.Value{}, err
 		}
