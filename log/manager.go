@@ -7,16 +7,16 @@ import (
 )
 
 type LogManager struct {
-	fm           *file.Manager
+	fm           *file.FileManager
 	logfile      string
 	logpage      *file.Page
-	currentBlock file.BlockID
+	currentBlock file.Block
 	latestLSN    int
 	lastSavedLSN int
 	sync.Mutex
 }
 
-func NewLogManager(fm *file.Manager, logfile string) *LogManager {
+func NewLogManager(fm *file.FileManager, logfile string) *LogManager {
 	b := make([]byte, fm.BlockSize())
 
 	logsize := fm.Size(logfile)
@@ -35,7 +35,7 @@ func NewLogManager(fm *file.Manager, logfile string) *LogManager {
 		// empty log, create a new one
 		man.currentBlock = man.appendNewBlock()
 	} else {
-		man.currentBlock = file.NewBlockID(logfile, logsize-1)
+		man.currentBlock = file.NewBlock(logfile, logsize-1)
 		fm.Read(man.currentBlock, logpage)
 	}
 
@@ -91,12 +91,12 @@ func (man *LogManager) Append(records []byte) int {
 
 	recsize := len(records)
 
-	bytesneeded := recsize + file.IntBytes
+	bytesneeded := recsize + file.IntSize
 
 	// if the bytes needed to insert the record, PLUS the page header, are larger than the space left
 	// the record won't fit.
 	// In this case, flush the current page and move to the next block
-	if bytesneeded+file.IntBytes > spaceLeft {
+	if bytesneeded+file.IntSize > spaceLeft {
 		man.flush()
 		man.currentBlock = man.appendNewBlock()
 		spaceLeft = man.logpage.Int(0)
@@ -115,7 +115,7 @@ func (man *LogManager) Append(records []byte) int {
 // appendNewBlock appends a new block-sized array to the logfile via the file manager and returns it's index
 // It then writes the size of the block in the page first IntBytes (the page header?)
 // We will use the header to keep track of where we are when prepending data to the page.
-func (man *LogManager) appendNewBlock() file.BlockID {
+func (man *LogManager) appendNewBlock() file.Block {
 	block := man.fm.Append(man.logfile)
 	man.logpage.SetInt(0, man.fm.BlockSize())
 

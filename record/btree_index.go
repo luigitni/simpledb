@@ -16,7 +16,7 @@ type BTreeIndex struct {
 	leafLayout Layout
 	leafTable  string
 	leaf       *bTreeLeaf
-	rootBlock  file.BlockID
+	rootBlock  file.Block
 }
 
 func BTreeIndexSearchCost(numblocks int, recordsPerBucket int) int {
@@ -51,7 +51,7 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 	dirTable := idxName + "_dir"
 
 	dirLayout := NewLayout(dirSchema)
-	rootBlock := file.NewBlockID(dirTable, 0)
+	rootBlock := file.NewBlock(dirTable, 0)
 
 	dirSize, err := x.Size(dirTable)
 	if err != nil {
@@ -112,7 +112,7 @@ func (idx *BTreeIndex) BeforeFirst(key file.Value) error {
 		return err
 	}
 
-	leafBlock := file.NewBlockID(idx.leafTable, blockNum)
+	leafBlock := file.NewBlock(idx.leafTable, blockNum)
 	leaf, err := newBTreeLeaf(idx.x, leafBlock, idx.leafLayout, key)
 	if err != nil {
 		return err

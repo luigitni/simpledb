@@ -14,7 +14,7 @@ func NewLayout(schema Schema) Layout {
 
 	offsets := make(map[string]int, len(schema.fields))
 
-	s := file.IntBytes
+	s := file.IntSize
 	// compute the offset of each field
 	for _, f := range schema.fields {
 		offsets[f] = s
@@ -40,7 +40,7 @@ func lenInBytes(schema Schema, field string) int {
 	t := schema.ftype(field)
 	switch t {
 	case file.INTEGER:
-		return file.IntBytes
+		return file.IntSize
 	case file.STRING:
 		return file.MaxLength(schema.flen(field))
 	}

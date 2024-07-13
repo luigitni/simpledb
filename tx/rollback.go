@@ -12,7 +12,7 @@ type RollbackLogRecord struct {
 }
 
 func NewRollbackRecord(p *file.Page) RollbackLogRecord {
-	const tpos = file.IntBytes
+	const tpos = file.IntSize
 	return RollbackLogRecord{
 		txNum: p.Int(tpos),
 	}
@@ -40,9 +40,9 @@ func LogRollback(lm *log.LogManager, txnum int) int {
 }
 
 func logRollback(txnum int) []byte {
-	record := make([]byte, 2*file.IntBytes)
+	record := make([]byte, 2*file.IntSize)
 	p := file.NewPageWithSlice(record)
 	p.SetInt(0, int(ROLLBACK))
-	p.SetInt(file.IntBytes, txnum)
+	p.SetInt(file.IntSize, txnum)
 	return record
 }

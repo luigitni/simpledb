@@ -21,13 +21,13 @@ func TestWriteIntLoop(t *testing.T) {
 	nums := []int{256, 123, 1, 0, 10000000, 16543}
 
 	j := 0
-	for i := 0; i < len(nums)*IntBytes; i += IntBytes {
+	for i := 0; i < len(nums)*IntSize; i += IntSize {
 		page.SetInt(i, nums[j])
 		j++
 	}
 
 	j = 0
-	for i := 0; i < len(nums)*IntBytes; i += IntBytes {
+	for i := 0; i < len(nums)*IntSize; i += IntSize {
 		v := page.Int(i)
 		if v != nums[j] {
 			t.Fatalf("expected %d got %d", nums[j], v)

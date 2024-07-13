@@ -92,7 +92,7 @@ func (ts *tableScan) Next() error {
 		}
 
 		// move to block next to the one the record page is pointing to
-		nextBlock := ts.recordPage.Block().BlockNumber() + 1
+		nextBlock := ts.recordPage.Block().Number() + 1
 
 		ts.moveToBlock(nextBlock)
 		slot, err := ts.recordPage.NextAfter(ts.currentSlot)
@@ -190,7 +190,7 @@ func (ts *tableScan) Insert() error {
 				return err
 			}
 		} else {
-			ts.moveToBlock(ts.recordPage.block.BlockNumber() + 1)
+			ts.moveToBlock(ts.recordPage.block.Number() + 1)
 		}
 
 		slot, err := ts.recordPage.InsertAfter(ts.currentSlot)
@@ -210,20 +210,20 @@ func (ts *tableScan) Delete() error {
 
 func (ts *tableScan) MoveToRID(rid RID) {
 	ts.Close()
-	block := file.NewBlockID(ts.fileName, rid.Blocknum)
+	block := file.NewBlock(ts.fileName, rid.Blocknum)
 	ts.recordPage = newRecordPage(ts.x, block, ts.layout)
 	ts.currentSlot = rid.Slot
 }
 
 func (ts *tableScan) GetRID() RID {
-	return NewRID(ts.recordPage.block.BlockNumber(), ts.currentSlot)
+	return NewRID(ts.recordPage.block.Number(), ts.currentSlot)
 }
 
 // moveToBlock closes the current page record page and opens a new one for the specified block.
 // After the page has been changed, the TableScan positions itself before the first slot of the new block
 func (ts *tableScan) moveToBlock(block int) {
 	ts.Close()
-	b := file.NewBlockID(ts.fileName, block)
+	b := file.NewBlock(ts.fileName, block)
 	ts.recordPage = newRecordPage(ts.x, b, ts.layout)
 	ts.currentSlot = -1
 }
@@ -253,5 +253,5 @@ func (ts *tableScan) isAtLastBlock() (bool, error) {
 		return false, err
 	}
 
-	return ts.recordPage.Block().BlockNumber() == size-1, nil
+	return ts.recordPage.Block().Number() == size-1, nil
 }

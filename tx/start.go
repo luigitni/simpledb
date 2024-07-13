@@ -12,7 +12,7 @@ type StartLogRecord struct {
 }
 
 func NewStartLogRecord(p *file.Page) StartLogRecord {
-	const tpos = file.IntBytes
+	const tpos = file.IntSize
 	return StartLogRecord{
 		txnum: p.Int(tpos),
 	}
@@ -40,9 +40,9 @@ func LogStart(lm *log.LogManager, txnum int) int {
 }
 
 func logStart(txnum int) []byte {
-	record := make([]byte, 2*file.IntBytes)
+	record := make([]byte, 2*file.IntSize)
 	p := file.NewPageWithSlice(record)
 	p.SetInt(0, int(START))
-	p.SetInt(file.IntBytes, txnum)
+	p.SetInt(file.IntSize, txnum)
 	return record
 }

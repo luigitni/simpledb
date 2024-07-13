@@ -23,7 +23,7 @@ func TestLogStartRecord(t *testing.T) {
 	p := file.NewPageWithSlice(record)
 
 	test.AssertIntAtPos(t, p, 0, int(START))
-	test.AssertIntAtPos(t, p, file.IntBytes, txNum)
+	test.AssertIntAtPos(t, p, file.IntSize, txNum)
 }
 
 func TestLogRollbackRecord(t *testing.T) {
@@ -35,7 +35,7 @@ func TestLogRollbackRecord(t *testing.T) {
 
 	// test that the first entry is ROLLBACK
 	test.AssertIntAtPos(t, p, 0, int(ROLLBACK))
-	test.AssertIntAtPos(t, p, file.IntBytes, txNum)
+	test.AssertIntAtPos(t, p, file.IntSize, txNum)
 }
 
 func TestLogCommitRecord(t *testing.T) {
@@ -46,7 +46,7 @@ func TestLogCommitRecord(t *testing.T) {
 	p := file.NewPageWithSlice(record)
 
 	test.AssertIntAtPos(t, p, 0, int(COMMIT))
-	test.AssertIntAtPos(t, p, file.IntBytes, txNum)
+	test.AssertIntAtPos(t, p, file.IntSize, txNum)
 }
 
 func TestLogSetIntRecord(t *testing.T) {
@@ -56,21 +56,21 @@ func TestLogSetIntRecord(t *testing.T) {
 	const fname = "testblock"
 	const bid = 1
 
-	block := file.NewBlockID(fname, bid)
+	block := file.NewBlock(fname, bid)
 
 	record := logSetInt(txNum, block, offset, val)
 
 	p := file.NewPageWithSlice(record)
 
-	const tpos = file.IntBytes
+	const tpos = file.IntSize
 	// filename
-	const fpos = tpos + file.IntBytes
+	const fpos = tpos + file.IntSize
 	// block id number
-	bpos := fpos + file.MaxLength(len(block.Filename()))
+	bpos := fpos + file.MaxLength(len(block.FileName()))
 	// offset
-	opos := bpos + file.IntBytes
+	opos := bpos + file.IntSize
 	// value
-	vpos := opos + file.IntBytes
+	vpos := opos + file.IntSize
 
 	test.AssertIntAtPos(t, p, 0, int(SETINT))
 	test.AssertIntAtPos(t, p, tpos, txNum)
@@ -86,21 +86,21 @@ func TestLogSetStrRecord(t *testing.T) {
 	const fname = "testblock"
 	const bid = 1
 
-	block := file.NewBlockID(fname, bid)
+	block := file.NewBlock(fname, bid)
 
 	record := logSetString(txNum, block, offset, val)
 
 	p := file.NewPageWithSlice(record)
 
-	const tpos = file.IntBytes
+	const tpos = file.IntSize
 	// filename
-	const fpos = tpos + file.IntBytes
+	const fpos = tpos + file.IntSize
 	// block id number
-	bpos := fpos + file.MaxLength(len(block.Filename()))
+	bpos := fpos + file.MaxLength(len(block.FileName()))
 	// offset
-	opos := bpos + file.IntBytes
+	opos := bpos + file.IntSize
 	// value
-	vpos := opos + file.IntBytes
+	vpos := opos + file.IntSize
 
 	test.AssertIntAtPos(t, p, 0, int(SETSTRING))
 	test.AssertIntAtPos(t, p, tpos, txNum)

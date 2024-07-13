@@ -83,7 +83,7 @@ func populateLogManager(t *testing.T, lm *log.LogManager, start, end int) {
 
 func createLogRecord(s string, val int) []byte {
 	npos := file.MaxLength(len(s))
-	b := make([]byte, npos+file.IntBytes)
+	b := make([]byte, npos+file.IntSize)
 	page := file.NewPageWithSlice(b)
 	page.SetString(0, s)
 	page.SetInt(npos, val)

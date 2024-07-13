@@ -12,7 +12,7 @@ type CommitLogRecord struct {
 }
 
 func NewCommitRecord(p *file.Page) CommitLogRecord {
-	const tpos = file.IntBytes
+	const tpos = file.IntSize
 	return CommitLogRecord{
 		txnum: p.Int(tpos),
 	}
@@ -40,9 +40,9 @@ func LogCommit(lm *log.LogManager, txnum int) int {
 }
 
 func logCommit(txnum int) []byte {
-	record := make([]byte, 2*file.IntBytes)
+	record := make([]byte, 2*file.IntSize)
 	p := file.NewPageWithSlice(record)
 	p.SetInt(0, int(COMMIT))
-	p.SetInt(file.IntBytes, txnum)
+	p.SetInt(file.IntSize, txnum)
 	return record
 }

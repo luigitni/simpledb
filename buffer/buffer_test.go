@@ -1,132 +1,230 @@
-package buffer_test
+package buffer
 
 import (
+	"context"
 	"testing"
 
-	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/test"
 )
 
+type mockFileManager struct {
+	writeCalls    int
+	readCalls     int
+	writtenBlocks []file.BlockID
+}
+
+func (fm *mockFileManager) Write(block file.Block, page *file.Page) {
+	fm.writeCalls++
+	fm.writtenBlocks = append(fm.writtenBlocks, block.ID())
+}
+
+func (fm *mockFileManager) Read(block file.Block, page *file.Page) {
+	fm.readCalls++
+}
+
+func (fm *mockFileManager) BlockSize() int {
+	return 512
+}
+
+type mockLogManager struct {
+	flushCalls int
+}
+
+func (lm *mockLogManager) Flush(lsn int) {
+	lm.flushCalls++
+}
+
 func TestBuffer(t *testing.T) {
-	fm, _, bm := test.MakeManagers(t)
+	t.Parallel()
 
-	conf := test.DefaultConfig(t)
-	buff1, err := bm.Pin(file.NewBlockID(conf.BlockFile, 1))
-	if err != nil {
-		t.Fatal(err)
-	}
+	t.Run("dirty buffers are flushed to disks and log is flushed", func(t *testing.T) {
+		t.Parallel()
+		const (
+			txNum = 123
+			lsn   = 1
+		)
+		fm, lm := &mockFileManager{}, &mockLogManager{}
 
-	page := buff1.Contents()
+		buf := newBuffer(fm, lm)
+		buf.SetModified(txNum, lsn)
+		buf.flush()
 
-	n := page.Int(80)
+		if lm.flushCalls != 1 {
+			t.Fatalf("expected one WAL flush call, got %d", lm.flushCalls)
+		}
 
-	// update the value in the page and flag the buffer as dirty
-	page.SetInt(80, n+1)
+		if fm.writeCalls != 1 {
+			t.Fatalf("expected block to be written to disk once, got %d", fm.writeCalls)
+		}
+	})
 
-	buff1.SetModified(1, 0)
+	t.Run("unmodified buffers are not flushed to disk and WAL", func(t *testing.T) {
+		t.Parallel()
+		fm, lm := &mockFileManager{}, &mockLogManager{}
 
-	t.Logf("the new value is %d", n+1)
+		buf := newBuffer(fm, lm)
+		buf.flush()
 
-	bm.Unpin(buff1)
+		if lm.flushCalls > 0 {
+			t.Fatalf("expected buffer to not be flushed to WAL. Flush called %d times", lm.flushCalls)
+		}
 
-	// One of these pins will flush buffer1 to disk:
-	// buff1 has been modified, and we have 3 buffers available
-	// When Pin is requested, the buffer manager will see that
-	// buff1 is unpinned and will swap the assigned block
-	// Since buff1 has been modified, Pin will flush the old block to disk
-
-	buff2, err := bm.Pin(file.NewBlockID(conf.BlockFile, 2))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := bm.Pin(file.NewBlockID(conf.BlockFile, 3)); err != nil {
-		t.Fatal(err)
-	}
-
-	if _, err := bm.Pin(file.NewBlockID(conf.BlockFile, 4)); err != nil {
-		t.Fatal(err)
-	}
-
-	// test that buff1 has been reassigned to a different block
-	if !buff1.IsPinned() {
-		t.Fatal("expected buff 1 to be pinned")
-	}
-
-	bm.Unpin(buff2)
-
-	// buff2 will not be written to disk, as no other block needs to be associated with a buffer
-	buff2, err = bm.Pin(file.NewBlockID(conf.BlockFile, 1))
-	if err != nil {
-		t.Fatal(err)
-	}
-
-	page2 := buff2.Contents()
-	page2.SetInt(80, 9999)
-	buff2.SetModified(1, 0)
-	bm.Unpin(buff2)
-
-	// test that at position 80, block1 DOES NOT contain 9999
-
-	blankPage := file.NewPageWithSize(fm.BlockSize())
-	fm.Read(file.NewBlockID(conf.BlockFile, 1), blankPage)
-
-	v := blankPage.Int(80)
-
-	if v == 9999 {
-		t.Fatalf("expected contents of buff2 to not be written. Contents found in block 1")
-	}
-
-	if v != n+1 {
-		t.Fatalf("expected contents of block1 to be %d. Found %d", n+1, v)
-	}
+		if fm.writeCalls > 0 {
+			t.Fatalf("expected buffer to not be writte to file. Write called %d times", fm.writeCalls)
+		}
+	})
 }
 
 func TestBufferManager(t *testing.T) {
-	_, _, bm := test.MakeManagers(t)
+	t.Parallel()
 
-	buffers := make([]*buffer.Buffer, 6)
+	t.Run("buffers are available", func(t *testing.T) {
+		t.Parallel()
+		fm, lm := &mockFileManager{}, &mockLogManager{}
+		const size = 10
 
-	conf := test.DefaultConfig(t)
-
-	var err error
-	for i := 0; i < 3; i++ {
-		// assign all buffers to blocks
-		buffers[i], err = bm.Pin(file.NewBlockID(conf.BlockFile, i))
-		if err != nil {
-			t.Fatal(err)
+		bufMan := NewBufferManager(fm, lm, size)
+		for i := 0; i < size-1; i++ {
+			block := file.NewBlock("test", i)
+			bufMan.Pin(block)
 		}
-	}
 
-	bm.Unpin(buffers[1])
-	buffers[1] = nil
-
-	if buffers[3], err = bm.Pin(file.NewBlockID(conf.BlockFile, 0)); err != nil {
-		t.Fatal(err)
-	}
-
-	if buffers[4], err = bm.Pin(file.NewBlockID(conf.BlockFile, 1)); err != nil {
-		t.Fatal(err)
-	}
-
-	// expect this buffer to timeout
-	buffers[5], err = bm.Pin(file.NewBlockID(conf.BlockFile, 3))
-	if err != buffer.ErrClientTimeout {
-		t.Fatalf("expected pin on buffer 5 to timeount. Got %v", err)
-	} else {
-		t.Log("buffer 5 has timed out")
-	}
-
-	bm.Unpin(buffers[2])
-	buffers[2] = nil
-	if buffers[5], err = bm.Pin(file.NewBlockID(conf.BlockFile, 3)); err != nil {
-		t.Fatalf("expected client not to time out. Got %v", err)
-	}
-
-	for i, buf := range buffers {
-		if buf != nil {
-			t.Logf("buffer %d at %p pinned to block %s", i, buffers[i], buf.BlockID())
+		if bufMan.Available() != 1 {
+			t.Fatal("expected one buffer be available")
 		}
-	}
+	})
+
+	t.Run("all buffers are pinned", func(t *testing.T) {
+		t.Parallel()
+		fm, lm := &mockFileManager{}, &mockLogManager{}
+		const size = 10
+
+		bufMan := NewBufferManager(fm, lm, size)
+		for i := 0; i < size; i++ {
+			block := file.NewBlock("test", i)
+			bufMan.Pin(block)
+		}
+
+		if bufMan.Available() > 0 {
+			t.Fatal("expected all buffers to be unavailable")
+		}
+	})
+
+	t.Run("block is pinned and the same block will reuse the same buffer", func(t *testing.T) {
+		t.Parallel()
+		fm, lm := &mockFileManager{}, &mockLogManager{}
+		const size = 10
+
+		bufMan := NewBufferManager(fm, lm, size)
+		block := file.NewBlock("test", 1)
+		bufMan.Pin(block)
+		bufMan.Pin(block)
+
+		if n := bufMan.Available(); n != 9 {
+			t.Fatalf("expected the same buffer to be pinned for the same block. %d buffers were pinned", n)
+		}
+	})
+
+	t.Run("the least pinned buffer will be flushed", func(t *testing.T) {
+		t.Parallel()
+		fm, lm := &mockFileManager{}, &mockLogManager{}
+		const size = 10
+
+		bufMan := NewBufferManager(fm, lm, size)
+		for i := 0; i < size; i++ {
+			block := file.NewBlock("test", i)
+			buf, err := bufMan.Pin(block)
+			if err != nil {
+				t.Fatal(err)
+			}
+			buf.SetModified(1, 1)
+		}
+
+		toBeEvicted := file.NewBlock("test", 3).ID()
+		for i := 0; i < size; i++ {
+			block := file.NewBlock("test", i)
+			if block.ID() == toBeEvicted {
+				continue
+			}
+			if _, err := bufMan.Pin(block); err != nil {
+				t.Fatal(err)
+			}
+		}
+
+		block := file.NewBlock("anothertable", 1)
+		bufMan.Pin(block)
+
+		if n := bufMan.Available(); n > 0 {
+			t.Fatalf("expected no buffers to be available, got %d", n)
+		}
+
+		if lm.flushCalls != 1 {
+			t.Fatalf("expected only one block to have been flushed, got %d", lm.flushCalls)
+		}
+
+		if fm.writeCalls != 1 {
+			t.Fatalf("expected only one block to have been flushed, got %d", fm.writeCalls)
+		}
+
+		if evicted := fm.writtenBlocks[0]; evicted != toBeEvicted {
+			t.Fatalf("expected block to be written to be %q, got %q", toBeEvicted, evicted)
+		}
+	})
+
+	t.Run("pinning will time out if high contention", func(t *testing.T) {
+		t.Parallel()
+		const (
+			size  = 3
+			fname = "test"
+		)
+
+		fm, lm := &mockFileManager{}, &mockLogManager{}
+		bufMan := NewBufferManager(fm, lm, 3)
+
+		ctx, canc := context.WithCancel(context.Background())
+		defer canc()
+
+		started := make(chan struct{})
+
+		go func(ctx context.Context) {
+			blocks := []file.Block{
+				file.NewBlock(fname, 1),
+				file.NewBlock(fname, 2),
+				file.NewBlock(fname, 3),
+			}
+
+			done := false
+
+			for {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+					for i := 0; i < size; i++ {
+						bufMan.Pin(blocks[i])
+					}
+
+					if !done {
+						close(started)
+						done = true
+					}
+				}
+			}
+		}(ctx)
+
+		<-started
+
+		_, err := bufMan.Pin(file.NewBlock("anotherfile", 0))
+		if err != ErrClientTimeout {
+			t.Fatalf("expected ErrClientTimeout, got %s", err)
+		}
+
+		if fc := lm.flushCalls; fc > 0 {
+			t.Fatalf("expected blocks to not cause a WAL flush. WAL has been flushed %d times", fc)
+		}
+
+		if wc := fm.writeCalls; wc > 0 {
+			t.Fatalf("expected blocks to not be written. They have been written %d times", wc)
+		}
+	})
 }

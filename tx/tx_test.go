@@ -15,7 +15,7 @@ func TestSerialTx(t *testing.T) {
 
 	tx1 := tx.NewTx(fm, lm, bm)
 
-	block := file.NewBlockID(blockname, 1)
+	block := file.NewBlock(blockname, 1)
 	tx1.Pin(block)
 
 	const intVal1 = 1

@@ -12,7 +12,7 @@ func TestFile(t *testing.T) {
 	conf := test.DefaultConfig(t)
 	fman := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 
-	block := file.NewBlockID(conf.BlockFile, 2)
+	block := file.NewBlock(conf.BlockFile, 2)
 	page := file.NewPageWithSize(fman.BlockSize())
 
 	pos := 88

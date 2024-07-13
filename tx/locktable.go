@@ -26,17 +26,21 @@ var ErrLockAcquisitionTimeout = errors.New("could not grant a lock on requested 
 // Requests that fail to acquire the lock are queued again against a non buffered channel.
 // The order in which each request is then satisfied depends ultimately on the scheduler.
 type LockTable struct {
-	locks             map[string]int
+	locks             map[file.BlockID]int
 	lockRequestChan   chan lockRequest
 	unlockRequestChan chan unlockRequest
 	done              chan struct{}
 }
 
-type unlockRequest string
+type unlockRequest file.BlockID
+
+func (req unlockRequest) BlockID() file.BlockID {
+	return file.BlockID(req)
+}
 
 type lockRequest struct {
 	timestamp time.Time
-	key       string
+	key       file.BlockID
 	lockType  string
 	res       chan error
 }
@@ -45,7 +49,7 @@ func (req lockRequest) done() <-chan error {
 	return req.res
 }
 
-func makeLockRequest(key string, lockType string) lockRequest {
+func makeLockRequest(key file.BlockID, lockType string) lockRequest {
 	return lockRequest{
 		timestamp: time.Now(),
 		key:       key,
@@ -54,16 +58,16 @@ func makeLockRequest(key string, lockType string) lockRequest {
 	}
 }
 
-func makeSLockRequest(block file.BlockID) lockRequest {
-	return makeLockRequest(block.String(), Slock)
+func makeSLockRequest(block file.Block) lockRequest {
+	return makeLockRequest(block.ID(), Slock)
 }
 
-func makeXLockRequest(block file.BlockID) lockRequest {
-	return makeLockRequest(block.String(), Xlock)
+func makeXLockRequest(block file.Block) lockRequest {
+	return makeLockRequest(block.ID(), Xlock)
 }
 
-func makeUnlockRequest(block file.BlockID) unlockRequest {
-	return unlockRequest(block.String())
+func makeUnlockRequest(block file.Block) unlockRequest {
+	return unlockRequest(block.ID())
 }
 
 var lockTable *LockTable
@@ -81,7 +85,7 @@ func GetLockTable() *LockTable {
 // to resolve lock requests coming from clients.
 func makeLockTable() *LockTable {
 	lt := &LockTable{
-		locks:             map[string]int{},
+		locks:             map[file.BlockID]int{},
 		lockRequestChan:   make(chan lockRequest),
 		unlockRequestChan: make(chan unlockRequest),
 		done:              make(chan struct{}),
@@ -122,7 +126,7 @@ func makeLockTable() *LockTable {
 					}
 				}
 			case ureq := <-lt.unlockRequestChan:
-				lt.unlock(string(ureq))
+				lt.unlock(ureq.BlockID())
 			case <-lt.done:
 				return
 			}
@@ -139,23 +143,23 @@ func (lt *LockTable) Close() error {
 }
 
 // hasXlock returns true if an X lock exists for the given block
-func (lt *LockTable) hasXLock(blockKey string) bool {
+func (lt *LockTable) hasXLock(blockKey file.BlockID) bool {
 	return lt.getLockVal(blockKey) < 0
 }
 
 // hasOtherSlocks returns true if at least one S lock exists for the given block
-func (lt *LockTable) hasOtherSLocks(blockKey string) bool {
+func (lt *LockTable) hasOtherSLocks(blockKey file.BlockID) bool {
 	return lt.getLockVal(blockKey) > 1
 }
 
 // getLockVal returns -1 if the given block has an X lock associated
 // if at least one S lock has been granted for the block, it returns the number of S locks
 // returns 0 if no locks of any type have been granted to the block
-func (lt *LockTable) getLockVal(key string) int {
+func (lt *LockTable) getLockVal(key file.BlockID) int {
 	return lt.locks[key]
 }
 
-func (lt *LockTable) unlock(key string) {
+func (lt *LockTable) unlock(key file.BlockID) {
 	v := lt.getLockVal(key)
 	if v > 1 {
 		lt.locks[key]--
@@ -169,7 +173,7 @@ func (lt *LockTable) unlock(key string) {
 // then the calling thread will be placed on a wait list until the Xlock is released.
 // If the goroutine remains on the wait list for longer than lockReqTimeout
 // an ErrLockAcquisitionTimeout error is returned
-func (lt LockTable) SLock(block file.BlockID) error {
+func (lt LockTable) SLock(block file.Block) error {
 	req := makeSLockRequest(block)
 	lt.lockRequestChan <- req
 	err := <-req.done()
@@ -180,18 +184,18 @@ func (lt LockTable) SLock(block file.BlockID) error {
 // If a lock of any type exists when the method is called,
 // the calling client will block until either an X lock is granted
 // or the timeout is reached, in which case it returns an ErrLockAcquisitionTimeout error.
-func (lt LockTable) XLock(block file.BlockID) error {
+func (lt LockTable) XLock(block file.Block) error {
 	req := makeXLockRequest(block)
 	lt.lockRequestChan <- req
 	return <-req.done()
 }
 
 // Unlock releases a lock on the specified block.
-func (lt LockTable) Unlock(block file.BlockID) {
+func (lt LockTable) Unlock(block file.Block) {
 	lt.unlockRequestChan <- makeUnlockRequest(block)
 }
 
 // Unlock releases a lock on the specified block using the block string identifier (String())
-func (lt LockTable) UnlockByBlockId(id string) {
+func (lt LockTable) UnlockByBlockId(id file.BlockID) {
 	lt.unlockRequestChan <- unlockRequest(id)
 }

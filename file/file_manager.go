@@ -17,7 +17,7 @@ const (
 // Implements methods that read and write pages to disk blocks.
 // It always reads and writes a block-sized number of bytes from a file, always at a block bounduary.
 // This ensures that each call to read, write or apped will incour exactly one disk access
-type Manager struct {
+type FileManager struct {
 	folder    string
 	blockSize int
 	isNew     bool
@@ -27,7 +27,7 @@ type Manager struct {
 	sync.Mutex
 }
 
-func NewFileManager(path string, blockSize int) *Manager {
+func NewFileManager(path string, blockSize int) *FileManager {
 	_, err := os.Stat(path)
 
 	isNew := os.IsNotExist(err)
@@ -55,7 +55,7 @@ func NewFileManager(path string, blockSize int) *Manager {
 		}
 	}
 
-	return &Manager{
+	return &FileManager{
 		folder:    path,
 		blockSize: blockSize,
 		isNew:     isNew,
@@ -63,7 +63,7 @@ func NewFileManager(path string, blockSize int) *Manager {
 	}
 }
 
-func (manager *Manager) getFile(fname string) *os.File {
+func (manager *FileManager) getFile(fname string) *os.File {
 	f, ok := manager.openFiles[fname]
 	if !ok {
 		p := path.Join(manager.folder, fname)
@@ -78,40 +78,40 @@ func (manager *Manager) getFile(fname string) *os.File {
 	return f
 }
 
-func (manager *Manager) IsNew() bool {
+func (manager *FileManager) IsNew() bool {
 	return manager.isNew
 }
 
-func (manager *Manager) BlockSize() int {
+func (manager *FileManager) BlockSize() int {
 	return manager.blockSize
 }
 
 // todo: code improvement: implement reader and writer interfaces
 
 // Read reads the content of block id blk into Page p
-func (manager *Manager) Read(blk BlockID, p *Page) {
+func (manager *FileManager) Read(blk Block, p *Page) {
 	manager.Lock()
 	defer manager.Unlock()
 
-	f := manager.getFile(blk.Filename())
+	f := manager.getFile(blk.FileName())
 
 	// io.EOF is returned if we are reading too far into the file. This is ok, as we can read an empty block into the page
-	if _, err := f.ReadAt(p.contents(), int64(blk.BlockNumber())*int64(manager.blockSize)); err != io.EOF && err != nil {
+	if _, err := f.ReadAt(p.contents(), int64(blk.Number())*int64(manager.blockSize)); err != io.EOF && err != nil {
 		panic(err)
 	}
 }
 
 // Write writes Page p to BlockID block, persisted to a file
-func (manager *Manager) Write(blk BlockID, p *Page) {
+func (manager *FileManager) Write(blk Block, p *Page) {
 	manager.Lock()
 	defer manager.Unlock()
 
-	f := manager.getFile(blk.Filename())
-	f.WriteAt(p.contents(), int64(blk.BlockNumber())*int64(manager.blockSize))
+	f := manager.getFile(blk.FileName())
+	f.WriteAt(p.contents(), int64(blk.Number())*int64(manager.blockSize))
 }
 
 // Size returns the size, in blocks, of the given file
-func (manager *Manager) Size(filename string) int {
+func (manager *FileManager) Size(filename string) int {
 	f := manager.getFile(filename)
 	finfo, err := f.Stat()
 	if err != nil {
@@ -122,13 +122,13 @@ func (manager *Manager) Size(filename string) int {
 
 // Append seeks to the end of the file and writes an empty array of bytes to the file
 // todo: this might not be needed in go
-func (manager *Manager) Append(fname string) BlockID {
+func (manager *FileManager) Append(fname string) Block {
 
 	newBlkNum := manager.Size(fname)
-	block := NewBlockID(fname, newBlkNum)
+	block := NewBlock(fname, newBlkNum)
 	buf := make([]byte, manager.blockSize)
 
 	f := manager.getFile(fname)
-	f.WriteAt(buf, int64(block.BlockNumber())*int64(manager.blockSize))
+	f.WriteAt(buf, int64(block.Number())*int64(manager.blockSize))
 	return block
 }

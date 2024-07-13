@@ -5,43 +5,43 @@ import (
 	"github.com/luigitni/simpledb/file"
 )
 
-type BufferList struct {
-	buffers map[string]*buffer.Buffer
-	pins    map[string]int // holds a counter of pins
-	bm      *buffer.Manager
+type bufferList struct {
+	buffers map[file.BlockID]*buffer.Buffer
+	pins    map[file.BlockID]int // holds a counter of pins
+	bm      *buffer.BufferManager
 }
 
-func MakeBufferList(bm *buffer.Manager) BufferList {
-	return BufferList{
-		buffers: map[string]*buffer.Buffer{},
-		pins:    map[string]int{},
+func makeBufferList(bm *buffer.BufferManager) bufferList {
+	return bufferList{
+		buffers: map[file.BlockID]*buffer.Buffer{},
+		pins:    map[file.BlockID]int{},
 		bm:      bm,
 	}
 }
 
-// GetBuffer returns the the buffer pinned to the specified block.
+// buffer returns the buffer pinned to the specified block.
 // If such a buffer does not exists, it returns nil
 // (for example, if the tx has not yet pinned the block)
-func (list *BufferList) GetBuffer(block file.BlockID) *buffer.Buffer {
-	return list.buffers[block.String()]
+func (list *bufferList) buffer(block file.Block) *buffer.Buffer {
+	return list.buffers[block.ID()]
 }
 
-// Pin pins the specified block and keeps track of the buffer internally.
+// pin pins the specified block and keeps track of the buffer internally.
 // Returns a buffer.ErrClientTimeOut If the buffer cannot be pinned due to none being available
-func (list *BufferList) Pin(block file.BlockID) error {
+func (list *bufferList) pin(block file.Block) error {
 	buf, err := list.bm.Pin(block)
 	if err != nil {
 		return err
 	}
-	key := block.String()
+	key := block.ID()
 	list.buffers[key] = buf
 	// increase the pinned counter
 	list.pins[key]++
 	return nil
 }
 
-func (list *BufferList) Unpin(block file.BlockID) {
-	key := block.String()
+func (list *bufferList) unpin(block file.Block) {
+	key := block.ID()
 	buf := list.buffers[key]
 	// todo: handle the case in which the buffer has not been pinned yet
 	list.bm.Unpin(buf)
@@ -56,12 +56,12 @@ func (list *BufferList) Unpin(block file.BlockID) {
 }
 
 // Unpin any buffer still pinned by this transaction
-func (list *BufferList) UnpinAll() {
+func (list *bufferList) unpinAll() {
 	for k := range list.pins {
 		buf := list.buffers[k]
 		list.bm.Unpin(buf)
 	}
 
-	list.buffers = map[string]*buffer.Buffer{}
-	list.pins = map[string]int{}
+	list.buffers = map[file.BlockID]*buffer.Buffer{}
+	list.pins = map[file.BlockID]int{}
 }

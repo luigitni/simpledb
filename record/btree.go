@@ -13,10 +13,10 @@ const (
 	bTreePageFlagOffset = 0
 	// bTreePageNumRecordsOffset is the byte offset of the records number.
 	// The number of records is a value of type INT.
-	bTreePageNumRecordsOffset = file.IntBytes
+	bTreePageNumRecordsOffset = file.IntSize
 	// bTreePageContentOffset is the byte offset from the left of the page
 	// where records start
-	bTreePageContentOffset = bTreePageNumRecordsOffset + file.IntBytes
+	bTreePageContentOffset = bTreePageNumRecordsOffset + file.IntSize
 )
 
 // bTreePage represents a page used by B-Tree blocks.
@@ -35,11 +35,11 @@ const (
 // The page also maintains an integer that stores the number of records.
 type bTreePage struct {
 	x       tx.Transaction
-	blockID file.BlockID
+	blockID file.Block
 	layout  Layout
 }
 
-func newBTreePage(x tx.Transaction, currentBlock file.BlockID, layout Layout) bTreePage {
+func newBTreePage(x tx.Transaction, currentBlock file.Block, layout Layout) bTreePage {
 	x.Pin(currentBlock)
 	return bTreePage{
 		x:       x,
@@ -189,10 +189,10 @@ func (page bTreePage) Close() {
 
 // appendNew creates a new block and appends at the end of the file.
 // The block is then formatted as a bTreePage.
-func (page bTreePage) appendNew(flag int) (file.BlockID, error) {
-	block, err := page.x.Append(page.blockID.Filename())
+func (page bTreePage) appendNew(flag int) (file.Block, error) {
+	block, err := page.x.Append(page.blockID.FileName())
 	if err != nil {
-		return file.BlockID{}, fmt.Errorf("error appending at blockID: %w", err)
+		return file.Block{}, fmt.Errorf("error appending at blockID: %w", err)
 	}
 
 	page.x.Pin(block)
@@ -203,12 +203,12 @@ func (page bTreePage) appendNew(flag int) (file.BlockID, error) {
 // format formats the page and initialises it with the flag and the number or records.
 // The operations that occurs when the page is being formatted are NOT logged to
 // the WAL.
-func (page bTreePage) format(block file.BlockID, flag int) error {
+func (page bTreePage) format(block file.Block, flag int) error {
 	if err := page.x.SetInt(block, 0, flag, false); err != nil {
 		return err
 	}
 
-	if err := page.x.SetInt(block, file.IntBytes, 0, false); err != nil {
+	if err := page.x.SetInt(block, file.IntSize, 0, false); err != nil {
 		return err
 	}
 
@@ -221,7 +221,7 @@ func (page bTreePage) format(block file.BlockID, flag int) error {
 	return nil
 }
 
-func (page bTreePage) makeDefaultRecord(block file.BlockID, pos int) error {
+func (page bTreePage) makeDefaultRecord(block file.Block, pos int) error {
 	for _, f := range page.layout.schema.fields {
 		offset := page.layout.Offset(f)
 		if page.layout.schema.ftype(f) == file.INTEGER {
@@ -274,21 +274,21 @@ func (page bTreePage) isFull() (bool, error) {
 // It appends a new bTreePage to the underlying index file and copies there the records
 // starting from splitpos position.
 // Once records have been moved, it sets the flag to the new page and closes it.
-func (page bTreePage) split(splitpos int, flag int) (file.BlockID, error) {
+func (page bTreePage) split(splitpos int, flag int) (file.Block, error) {
 
 	block, err := page.appendNew(flag)
 	if err != nil {
-		return file.BlockID{}, fmt.Errorf("error in split when appending new block: %w", err)
+		return file.Block{}, fmt.Errorf("error in split when appending new block: %w", err)
 	}
 
 	newPage := newBTreePage(page.x, block, page.layout)
 
 	if err := page.transferRecords(splitpos, newPage); err != nil {
-		return file.BlockID{}, fmt.Errorf("error in split when transferring records: %w", err)
+		return file.Block{}, fmt.Errorf("error in split when transferring records: %w", err)
 	}
 
 	if err := newPage.setFlag(flag); err != nil {
-		return file.BlockID{}, err
+		return file.Block{}, err
 	}
 
 	newPage.Close()
@@ -471,7 +471,7 @@ type bTreeLeaf struct {
 
 // newBTreeLeaf creates a new bTreePage for the specified block, and then positions the slot
 // pointer to the slot immediately before the first record containing the search key.
-func newBTreeLeaf(x tx.Transaction, blk file.BlockID, layout Layout, key file.Value) (*bTreeLeaf, error) {
+func newBTreeLeaf(x tx.Transaction, blk file.Block, layout Layout, key file.Value) (*bTreeLeaf, error) {
 	contents := newBTreePage(x, blk, layout)
 	currentSlot, err := contents.findSlotBefore(key)
 	if err != nil {
@@ -484,7 +484,7 @@ func newBTreeLeaf(x tx.Transaction, blk file.BlockID, layout Layout, key file.Va
 		key:         key,
 		contents:    contents,
 		currentSlot: currentSlot,
-		fileName:    blk.Filename(),
+		fileName:    blk.FileName(),
 	}, nil
 }
 
@@ -538,7 +538,7 @@ func (leaf *bTreeLeaf) tryOverflow() (bool, error) {
 
 	leaf.Close()
 
-	nextBlock := file.NewBlockID(leaf.fileName, flag)
+	nextBlock := file.NewBlock(leaf.fileName, flag)
 	leaf.contents = newBTreePage(leaf.x, nextBlock, leaf.layout)
 	leaf.currentSlot = 0
 
@@ -622,7 +622,7 @@ func (leaf *bTreeLeaf) insert(rid RID) (entry dirEntry, err error) {
 
 		return dirEntry{
 			value:    firstVal,
-			blockNum: newBlock.BlockNumber(),
+			blockNum: newBlock.Number(),
 		}, nil
 	}
 
@@ -656,7 +656,7 @@ func (leaf *bTreeLeaf) insert(rid RID) (entry dirEntry, err error) {
 			return dirEntry{}, err
 		}
 
-		leaf.contents.mustSetFlag(nb.BlockNumber())
+		leaf.contents.mustSetFlag(nb.Number())
 
 		return dirEntry{}, nil
 	}
@@ -686,7 +686,7 @@ func (leaf *bTreeLeaf) insert(rid RID) (entry dirEntry, err error) {
 		return dirEntry{}, err
 	}
 
-	return dirEntry{splitKey, nb.BlockNumber()}, nil
+	return dirEntry{splitKey, nb.Number()}, nil
 }
 
 type bTreeDir struct {
@@ -696,12 +696,12 @@ type bTreeDir struct {
 	fileName string
 }
 
-func newBTreeDir(x tx.Transaction, block file.BlockID, layout Layout) bTreeDir {
+func newBTreeDir(x tx.Transaction, block file.Block, layout Layout) bTreeDir {
 	return bTreeDir{
 		x:        x,
 		layout:   layout,
 		contents: newBTreePage(x, block, layout),
-		fileName: block.Filename(),
+		fileName: block.FileName(),
 	}
 }
 
@@ -725,7 +725,7 @@ func (dir *bTreeDir) makeNewRoot(entry dirEntry) error {
 		return err
 	}
 
-	oldRoot := dirEntry{firstVal, block.BlockNumber()}
+	oldRoot := dirEntry{firstVal, block.Number()}
 	if _, err := dir.insertEntry(oldRoot); err != nil {
 		return err
 	}
@@ -763,18 +763,18 @@ func (dir *bTreeDir) search(key file.Value) (int, error) {
 		}
 	}
 
-	return child.BlockNumber(), nil
+	return child.Number(), nil
 }
 
-func (dir *bTreeDir) findChildBlock(key file.Value) (file.BlockID, error) {
+func (dir *bTreeDir) findChildBlock(key file.Value) (file.Block, error) {
 	slot, err := dir.contents.findSlotBefore(key)
 	if err != nil {
-		return file.BlockID{}, err
+		return file.Block{}, err
 	}
 
 	val, err := dir.contents.getDataVal(slot + 1)
 	if err != nil {
-		return file.BlockID{}, err
+		return file.Block{}, err
 	}
 
 	if val.Equals(key) {
@@ -783,10 +783,10 @@ func (dir *bTreeDir) findChildBlock(key file.Value) (file.BlockID, error) {
 
 	blockNum, err := dir.contents.getChildNum(slot)
 	if err != nil {
-		return file.BlockID{}, err
+		return file.Block{}, err
 	}
 
-	return file.NewBlockID(dir.fileName, blockNum), nil
+	return file.NewBlock(dir.fileName, blockNum), nil
 }
 
 // insert recursively traverses the tree, starting from the root, and
@@ -861,6 +861,6 @@ func (dir *bTreeDir) insertEntry(entry dirEntry) (out dirEntry, err error) {
 
 	return dirEntry{
 		value:    splitVal,
-		blockNum: newblock.BlockNumber(),
+		blockNum: newblock.Number(),
 	}, nil
 }

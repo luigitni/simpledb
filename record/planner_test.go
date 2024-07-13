@@ -12,7 +12,7 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-func createAndInsertTable(t *testing.T, fm *file.Manager, lm *log.LogManager, bm *buffer.Manager, mdm *MetadataManager) error {
+func createAndInsertTable(t *testing.T, fm *file.FileManager, lm *log.LogManager, bm *buffer.BufferManager, mdm *MetadataManager) error {
 	t.Helper()
 
 	// STUDENTS table definition

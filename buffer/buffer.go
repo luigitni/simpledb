@@ -1,9 +1,12 @@
 package buffer
 
 import (
+	"sync"
+
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 )
+
+const maxPins = 5
 
 // A Buffer stores pages status information, such as if it's pinned
 // and if that's the case, what block it is assigned to.
@@ -15,19 +18,17 @@ import (
 // The Buffer will flush its underlying page only in case the page is
 // assigned to a different block, or if the recovery manager needs to write to disk to guard agains a crash.
 type Buffer struct {
-	fm       *file.Manager
-	lm       *log.LogManager
+	sync.RWMutex
+	fm       fileManager
+	lm       logManager
 	contents *file.Page
-	block    file.BlockID
-	// how many pins
-	// todo: can use an atomic int to leverage CAS
-	pins  int
-	txnum int
-	// log sequence number
-	lsn int
+	block    file.Block
+	pins     int
+	txnum    int
+	lsn      int
 }
 
-func NewBuffer(fm *file.Manager, lm *log.LogManager) *Buffer {
+func newBuffer(fm fileManager, lm logManager) *Buffer {
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,
@@ -41,22 +42,32 @@ func (buf *Buffer) Contents() *file.Page {
 	return buf.contents
 }
 
-func (buf *Buffer) BlockID() file.BlockID {
+func (buf *Buffer) Block() file.Block {
 	return buf.block
 }
 
+// SetModified
 func (buf *Buffer) SetModified(txnum int, lsn int) {
+	buf.Lock()
+	defer buf.Unlock()
+
 	buf.txnum = txnum
 	if lsn >= 0 {
 		buf.lsn = lsn
 	}
 }
 
-func (buf *Buffer) ModifyingTx() int {
+func (buf *Buffer) modifyingTxNumber() int {
+	buf.RLock()
+	defer buf.RUnlock()
+
 	return buf.txnum
 }
 
-func (buf *Buffer) IsPinned() bool {
+func (buf *Buffer) isPinned() bool {
+	buf.RLock()
+	defer buf.RUnlock()
+
 	return buf.pins > 0
 }
 
@@ -65,6 +76,9 @@ func (buf *Buffer) IsPinned() bool {
 // otherwise, ensures that the current log is flushed to disk if needed
 // and then writes the page to disk.
 func (buf *Buffer) flush() {
+	buf.Lock()
+	defer buf.Unlock()
+
 	if buf.txnum > 0 {
 		// flush the log to current block
 		buf.lm.Flush(buf.lsn)
@@ -76,21 +90,42 @@ func (buf *Buffer) flush() {
 
 // assignToBlock associates a buffer with a disk block.
 // The buffer is first flushed so that any modifications to the
-// previous block are prserved.
+// previous block are preserved.
 // The buffer is then associated with the specified block, reading its contents from disk.
-func (buf *Buffer) assignToBlock(block file.BlockID) {
+func (buf *Buffer) assignBlock(block file.Block) {
+	buf.Lock()
+	defer buf.Unlock()
 	// flush current contents
-	buf.flush()
 	buf.block = block
 	// reads the block into the buffer page
 	buf.fm.Read(buf.block, buf.contents)
+}
+
+func (buf *Buffer) resetPins() {
+	buf.Lock()
+	defer buf.Unlock()
+
 	buf.pins = 0
 }
 
 func (buf *Buffer) pin() {
-	buf.pins++
+	buf.Lock()
+	defer buf.Unlock()
+
+	if buf.pins < maxPins {
+		buf.pins++
+	}
 }
 
-func (buf *Buffer) unpin() {
+func (buf *Buffer) unpin() bool {
+	buf.Lock()
+	defer buf.Unlock()
+
+	if buf.pins == 0 {
+		return false
+	}
+
 	buf.pins--
+
+	return buf.pins == 0
 }

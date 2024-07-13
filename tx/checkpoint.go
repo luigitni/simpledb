@@ -29,7 +29,7 @@ func LogCheckpoint(lm *log.LogManager) int {
 }
 
 func logCheckpoint() []byte {
-	rec := make([]byte, file.IntBytes)
+	rec := make([]byte, file.IntSize)
 	p := file.NewPageWithSlice(rec)
 	p.SetInt(0, int(CHECKPOINT))
 	return rec

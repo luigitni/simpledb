@@ -21,9 +21,9 @@ const (
 )
 
 type DB struct {
-	fm  *file.Manager
+	fm  *file.FileManager
 	lm  *log.LogManager
-	bm  *buffer.Manager
+	bm  *buffer.BufferManager
 	mdm *record.MetadataManager
 }
 

@@ -12,11 +12,11 @@ func TestBufferlistPin(t *testing.T) {
 
 	_, _, bm := test.MakeManagers(t)
 
-	buflist := MakeBufferList(bm)
+	buflist := makeBufferList(bm)
 
-	testBlock := file.NewBlockID(conf.BlockFile, 1)
+	testBlock := file.NewBlock(conf.BlockFile, 1)
 
-	buflist.Pin(testBlock)
+	buflist.pin(testBlock)
 
 	// test that available buffers in the manager are all minus one
 	if av := bm.Available(); av != conf.BuffersAvailable-1 {
@@ -24,18 +24,18 @@ func TestBufferlistPin(t *testing.T) {
 	}
 
 	// test that the pinned buffer is correctly accounted for in the list
-	if v := buflist.pins[testBlock.String()]; v != 1 {
+	if v := buflist.pins[testBlock.ID()]; v != 1 {
 		t.Fatalf("expected only one pin for block %s, got %d", testBlock.String(), v)
 	}
 
-	buflist.Unpin(testBlock)
+	buflist.unpin(testBlock)
 
 	// test that internal counters are set to 0
-	if _, ok := buflist.buffers[testBlock.String()]; ok {
+	if _, ok := buflist.buffers[testBlock.ID()]; ok {
 		t.Fatalf("expected buffer for block %s to not be listed as pinned.", testBlock)
 	}
 
-	if _, ok := buflist.pins[testBlock.String()]; ok {
+	if _, ok := buflist.pins[testBlock.ID()]; ok {
 		t.Fatalf("expected buffer for block %s to be counted as pinned.", testBlock)
 	}
 }
@@ -45,14 +45,14 @@ func TestBufferlistUnpinAll(t *testing.T) {
 
 	_, _, bm := test.MakeManagers(t)
 
-	buflist := MakeBufferList(bm)
+	buflist := makeBufferList(bm)
 
 	for i := 0; i < 3; i++ {
-		block := file.NewBlockID(conf.BlockFile, i)
-		buflist.Pin(block)
+		block := file.NewBlock(conf.BlockFile, i)
+		buflist.pin(block)
 	}
 
-	buflist.UnpinAll()
+	buflist.unpinAll()
 
 	if l := len(buflist.buffers); l != 0 {
 		t.Fatalf("expected pinned buffers list to be empty, got %d buffers", l)
