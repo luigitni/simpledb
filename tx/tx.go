@@ -5,7 +5,6 @@ import (
 
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 )
 
 var nextTxNum int64
@@ -92,7 +91,7 @@ type transactionImpl struct {
 	num        int
 }
 
-func NewTx(fm *file.FileManager, lm *log.LogManager, bm *buffer.BufferManager) Transaction {
+func NewTx(fm *file.FileManager, lm logManager, bm *buffer.BufferManager) Transaction {
 	tx := transactionImpl{
 		bufMan:  bm,
 		fileMan: fm,

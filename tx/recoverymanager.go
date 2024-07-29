@@ -5,19 +5,30 @@ import (
 	"github.com/luigitni/simpledb/log"
 )
 
+
+type logManager interface {
+	Flush(lsn int)
+	Append(record []byte) int
+	Iterator() *log.Iterator
+}
+
 // RecoveryManager is the Recovery manager.
 // It can be seen as a wrapper around a transaction
 // (and its method could be implemented within the tx implementation tbh, out of a Java design)
-// As the name indicates, it manages transaction recovery from the WAL
+// As the name indicates, it manages transaction recovery from the WAL.
+// The RecoveryManager has three roles:
+// 1. to write WAL records
+// 2. to rollback transactions
+// 3. to recover the database after a system crash
 type RecoveryManager struct {
-	lm    *log.LogManager
+	lm    logManager
 	bm    *buffer.BufferManager
 	tx    Transaction
 	txnum int
 }
 
 // RecoveryManagerForTx returns a recovery manager for the given transaction and txnum
-func NewRecoveryManagerForTx(tx Transaction, txnum int, lm *log.LogManager, bm *buffer.BufferManager) RecoveryManager {
+func NewRecoveryManagerForTx(tx Transaction, txnum int, lm logManager, bm *buffer.BufferManager) RecoveryManager {
 	man := RecoveryManager{
 		lm:    lm,
 		bm:    bm,

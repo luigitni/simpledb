@@ -12,6 +12,9 @@ import (
 const (
 	tmpTablePrefix = "__tmp_"
 	TmpTablePrefix = tmpTablePrefix + "%d"
+
+	// Max size of a logged table file name
+	MaxLoggedTableFileNameSize = 255
 )
 
 // Implements methods that read and write pages to disk blocks.
@@ -83,7 +86,7 @@ func (manager *FileManager) IsNew() bool {
 }
 
 func (manager *FileManager) BlockSize() int {
-	return manager.blockSize
+	return PageSize
 }
 
 // todo: code improvement: implement reader and writer interfaces

@@ -2,47 +2,44 @@ package tx
 
 import (
 	"fmt"
-
-	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 )
 
-type StartLogRecord struct {
+type startLogRecord struct {
 	txnum int
 }
 
-func NewStartLogRecord(p *file.Page) StartLogRecord {
-	const tpos = file.IntSize
-	return StartLogRecord{
-		txnum: p.Int(tpos),
+func newStartLogRecord(record recordBuffer) startLogRecord {
+	return startLogRecord{
+		txnum: record.readInt(),
 	}
 }
 
-func (record StartLogRecord) Op() txType {
+func (record startLogRecord) Op() txType {
 	return START
 }
 
-func (record StartLogRecord) TxNumber() int {
+func (record startLogRecord) TxNumber() int {
 	return record.txnum
 }
 
-func (record StartLogRecord) Undo(tx Transaction) {
+func (record startLogRecord) Undo(tx Transaction) {
 	// do nothing
 }
 
-func (record StartLogRecord) String() string {
+func (record startLogRecord) String() string {
 	return fmt.Sprintf("<START %d>", record.txnum)
 }
 
-func LogStart(lm *log.LogManager, txnum int) int {
-	r := logStart(txnum)
-	return lm.Append(r)
+func LogStart(lm logManager, txnum int) int {
+	p := logPools.small2ints.Get().(*[]byte)
+	defer logPools.small2ints.Put(p)
+
+	logStart(p, txnum)
+	return lm.Append(*p)
 }
 
-func logStart(txnum int) []byte {
-	record := make([]byte, 2*file.IntSize)
-	p := file.NewPageWithSlice(record)
-	p.SetInt(0, int(START))
-	p.SetInt(file.IntSize, txnum)
-	return record
+func logStart(dst *[]byte, txnum int) {
+	rbuf := recordBuffer{bytes: *dst}
+	rbuf.writeInt(int(START))
+	rbuf.writeInt(txnum)
 }

@@ -6,36 +6,33 @@ import (
 	"unsafe"
 )
 
+const PageSize = 1024 * 8
+
 // IntSize is the byte size of the system's int
 const IntSize = int(unsafe.Sizeof(int(123)))
 
 type Page struct {
-	buf     []byte
-	maxSize int
+	buf [PageSize]byte
 }
 
-func NewPageWithSize(size int) *Page {
-	return &Page{
-		buf:     make([]byte, size),
-		maxSize: size,
-	}
+func NewPage() *Page {
+	return &Page{}
 }
 
-func NewPageWithSlice(buf []byte) *Page {
+func WrapPage(buf [PageSize]byte) *Page {
 	return &Page{
-		buf:     buf,
-		maxSize: len(buf),
+		buf: buf,
 	}
 }
 
 func (p *Page) assertSize(offset int, size int) {
-	if offset+size > p.maxSize {
-		panic(fmt.Sprintf("data out of page bounds. offset: %d length: %d. Max page size is %d", offset, size, p.maxSize))
+	if offset+size > PageSize {
+		panic(fmt.Sprintf("data out of page bounds. offset: %d length: %d. Max page size is %d", offset, size, PageSize))
 	}
 }
 
 func (p *Page) contents() []byte {
-	return p.buf
+	return p.buf[:]
 }
 
 // SetBytes writes a byte slice at the provided offset.
@@ -45,7 +42,7 @@ func (p *Page) contents() []byte {
 // use a smaller representation for the length
 func (p *Page) SetBytes(offset int, data []byte) {
 	p.assertSize(offset, len(data))
-	copy(p.buf[offset:], intToBytes(int64(len(data))))
+	binary.LittleEndian.PutUint64(p.buf[offset:], uint64(len(data)))
 	copy(p.buf[offset+IntSize:], data)
 }
 
@@ -58,9 +55,7 @@ func (p *Page) Bytes(offset int) []byte {
 
 func (p *Page) SetInt(offset int, val int) {
 	p.assertSize(offset, IntSize)
-
-	lb := intToBytes(int64(val))
-	copy(p.buf[offset:], lb[:])
+	binary.LittleEndian.PutUint64(p.buf[offset:], uint64(val))
 }
 
 func (p *Page) Int(offset int) int {

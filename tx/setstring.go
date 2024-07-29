@@ -4,10 +4,12 @@ import (
 	"fmt"
 
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 )
 
-type SetStringLogRecord struct {
+// setStringLogRecord represents a log record for setting a string value
+// The record can be represented as
+// <SETSTRING, txnum, filename, blockId, blockOffset, value>
+type setStringLogRecord struct {
 	txnum  int
 	offset int
 	block  file.Block
@@ -17,46 +19,34 @@ type SetStringLogRecord struct {
 // NewSetStringRecord constructs a SetStringLogRecord
 // by reading from the given page.
 // The layout of a string log record is populated according to WriteStringToLog
-func NewSetStringRecord(p *file.Page) SetStringLogRecord {
-	const tpos = file.IntSize
-	const fpos = tpos + file.IntSize
+func newSetStringRecord(record recordBuffer) setStringLogRecord {
+	rec := setStringLogRecord{}
 
-	ss := SetStringLogRecord{}
+	rec.txnum = record.readInt()
+	blockID, fname := record.readInt(), record.readString()
+	rec.block = file.NewBlock(fname, blockID)
+	rec.offset = record.readInt()
+	rec.val = record.readString()
 
-	ss.txnum = p.Int(tpos)
-
-	fname := p.String(fpos)
-
-	bpos := fpos + file.MaxLength(len(fname))
-
-	blocknum := p.Int(bpos)
-	ss.block = file.NewBlock(fname, blocknum)
-
-	opos := bpos + file.IntSize
-	ss.offset = p.Int(opos)
-
-	vpos := opos + file.IntSize
-	ss.val = p.String(vpos)
-
-	return ss
+	return rec
 }
 
-func (ss SetStringLogRecord) Op() txType {
+func (ss setStringLogRecord) Op() txType {
 	return SETSTRING
 }
 
-func (ss SetStringLogRecord) TxNumber() int {
+func (ss setStringLogRecord) TxNumber() int {
 	return ss.txnum
 }
 
-func (ss SetStringLogRecord) String() string {
+func (ss setStringLogRecord) String() string {
 	return fmt.Sprintf("<SETSTRING %d %s %d %s>", ss.txnum, ss.block, ss.offset, ss.val)
 }
 
 // Undo replaces the specified data value with the value saved in the log record.
 // The method pins a buffer to the specified block, calls tx.SetString to restore the saved value,
 // and unpins the buffer
-func (ss SetStringLogRecord) Undo(tx Transaction) {
+func (ss setStringLogRecord) Undo(tx Transaction) {
 	tx.Pin(ss.block)
 	tx.SetString(ss.block, ss.offset, ss.val, false)
 	tx.Unpin(ss.block)
@@ -65,35 +55,21 @@ func (ss SetStringLogRecord) Undo(tx Transaction) {
 // LogSetString appends a string records to the log file, by calling log.Manager.Append
 // A string log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func LogSetString(lm *log.LogManager, txnum int, block file.Block, offset int, val string) int {
-	// precompute all the record offsets
-	// tx number
-	r := logSetString(txnum, block, offset, val)
-	return lm.Append(r)
+func LogSetString(lm logManager, txnum int, block file.Block, offset int, val string) int {
+	pool := logPools.poolForString(val)
+	p := pool.Get().(*[]byte)
+	defer logPools.setSmallString.Put(p)
+	logSetString(p, txnum, block, offset, val)
+
+	return lm.Append(*p)
 }
 
-func logSetString(txnum int, block file.Block, offset int, val string) []byte {
-	const tpos = file.IntSize
-	// filename
-	const fpos = tpos + file.IntSize
-	// block id number
-	bpos := fpos + file.MaxLength(len(block.FileName()))
-	// offset
-	opos := bpos + file.IntSize
-	// value
-	vpos := opos + file.IntSize
-	vlen := vpos + file.MaxLength(len(val))
-
-	record := make([]byte, vlen)
-
-	page := file.NewPageWithSlice(record)
-	// populate the page at all the offsets
-	page.SetInt(0, int(SETSTRING))
-	page.SetInt(tpos, txnum)
-	page.SetString(fpos, block.FileName())
-	page.SetInt(bpos, block.Number())
-	page.SetInt(opos, offset)
-	page.SetString(vpos, val)
-
-	return record
+func logSetString(dst *[]byte, txnum int, block file.Block, offset int, val string) {
+	rbuf := recordBuffer{bytes: *dst}
+	rbuf.writeInt(int(SETSTRING))
+	rbuf.writeInt(txnum)
+	rbuf.writeString(block.FileName())
+	rbuf.writeInt(block.Number())
+	rbuf.writeInt(offset)
+	rbuf.writeString(val)
 }

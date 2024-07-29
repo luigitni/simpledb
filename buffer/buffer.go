@@ -32,7 +32,7 @@ func newBuffer(fm fileManager, lm logManager) *Buffer {
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,
-		contents: file.NewPageWithSize(fm.BlockSize()),
+		contents: file.NewPage(),
 		txnum:    -1,
 		lsn:      -1,
 	}
