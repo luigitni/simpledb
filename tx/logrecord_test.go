@@ -77,7 +77,7 @@ func TestLogSetIntRecord(t *testing.T) {
 	// filename
 	const fpos = tpos + file.IntSize
 	// block id number
-	bpos := fpos + file.MaxLength(len(block.FileName()))
+	bpos := fpos + file.StrLength(len(block.FileName()))
 	// offset
 	opos := bpos + file.IntSize
 	// value
@@ -99,14 +99,14 @@ func TestLogSetStrRecord(t *testing.T) {
 
 	block := file.NewBlock(fname, bid)
 
-	p := make([]byte, logSetIntSize + len(val))
+	p := make([]byte, logSetIntSize+len(val))
 	logSetString(&p, txNum, block, offset, val)
 
 	const tpos = file.IntSize
 	// filename
 	const fpos = tpos + file.IntSize
 	// block id number
-	bpos := fpos + file.MaxLength(len(block.FileName()))
+	bpos := fpos + file.StrLength(len(block.FileName()))
 	// offset
 	opos := bpos + file.IntSize
 	// value

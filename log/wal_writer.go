@@ -6,7 +6,7 @@ import (
 	"github.com/luigitni/simpledb/file"
 )
 
-type LogManager struct {
+type WalWriter struct {
 	fm           *file.FileManager
 	logfile      string
 	logpage      *file.Page
@@ -16,12 +16,12 @@ type LogManager struct {
 	sync.Mutex
 }
 
-func NewLogManager(fm *file.FileManager, logfile string) *LogManager {
+func NewLogManager(fm *file.FileManager, logfile string) *WalWriter {
 	logsize := fm.Size(logfile)
 
 	logpage := file.NewPage()
 
-	man := &LogManager{
+	man := &WalWriter{
 		fm:           fm,
 		logfile:      logfile,
 		logpage:      logpage,
@@ -42,7 +42,7 @@ func NewLogManager(fm *file.FileManager, logfile string) *LogManager {
 
 // flush writes the contents of the logpage into the currentBlock
 // and updates the lastSavedLSN id
-func (man *LogManager) flush() {
+func (man *WalWriter) flush() {
 	man.fm.Write(man.currentBlock, man.logpage)
 	man.lastSavedLSN = man.latestLSN
 }
@@ -51,15 +51,16 @@ func (man *LogManager) flush() {
 // with the latest that has been flushed to disk.
 // If the requested LSN is greater than the latest dumped
 // we need to access the disk and flush.
-func (man *LogManager) Flush(lsn int) {
+func (man *WalWriter) Flush(lsn int) {
 	if lsn >= man.lastSavedLSN {
 		man.flush()
 	}
 }
 
-func (man *LogManager) Iterator() *Iterator {
+func (man *WalWriter) Iterator() *WalIterator {
 	man.flush()
-	return newIterator(man.fm, man.currentBlock)
+	p := iteratorPool.Get().(*file.Page)
+	return newWalIterator(p, man.fm, man.currentBlock)
 }
 
 // Append adds a record to the log page.
@@ -80,7 +81,7 @@ func (man *LogManager) Iterator() *Iterator {
 //
 //	      ^-----------------------------^
 //	file.IntBytes               value of recpos
-func (man *LogManager) Append(records []byte) int {
+func (man *WalWriter) Append(records []byte) int {
 	man.Lock()
 	defer man.Unlock()
 
@@ -113,7 +114,7 @@ func (man *LogManager) Append(records []byte) int {
 // appendNewBlock appends a new block-sized array to the logfile via the file manager and returns it's index
 // It then writes the size of the block in the page first IntBytes (the page header?)
 // We will use the header to keep track of where we are when prepending data to the page.
-func (man *LogManager) appendNewBlock() file.Block {
+func (man *WalWriter) appendNewBlock() file.Block {
 	block := man.fm.Append(man.logfile)
 	man.logpage.SetInt(0, man.fm.BlockSize())
 

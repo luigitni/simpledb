@@ -42,7 +42,7 @@ func lenInBytes(schema Schema, field string) int {
 	case file.INTEGER:
 		return file.IntSize
 	case file.STRING:
-		return file.MaxLength(schema.flen(field))
+		return file.StrLength(schema.flen(field))
 	}
 	panic("unsupported type")
 }

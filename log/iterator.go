@@ -2,7 +2,10 @@ package log
 
 import "github.com/luigitni/simpledb/file"
 
-type Iterator struct {
+// WalIterator iterates over WAL file blocks.
+// It reads blocks from disk into a page, and iterates
+// records from right to left within each block.
+type WalIterator struct {
 	fm         *file.FileManager
 	block      file.Block
 	page       *file.Page
@@ -10,37 +13,51 @@ type Iterator struct {
 	boundary   int
 }
 
-// todo: this is a reader in go
-func newIterator(fm *file.FileManager, start file.Block) *Iterator {
-	it := &Iterator{
+func newWalIterator(page *file.Page, fm *file.FileManager, start file.Block) *WalIterator {
+	it := &WalIterator{
 		fm:    fm,
 		block: start,
-		page:  file.NewPage(),
+		page:  page,
 	}
 
 	it.moveToBlock(start)
 	return it
 }
 
-func (it *Iterator) HasNext() bool {
+// HasNext returns true if there are more records to iterate
+func (it *WalIterator) HasNext() bool {
 	return it.currentPos < it.fm.BlockSize() || it.block.Number() > 0
 }
 
-func (it *Iterator) Next() []byte {
+// Next returns the next record in the WAL
+func (it *WalIterator) Next() []byte {
 	if it.currentPos == it.fm.BlockSize() {
 		// we are at the end of the block, read the previous one
-		it.block = file.NewBlock(it.block.FileName(), it.block.Number()-1)
-		it.moveToBlock(it.block)
+		block := file.NewBlock(it.block.FileName(), it.block.Number()-1)
+		it.moveToBlock(block)
 	}
 
+	// each record is prepended by its length
 	record := it.page.Bytes(it.currentPos)
-	// move the iterator position forward by the
+	// move the iterator pointer to the next record
 	it.currentPos += len(record) + file.IntSize
 	return record
 }
 
-func (it *Iterator) moveToBlock(block file.Block) {
-	it.fm.Read(it.block, it.page)
+func (it *WalIterator) Close() {
+	it.fm = nil
+	it.block = file.Block{}
+
+	iteratorPool.Put(it.page)
+	it.page = nil
+}
+
+func (it *WalIterator) moveToBlock(block file.Block) {
+	it.fm.Read(block, it.page)
+	// boundary contains the offset of the most recently added record
+	// read the boundary from the page
 	it.boundary = it.page.Int(0)
+	// position the iterator after the boundary offset
 	it.currentPos = it.boundary
+	it.block = block
 }

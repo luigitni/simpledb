@@ -21,7 +21,7 @@ func TestFile(t *testing.T) {
 	const intv = 352
 	page.SetString(pos, val)
 
-	pos2 := pos + file.MaxLength(len(val))
+	pos2 := pos + file.StrLength(len(val))
 
 	page.SetInt(pos2, intv)
 

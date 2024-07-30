@@ -33,7 +33,7 @@ func DefaultConfig(t *testing.T) Conf {
 	}
 }
 
-func MakeManagers(t *testing.T) (*file.FileManager, *log.LogManager, *buffer.BufferManager) {
+func MakeManagers(t *testing.T) (*file.FileManager, *log.WalWriter, *buffer.BufferManager) {
 	fm := file.NewFileManager(t.TempDir(), blockSize)
 	lm := log.NewLogManager(fm, logfile)
 
@@ -42,7 +42,7 @@ func MakeManagers(t *testing.T) (*file.FileManager, *log.LogManager, *buffer.Buf
 	return fm, lm, bm
 }
 
-func MakeManagersWithConfig(conf Conf) (*file.FileManager, *log.LogManager, *buffer.BufferManager) {
+func MakeManagersWithConfig(conf Conf) (*file.FileManager, *log.WalWriter, *buffer.BufferManager) {
 	fm := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 	lm := log.NewLogManager(fm, conf.LogFile)
 
