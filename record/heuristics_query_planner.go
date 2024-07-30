@@ -50,7 +50,12 @@ func (hqp HeuristicsQueryPlanner) CreatePlan(data sql.Query, x tx.Transaction) (
 		}
 	}
 
-	return newProjectPlan(plan, data.Fields()), nil
+	proj := newProjectPlan(plan, data.Fields())
+	if data.OrderByFields() == nil {
+		return proj, nil
+	}
+
+	return newSortPlan(x, proj, data.OrderByFields()), nil
 }
 
 // lowestSelectPlan picks the table that
