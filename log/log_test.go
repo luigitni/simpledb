@@ -41,6 +41,7 @@ func testLogIteration(t *testing.T, lm *log.LogManager, from int) {
 	t.Log("The log file has now these records:")
 	iter := lm.Iterator()
 	f := from
+	page := file.NewPage()
 	for {
 		if !iter.HasNext() {
 			break
@@ -51,7 +52,7 @@ func testLogIteration(t *testing.T, lm *log.LogManager, from int) {
 		f--
 
 		record := iter.Next()
-		page := file.NewPageWithSlice(record)
+		page.SetBytes(0, record)
 
 		s := page.String(0)
 		if s != sexp {
@@ -73,19 +74,21 @@ func testLogIteration(t *testing.T, lm *log.LogManager, from int) {
 // populateLogManager appends logs of format K -> V to the logfile
 func populateLogManager(t *testing.T, lm *log.LogManager, start, end int) {
 	t.Log("Creating log records:")
+	page := file.NewPage()
 	for i := start; i <= end; i++ {
-		record := createLogRecord(makeLogKey(i), makeLogVal(i))
+		record := createLogRecord(page, makeLogKey(i), makeLogVal(i))
 		lsn := lm.Append(record)
 		t.Logf("%d", lsn)
 	}
 	t.Log("Records created.")
 }
 
-func createLogRecord(s string, val int) []byte {
+func createLogRecord(page *file.Page, s string, val int) []byte {
 	npos := file.MaxLength(len(s))
 	b := make([]byte, npos+file.IntSize)
-	page := file.NewPageWithSlice(b)
 	page.SetString(0, s)
 	page.SetInt(npos, val)
+
+	copy(b, page.Bytes(0))
 	return b
 }

@@ -1,36 +1,31 @@
 package tx
 
-import (
-	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
-)
+type checkpointLogRecord struct{}
 
-type CheckpointLogRecord struct{}
-
-func (record CheckpointLogRecord) Op() txType {
+func (record checkpointLogRecord) Op() txType {
 	return CHECKPOINT
 }
 
-func (record CheckpointLogRecord) TxNumber() int {
+func (record checkpointLogRecord) TxNumber() int {
 	return -1
 }
 
-func (record CheckpointLogRecord) Undo(tx Transaction) {
+func (record checkpointLogRecord) Undo(tx Transaction) {
 	// do nothing
 }
 
-func (record CheckpointLogRecord) String() string {
+func (record checkpointLogRecord) String() string {
 	return "<CHECKPOINT>"
 }
 
-func LogCheckpoint(lm *log.LogManager) int {
-	rec := logCheckpoint()
-	return lm.Append(rec)
+func LogCheckpoint(lm logManager) int {
+	p := logPools.tiny1int.Get().(*[]byte)
+	defer logPools.tiny1int.Put(p)
+	logCheckpoint(p)
+	return lm.Append(*p)
 }
 
-func logCheckpoint() []byte {
-	rec := make([]byte, file.IntSize)
-	p := file.NewPageWithSlice(rec)
-	p.SetInt(0, int(CHECKPOINT))
-	return rec
+func logCheckpoint(dst *[]byte) {
+	rbuf := recordBuffer{bytes: *dst}
+	rbuf.writeInt(int(CHECKPOINT))
 }

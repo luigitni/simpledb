@@ -4,49 +4,61 @@ import (
 	"testing"
 
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/test"
 )
 
-func TestLogCheckpointRecord(t *testing.T) {
-	record := logCheckpoint()
+func assertIntAtPos(t *testing.T, data []byte, pos int, exp int) {
+	t.Helper()
+	rec := recordBuffer{bytes: data, offset: pos}
+	if v := rec.readInt(); v != exp {
+		t.Fatalf("expected %d at pos %d. Got %d", exp, pos, v)
+	}
+}
 
-	p := file.NewPageWithSlice(record)
+func assertStringAtPos(t *testing.T, data []byte, pos int, exp string) {
+	t.Helper()
+	rec := recordBuffer{bytes: data, offset: pos}
+	if v := rec.readString(); v != exp {
+		t.Fatalf("expected %q at pos %d. Got %q", exp, pos, v)
+	}
+}
+
+func TestLogCheckpointRecord(t *testing.T) {
+	buf := make([]byte, 8)
+	logCheckpoint(&buf)
+
 	// test that the first entry is CHECKPOINT
-	test.AssertIntAtPos(t, p, 0, int(CHECKPOINT))
+	assertIntAtPos(t, buf, 0, int(CHECKPOINT))
 }
 
 func TestLogStartRecord(t *testing.T) {
 	const txNum = 123
 
-	record := logStart(txNum)
-	// test that the record is properly formatted
-	p := file.NewPageWithSlice(record)
+	p := make([]byte, 16)
+	logStart(&p, txNum)
 
-	test.AssertIntAtPos(t, p, 0, int(START))
-	test.AssertIntAtPos(t, p, file.IntSize, txNum)
+	assertIntAtPos(t, p, 0, int(START))
+	assertIntAtPos(t, p, file.IntSize, txNum)
 }
 
 func TestLogRollbackRecord(t *testing.T) {
 	const txNum = 123
 
-	record := logRollback(txNum)
-	// test that the record is properly formatted
-	p := file.NewPageWithSlice(record)
+	p := make([]byte, 16)
+	logRollback(&p, txNum)
 
 	// test that the first entry is ROLLBACK
-	test.AssertIntAtPos(t, p, 0, int(ROLLBACK))
-	test.AssertIntAtPos(t, p, file.IntSize, txNum)
+	assertIntAtPos(t, p, 0, int(ROLLBACK))
+	assertIntAtPos(t, p, file.IntSize, txNum)
 }
 
 func TestLogCommitRecord(t *testing.T) {
 	const txNum = 123
 
-	record := logCommit(txNum)
-	// test that the record is properly formatted
-	p := file.NewPageWithSlice(record)
+	p := make([]byte, 16)
+	logCommit(&p, txNum)
 
-	test.AssertIntAtPos(t, p, 0, int(COMMIT))
-	test.AssertIntAtPos(t, p, file.IntSize, txNum)
+	assertIntAtPos(t, p, 0, int(COMMIT))
+	assertIntAtPos(t, p, file.IntSize, txNum)
 }
 
 func TestLogSetIntRecord(t *testing.T) {
@@ -58,9 +70,8 @@ func TestLogSetIntRecord(t *testing.T) {
 
 	block := file.NewBlock(fname, bid)
 
-	record := logSetInt(txNum, block, offset, val)
-
-	p := file.NewPageWithSlice(record)
+	p := make([]byte, logSetIntSize)
+	logSetInt(&p, txNum, block, offset, val)
 
 	const tpos = file.IntSize
 	// filename
@@ -72,11 +83,11 @@ func TestLogSetIntRecord(t *testing.T) {
 	// value
 	vpos := opos + file.IntSize
 
-	test.AssertIntAtPos(t, p, 0, int(SETINT))
-	test.AssertIntAtPos(t, p, tpos, txNum)
-	test.AssertStrAtPos(t, p, fpos, fname)
-	test.AssertIntAtPos(t, p, opos, offset)
-	test.AssertIntAtPos(t, p, vpos, val)
+	assertIntAtPos(t, p, 0, int(SETINT))
+	assertIntAtPos(t, p, tpos, txNum)
+	assertStringAtPos(t, p, fpos, fname)
+	assertIntAtPos(t, p, opos, offset)
+	assertIntAtPos(t, p, vpos, val)
 }
 
 func TestLogSetStrRecord(t *testing.T) {
@@ -88,9 +99,8 @@ func TestLogSetStrRecord(t *testing.T) {
 
 	block := file.NewBlock(fname, bid)
 
-	record := logSetString(txNum, block, offset, val)
-
-	p := file.NewPageWithSlice(record)
+	p := make([]byte, logSetIntSize + len(val))
+	logSetString(&p, txNum, block, offset, val)
 
 	const tpos = file.IntSize
 	// filename
@@ -102,9 +112,9 @@ func TestLogSetStrRecord(t *testing.T) {
 	// value
 	vpos := opos + file.IntSize
 
-	test.AssertIntAtPos(t, p, 0, int(SETSTRING))
-	test.AssertIntAtPos(t, p, tpos, txNum)
-	test.AssertStrAtPos(t, p, fpos, fname)
-	test.AssertIntAtPos(t, p, opos, offset)
-	test.AssertStrAtPos(t, p, vpos, val)
+	assertIntAtPos(t, p, 0, int(SETSTRING))
+	assertIntAtPos(t, p, tpos, txNum)
+	assertStringAtPos(t, p, fpos, fname)
+	assertIntAtPos(t, p, opos, offset)
+	assertStringAtPos(t, p, vpos, val)
 }

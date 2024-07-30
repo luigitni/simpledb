@@ -2,47 +2,43 @@ package tx
 
 import (
 	"fmt"
-
-	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 )
 
-type RollbackLogRecord struct {
-	txNum int
+type rollbackLogRecord struct {
+	txnum int
 }
 
-func NewRollbackRecord(p *file.Page) RollbackLogRecord {
-	const tpos = file.IntSize
-	return RollbackLogRecord{
-		txNum: p.Int(tpos),
+func newRollbackRecord(record recordBuffer) rollbackLogRecord {
+	return rollbackLogRecord{
+		txnum: record.readInt(),
 	}
 }
 
-func (record RollbackLogRecord) Op() txType {
+func (record rollbackLogRecord) Op() txType {
 	return ROLLBACK
 }
 
-func (record RollbackLogRecord) TxNumber() int {
-	return record.txNum
+func (record rollbackLogRecord) TxNumber() int {
+	return record.txnum
 }
 
-func (record RollbackLogRecord) Undo(tx Transaction) {
+func (record rollbackLogRecord) Undo(tx Transaction) {
 	// do nothing
 }
 
-func (record RollbackLogRecord) String() string {
-	return fmt.Sprintf("<ROLLBACK %d>", record.txNum)
+func (record rollbackLogRecord) String() string {
+	return fmt.Sprintf("<ROLLBACK %d>", record.txnum)
 }
 
-func LogRollback(lm *log.LogManager, txnum int) int {
-	r := logRollback(txnum)
-	return lm.Append(r)
+func LogRollback(lm logManager, txnum int) int {
+	p := logPools.small2ints.Get().(*[]byte)
+	defer logPools.small2ints.Put(p)
+	logRollback(p, txnum)
+	return lm.Append(*p)
 }
 
-func logRollback(txnum int) []byte {
-	record := make([]byte, 2*file.IntSize)
-	p := file.NewPageWithSlice(record)
-	p.SetInt(0, int(ROLLBACK))
-	p.SetInt(file.IntSize, txnum)
-	return record
+func logRollback(dst *[]byte, txnum int) {
+	rbuf := recordBuffer{bytes: *dst}
+	rbuf.writeInt(int(ROLLBACK))
+	rbuf.writeInt(txnum)
 }

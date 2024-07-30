@@ -17,11 +17,9 @@ type LogManager struct {
 }
 
 func NewLogManager(fm *file.FileManager, logfile string) *LogManager {
-	b := make([]byte, fm.BlockSize())
-
 	logsize := fm.Size(logfile)
 
-	logpage := file.NewPageWithSlice(b)
+	logpage := file.NewPage()
 
 	man := &LogManager{
 		fm:           fm,

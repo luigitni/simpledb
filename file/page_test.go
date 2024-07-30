@@ -4,7 +4,7 @@ import "testing"
 
 func TestWriteInt(t *testing.T) {
 
-	page := NewPageWithSize(1024)
+	page := NewPage()
 
 	const v = 77
 	page.SetInt(0, 77)
@@ -16,7 +16,7 @@ func TestWriteInt(t *testing.T) {
 
 func TestWriteIntLoop(t *testing.T) {
 
-	page := NewPageWithSize(1024)
+	page := NewPage()
 
 	nums := []int{256, 123, 1, 0, 10000000, 16543}
 
@@ -38,7 +38,7 @@ func TestWriteIntLoop(t *testing.T) {
 
 func TestWriteString(t *testing.T) {
 
-	page := NewPageWithSize(1024)
+	page := NewPage()
 
 	const v = "this is a test"
 	page.SetString(0, v)
@@ -50,7 +50,7 @@ func TestWriteString(t *testing.T) {
 
 func TestWriteStringMultiple(t *testing.T) {
 
-	page := NewPageWithSize(1024)
+	page := NewPage()
 
 	const v = "this is a test"
 	const v2 = "this is another test"

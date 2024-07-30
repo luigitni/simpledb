@@ -15,14 +15,14 @@ func newIterator(fm *file.FileManager, start file.Block) *Iterator {
 	it := &Iterator{
 		fm:    fm,
 		block: start,
-		page:  file.NewPageWithSlice(make([]byte, fm.BlockSize())),
+		page:  file.NewPage(),
 	}
 
 	it.moveToBlock(start)
 	return it
 }
 
-func (it Iterator) HasNext() bool {
+func (it *Iterator) HasNext() bool {
 	return it.currentPos < it.fm.BlockSize() || it.block.Number() > 0
 }
 

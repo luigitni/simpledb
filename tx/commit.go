@@ -2,47 +2,43 @@ package tx
 
 import (
 	"fmt"
-
-	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 )
 
-type CommitLogRecord struct {
+type commitLogRecord struct {
 	txnum int
 }
 
-func NewCommitRecord(p *file.Page) CommitLogRecord {
-	const tpos = file.IntSize
-	return CommitLogRecord{
-		txnum: p.Int(tpos),
+func newCommitRecord(record recordBuffer) commitLogRecord {
+	return commitLogRecord{
+		txnum: record.readInt(),
 	}
 }
 
-func (record CommitLogRecord) Op() txType {
+func (record commitLogRecord) Op() txType {
 	return COMMIT
 }
 
-func (record CommitLogRecord) TxNumber() int {
+func (record commitLogRecord) TxNumber() int {
 	return record.txnum
 }
 
-func (record CommitLogRecord) Undo(tx Transaction) {
+func (record commitLogRecord) Undo(tx Transaction) {
 	// do nothing
 }
 
-func (record CommitLogRecord) String() string {
+func (record commitLogRecord) String() string {
 	return fmt.Sprintf("<COMMIT %d>", record.txnum)
 }
 
-func LogCommit(lm *log.LogManager, txnum int) int {
-	record := logCommit(txnum)
-	return lm.Append(record)
+func LogCommit(lm logManager, txnum int) int {
+	p := logPools.small2ints.Get().(*[]byte)
+	defer logPools.small2ints.Put(p)
+	logCommit(p, txnum)
+	return lm.Append(*p)
 }
 
-func logCommit(txnum int) []byte {
-	record := make([]byte, 2*file.IntSize)
-	p := file.NewPageWithSlice(record)
-	p.SetInt(0, int(COMMIT))
-	p.SetInt(file.IntSize, txnum)
-	return record
+func logCommit(dst *[]byte, txnum int) {
+	rbuf := recordBuffer{bytes: *dst}
+	rbuf.writeInt(int(COMMIT))
+	rbuf.writeInt(txnum)
 }

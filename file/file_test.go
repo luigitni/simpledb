@@ -13,7 +13,7 @@ func TestFile(t *testing.T) {
 	fman := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 
 	block := file.NewBlock(conf.BlockFile, 2)
-	page := file.NewPageWithSize(fman.BlockSize())
+	page := file.NewPage()
 
 	pos := 88
 
@@ -27,7 +27,7 @@ func TestFile(t *testing.T) {
 
 	fman.Write(block, page)
 
-	p2 := file.NewPageWithSize(fman.BlockSize())
+	p2 := file.NewPage()
 	fman.Read(block, p2)
 
 	if got := p2.Int(pos2); got != intv {
