@@ -38,6 +38,8 @@ func TestLogStartRecord(t *testing.T) {
 
 	assertIntAtPos(t, p, 0, int(START))
 	assertIntAtPos(t, p, file.IntSize, txNum)
+
+	newStartLogRecord(recordBuffer{bytes: p})
 }
 
 func TestLogRollbackRecord(t *testing.T) {
@@ -49,6 +51,8 @@ func TestLogRollbackRecord(t *testing.T) {
 	// test that the first entry is ROLLBACK
 	assertIntAtPos(t, p, 0, int(ROLLBACK))
 	assertIntAtPos(t, p, file.IntSize, txNum)
+
+	newRollbackRecord(recordBuffer{bytes: p})
 }
 
 func TestLogCommitRecord(t *testing.T) {
@@ -59,6 +63,8 @@ func TestLogCommitRecord(t *testing.T) {
 
 	assertIntAtPos(t, p, 0, int(COMMIT))
 	assertIntAtPos(t, p, file.IntSize, txNum)
+
+	newCommitRecord(recordBuffer{bytes: p})
 }
 
 func TestLogSetIntRecord(t *testing.T) {
@@ -88,6 +94,8 @@ func TestLogSetIntRecord(t *testing.T) {
 	assertStringAtPos(t, p, fpos, fname)
 	assertIntAtPos(t, p, opos, offset)
 	assertIntAtPos(t, p, vpos, val)
+
+	newSetIntRecord(recordBuffer{bytes: p})
 }
 
 func TestLogSetStrRecord(t *testing.T) {
@@ -117,4 +125,6 @@ func TestLogSetStrRecord(t *testing.T) {
 	assertStringAtPos(t, p, fpos, fname)
 	assertIntAtPos(t, p, opos, offset)
 	assertStringAtPos(t, p, vpos, val)
+
+	newSetStringRecord(recordBuffer{bytes: p})
 }

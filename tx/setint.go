@@ -21,8 +21,7 @@ func newSetIntRecord(record recordBuffer) setIntLogRecord {
 	rec := setIntLogRecord{}
 
 	rec.txnum = record.readInt()
-	blockID, fname := record.readInt(), record.readString()
-	rec.block = file.NewBlock(fname, blockID)
+	rec.block = record.readBlock()
 	rec.offset = record.readInt()
 	rec.val = record.readInt()
 
@@ -62,8 +61,7 @@ func logSetInt(dst *[]byte, txnum int, block file.Block, offset int, val int) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(SETINT))
 	rbuf.writeInt(txnum)
-	rbuf.writeString(block.FileName())
-	rbuf.writeInt(block.Number())
+	rbuf.writeBlock(block)
 	rbuf.writeInt(offset)
 	rbuf.writeInt(val)
 }

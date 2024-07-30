@@ -89,6 +89,11 @@ func (r *recordBuffer) writeString(v string) {
 	r.offset += l
 }
 
+func (r *recordBuffer) writeBlock(block file.Block) {
+	r.writeString(block.FileName())
+	r.writeInt(block.Number())
+}
+
 func (r *recordBuffer) readInt() int {
 	v := binary.LittleEndian.Uint64(r.bytes[r.offset:])
 	r.offset += file.IntSize
@@ -101,6 +106,12 @@ func (r *recordBuffer) readString() string {
 	str := string(r.bytes[r.offset : r.offset+length])
 	r.offset += length
 	return str
+}
+
+func (r *recordBuffer) readBlock() file.Block {
+	fileName := r.readString()
+	blockID := r.readInt()
+	return file.NewBlock(fileName, blockID)
 }
 
 type logRecord interface {
