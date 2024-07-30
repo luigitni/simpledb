@@ -5,11 +5,10 @@ import (
 	"github.com/luigitni/simpledb/log"
 )
 
-
 type logManager interface {
 	Flush(lsn int)
 	Append(record []byte) int
-	Iterator() *log.Iterator
+	Iterator() *log.WalIterator
 }
 
 // RecoveryManager is the Recovery manager.
@@ -80,6 +79,8 @@ func (man RecoveryManager) Rollback() {
 // until it finds the transaction's START record, calling tx.Undo() for each of the TX log records.
 func (man RecoveryManager) doRollback() {
 	reader := man.lm.Iterator()
+	defer reader.Close()
+
 	for {
 		if !reader.HasNext() {
 			break
@@ -114,6 +115,8 @@ func (man RecoveryManager) Recover() {
 func (man RecoveryManager) doRecover() {
 	finishedTxs := map[int]struct{}{}
 	reader := man.lm.Iterator()
+	defer reader.Close()
+
 	for {
 		if !reader.HasNext() {
 			break

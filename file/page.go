@@ -35,6 +35,16 @@ func (p *Page) contents() []byte {
 	return p.buf[:]
 }
 
+func (p *Page) Slice(from int, to int) []byte {
+	return p.buf[from:to]
+}
+
+// copies raw bytes into the page
+func (p *Page) UnsafeCopyRaw(offset int, data []byte) {
+	p.assertSize(offset, len(data))
+	copy(p.buf[offset:], data)
+}
+
 // SetBytes writes a byte slice at the provided offset.
 // Bytes and strings are prepended by their length.
 // The length itself is written as an integer.
@@ -47,10 +57,10 @@ func (p *Page) SetBytes(offset int, data []byte) {
 }
 
 func (p *Page) Bytes(offset int) []byte {
-	size := bytesToInt(p.buf[offset : offset+IntSize])
-	from := offset + IntSize
-	to := offset + IntSize + int(size)
-	return p.buf[from:to]
+	dataStart := offset + IntSize
+	size := bytesToInt(p.buf[offset:dataStart])
+	dataEnd := dataStart + int(size)
+	return p.buf[dataStart:dataEnd]
 }
 
 func (p *Page) SetInt(offset int, val int) {
@@ -63,19 +73,23 @@ func (p *Page) Int(offset int) int {
 	return int(v)
 }
 
+// RawInt returns the raw bytes of the integer
+// at the offset without conversion
+func (p *Page) RawInt(offset int) []byte {
+	return p.buf[offset : offset+IntSize]
+
+}
+
 func (p *Page) SetString(offset int, v string) {
 	p.SetBytes(offset, []byte(v))
 }
 
 func (p *Page) String(offset int) string {
-	buf := p.Bytes(offset)
-	return string(buf)
+	return string(p.RawString(offset))
 }
 
-func intToBytes(v int64) []byte {
-	buf := make([]byte, IntSize)
-	binary.LittleEndian.PutUint64(buf, uint64(v))
-	return buf
+func (p *Page) RawString(offset int) []byte {
+	return p.Bytes(offset)
 }
 
 func bytesToInt(b []byte) int64 {
@@ -83,8 +97,8 @@ func bytesToInt(b []byte) int64 {
 	return int64(v)
 }
 
-// MaxLength returns the size of an encoded string
+// StrLength returns the size of an encoded string
 // this is currently equal to the length of the string (or byte slice) plus the int32 prefix
-func MaxLength(strlen int) int {
+func StrLength(strlen int) int {
 	return strlen + IntSize
 }

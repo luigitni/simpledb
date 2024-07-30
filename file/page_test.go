@@ -57,7 +57,7 @@ func TestWriteStringMultiple(t *testing.T) {
 
 	page.SetString(0, v)
 
-	off := MaxLength(len(v))
+	off := StrLength(len(v))
 	page.SetString(off, v2)
 
 	if got := page.String(0); got != v {

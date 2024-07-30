@@ -37,7 +37,7 @@ func makeLogVal(idx int) int {
 }
 
 // testLogIteration verifies that logs are returned in a LIFO manner
-func testLogIteration(t *testing.T, lm *log.LogManager, from int) {
+func testLogIteration(t *testing.T, lm *log.WalWriter, from int) {
 	t.Log("The log file has now these records:")
 	iter := lm.Iterator()
 	f := from
@@ -52,14 +52,14 @@ func testLogIteration(t *testing.T, lm *log.LogManager, from int) {
 		f--
 
 		record := iter.Next()
-		page.SetBytes(0, record)
+		page.UnsafeCopyRaw(0, record)
 
 		s := page.String(0)
 		if s != sexp {
 			t.Fatalf("expected key %q, got %q", vexp, s)
 		}
 
-		npos := file.MaxLength(len(s))
+		npos := file.StrLength(len(s))
 		v := page.Int(npos)
 
 		if v != vexp {
@@ -72,7 +72,7 @@ func testLogIteration(t *testing.T, lm *log.LogManager, from int) {
 }
 
 // populateLogManager appends logs of format K -> V to the logfile
-func populateLogManager(t *testing.T, lm *log.LogManager, start, end int) {
+func populateLogManager(t *testing.T, lm *log.WalWriter, start, end int) {
 	t.Log("Creating log records:")
 	page := file.NewPage()
 	for i := start; i <= end; i++ {
@@ -84,11 +84,11 @@ func populateLogManager(t *testing.T, lm *log.LogManager, start, end int) {
 }
 
 func createLogRecord(page *file.Page, s string, val int) []byte {
-	npos := file.MaxLength(len(s))
+	npos := file.StrLength(len(s))
 	b := make([]byte, npos+file.IntSize)
 	page.SetString(0, s)
 	page.SetInt(npos, val)
 
-	copy(b, page.Bytes(0))
+	copy(b, page.Slice(0, npos+file.IntSize))
 	return b
 }

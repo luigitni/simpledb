@@ -22,7 +22,7 @@ const (
 
 type DB struct {
 	fm  *file.FileManager
-	lm  *log.LogManager
+	lm  *log.WalWriter
 	bm  *buffer.BufferManager
 	mdm *record.MetadataManager
 }
