@@ -30,15 +30,15 @@ func (record startLogRecord) String() string {
 	return fmt.Sprintf("<START %d>", record.txnum)
 }
 
-func LogStart(lm logManager, txnum int) int {
+func logStart(lm logManager, txnum int) int {
 	p := logPools.small2ints.Get().(*[]byte)
 	defer logPools.small2ints.Put(p)
 
-	logStart(p, txnum)
+	writeStart(p, txnum)
 	return lm.Append(*p)
 }
 
-func logStart(dst *[]byte, txnum int) {
+func writeStart(dst *[]byte, txnum int) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(START))
 	rbuf.writeInt(txnum)

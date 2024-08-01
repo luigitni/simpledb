@@ -85,7 +85,7 @@ func incrTxNum() int {
 type transactionImpl struct {
 	bufMan     *buffer.BufferManager
 	fileMan    *file.FileManager
-	recoverMan RecoveryManager
+	recoverMan recoveryManager
 	concMan    ConcurrencyManager
 	buffers    bufferList
 	num        int
@@ -102,27 +102,27 @@ func NewTx(fm *file.FileManager, lm logManager, bm *buffer.BufferManager) Transa
 
 	// assign the recovery manager to the tx
 	// todo: this is ugly in Go, will refactor at a later stage.
-	tx.recoverMan = NewRecoveryManagerForTx(tx, tx.num, lm, bm)
+	tx.recoverMan = newRecoveryManagerForTx(tx, tx.num, lm, bm)
 
 	return tx
 }
 
 func (tx transactionImpl) Commit() {
-	tx.recoverMan.Commit()
+	tx.recoverMan.commit()
 	// release all locks
 	tx.concMan.Release()
 	tx.buffers.unpinAll()
 }
 
 func (tx transactionImpl) Rollback() {
-	tx.recoverMan.Rollback()
+	tx.recoverMan.rollback()
 	tx.concMan.Release()
 	tx.buffers.unpinAll()
 }
 
 func (tx transactionImpl) Recover() {
 	tx.bufMan.FlushAll(tx.num)
-	tx.recoverMan.Recover()
+	tx.recoverMan.recover()
 }
 
 func (tx transactionImpl) Pin(block file.Block) {
@@ -161,7 +161,7 @@ func (tx transactionImpl) SetInt(block file.Block, offset int, val int, shouldLo
 	buf := tx.buffers.buffer(block)
 	lsn := -1
 	if shouldLog {
-		lsn = tx.recoverMan.SetInt(buf, offset, val)
+		lsn = tx.recoverMan.setInt(buf, offset, val)
 	}
 	p := buf.Contents()
 	p.SetInt(offset, val)
@@ -178,7 +178,7 @@ func (tx transactionImpl) SetString(block file.Block, offset int, val string, sh
 	buf := tx.buffers.buffer(block)
 	lsn := -1
 	if shouldLog {
-		lsn = tx.recoverMan.SetString(buf, offset, val)
+		lsn = tx.recoverMan.setString(buf, offset, val)
 	}
 	p := buf.Contents()
 	p.SetString(offset, val)

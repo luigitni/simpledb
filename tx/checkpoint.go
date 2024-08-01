@@ -18,14 +18,14 @@ func (record checkpointLogRecord) String() string {
 	return "<CHECKPOINT>"
 }
 
-func LogCheckpoint(lm logManager) int {
+func logCheckpoint(lm logManager) int {
 	p := logPools.tiny1int.Get().(*[]byte)
 	defer logPools.tiny1int.Put(p)
-	logCheckpoint(p)
+	writeCheckpoint(p)
 	return lm.Append(*p)
 }
 
-func logCheckpoint(dst *[]byte) {
+func writeCheckpoint(dst *[]byte) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(CHECKPOINT))
 }

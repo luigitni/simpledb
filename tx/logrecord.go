@@ -137,7 +137,7 @@ const (
 	SETSTRING
 )
 
-func CreateLogRecord(bytes []byte) logRecord {
+func createLogRecord(bytes []byte) logRecord {
 	rbuf := recordBuffer{bytes: bytes}
 	switch txType(rbuf.readInt()) {
 	case CHECKPOINT:

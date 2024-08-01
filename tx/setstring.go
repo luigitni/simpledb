@@ -51,19 +51,19 @@ func (ss setStringLogRecord) Undo(tx Transaction) {
 	tx.Unpin(ss.block)
 }
 
-// LogSetString appends a string records to the log file, by calling log.Manager.Append
+// logSetString appends a string records to the log file, by calling log.Manager.Append
 // A string log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func LogSetString(lm logManager, txnum int, block file.Block, offset int, val string) int {
+func logSetString(lm logManager, txnum int, block file.Block, offset int, val string) int {
 	pool := logPools.poolForString(val)
 	p := pool.Get().(*[]byte)
 	defer logPools.setSmallString.Put(p)
-	logSetString(p, txnum, block, offset, val)
+	writeString(p, txnum, block, offset, val)
 
 	return lm.Append(*p)
 }
 
-func logSetString(dst *[]byte, txnum int, block file.Block, offset int, val string) {
+func writeString(dst *[]byte, txnum int, block file.Block, offset int, val string) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(SETSTRING))
 	rbuf.writeInt(txnum)

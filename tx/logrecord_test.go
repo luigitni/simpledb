@@ -24,7 +24,7 @@ func assertStringAtPos(t *testing.T, data []byte, pos int, exp string) {
 
 func TestLogCheckpointRecord(t *testing.T) {
 	buf := make([]byte, 8)
-	logCheckpoint(&buf)
+	writeCheckpoint(&buf)
 
 	// test that the first entry is CHECKPOINT
 	assertIntAtPos(t, buf, 0, int(CHECKPOINT))
@@ -34,7 +34,7 @@ func TestLogStartRecord(t *testing.T) {
 	const txNum = 123
 
 	p := make([]byte, 16)
-	logStart(&p, txNum)
+	writeStart(&p, txNum)
 
 	assertIntAtPos(t, p, 0, int(START))
 	assertIntAtPos(t, p, file.IntSize, txNum)
@@ -46,7 +46,7 @@ func TestLogRollbackRecord(t *testing.T) {
 	const txNum = 123
 
 	p := make([]byte, 16)
-	logRollback(&p, txNum)
+	writeRollback(&p, txNum)
 
 	// test that the first entry is ROLLBACK
 	assertIntAtPos(t, p, 0, int(ROLLBACK))
@@ -59,7 +59,7 @@ func TestLogCommitRecord(t *testing.T) {
 	const txNum = 123
 
 	p := make([]byte, 16)
-	logCommit(&p, txNum)
+	writeCommit(&p, txNum)
 
 	assertIntAtPos(t, p, 0, int(COMMIT))
 	assertIntAtPos(t, p, file.IntSize, txNum)
@@ -77,7 +77,7 @@ func TestLogSetIntRecord(t *testing.T) {
 	block := file.NewBlock(fname, bid)
 
 	p := make([]byte, logSetIntSize)
-	logSetInt(&p, txNum, block, offset, val)
+	writeInt(&p, txNum, block, offset, val)
 
 	const tpos = file.IntSize
 	// filename
@@ -108,7 +108,7 @@ func TestLogSetStrRecord(t *testing.T) {
 	block := file.NewBlock(fname, bid)
 
 	p := make([]byte, logSetIntSize+len(val))
-	logSetString(&p, txNum, block, offset, val)
+	writeString(&p, txNum, block, offset, val)
 
 	const tpos = file.IntSize
 	// filename

@@ -46,18 +46,18 @@ func (si setIntLogRecord) Undo(tx Transaction) {
 	tx.Unpin(si.block)
 }
 
-// LogSetInt appends a string records to the log file, by calling log.Manager.Append
+// logSetInt appends a string records to the log file, by calling log.Manager.Append
 // An int log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func LogSetInt(lm logManager, txnum int, block file.Block, offset int, val int) int {
+func logSetInt(lm logManager, txnum int, block file.Block, offset int, val int) int {
 	p := logPools.setInt.Get().(*[]byte)
 	defer logPools.setInt.Put(p)
-	logSetInt(p, txnum, block, offset, val)
+	writeInt(p, txnum, block, offset, val)
 
 	return lm.Append(*p)
 }
 
-func logSetInt(dst *[]byte, txnum int, block file.Block, offset int, val int) {
+func writeInt(dst *[]byte, txnum int, block file.Block, offset int, val int) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(SETINT))
 	rbuf.writeInt(txnum)

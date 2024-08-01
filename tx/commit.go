@@ -30,14 +30,14 @@ func (record commitLogRecord) String() string {
 	return fmt.Sprintf("<COMMIT %d>", record.txnum)
 }
 
-func LogCommit(lm logManager, txnum int) int {
+func logCommit(lm logManager, txnum int) int {
 	p := logPools.small2ints.Get().(*[]byte)
 	defer logPools.small2ints.Put(p)
-	logCommit(p, txnum)
+	writeCommit(p, txnum)
 	return lm.Append(*p)
 }
 
-func logCommit(dst *[]byte, txnum int) {
+func writeCommit(dst *[]byte, txnum int) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(COMMIT))
 	rbuf.writeInt(txnum)

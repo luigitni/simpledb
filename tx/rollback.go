@@ -30,14 +30,14 @@ func (record rollbackLogRecord) String() string {
 	return fmt.Sprintf("<ROLLBACK %d>", record.txnum)
 }
 
-func LogRollback(lm logManager, txnum int) int {
+func logRollback(lm logManager, txnum int) int {
 	p := logPools.small2ints.Get().(*[]byte)
 	defer logPools.small2ints.Put(p)
-	logRollback(p, txnum)
+	writeRollback(p, txnum)
 	return lm.Append(*p)
 }
 
-func logRollback(dst *[]byte, txnum int) {
+func writeRollback(dst *[]byte, txnum int) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(ROLLBACK))
 	rbuf.writeInt(txnum)
