@@ -2,10 +2,13 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
 	"os"
+	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/luigitni/simpledb/db"
@@ -15,7 +18,21 @@ const (
 	port = ":8765"
 )
 
+type hook interface {
+	OnStart() error
+	OnEnd() error
+}
+
+var hooks []hook
+
 func main() {
+
+	for _, h := range hooks {
+		if err := h.OnStart(); err != nil {
+			fmt.Printf("error starting hook: %s", err)
+			os.Exit(1)
+		}
+	}
 
 	db, err := db.NewDB()
 	if err != nil {
@@ -23,7 +40,21 @@ func main() {
 		os.Exit(1)
 	}
 
-	// listen to incoming tcp connections
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+
+	ctx, canc := context.WithCancel(context.Background())
+	go listen(ctx, port, db)
+
+	<-quit
+	canc()
+	for _, h := range hooks {
+		h.OnEnd()
+	}
+	fmt.Println("shutting down...")
+}
+
+func listen(ctx context.Context, port string, db *db.DB) {
 	l, err := net.Listen("tcp4", port)
 	if err != nil {
 		fmt.Println(err)
@@ -32,13 +63,18 @@ func main() {
 	defer l.Close()
 
 	for {
-		conn, err := l.Accept()
-		if err != nil {
-			fmt.Println(err)
+		select {
+		case <-ctx.Done():
 			return
-		}
+		default:
+			conn, err := l.Accept()
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
 
-		go handleSession(conn, db)
+			go handleSession(conn, db)
+		}
 	}
 }
 

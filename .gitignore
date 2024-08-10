@@ -1,2 +1,4 @@
 .vscode
 cmd/data
+cpu.prof
+mem.prof
