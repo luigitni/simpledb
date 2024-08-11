@@ -24,6 +24,9 @@ import "github.com/luigitni/simpledb/file"
 // <TypeDef> := INT | VARCHAR ( TokenNumber )
 // <CreateView> := CREATE VIEW TokenIdentifier AS <Query>
 // <CreateIndex> := CREATE INDEX TokenIdentifier ON TokenIdentifier ( <Field> )
+// <BegingTransaction> := BEGIN
+// <Commit> := COMMIT
+// <Rollback> := ROLLBACK
 
 type Parser struct {
 	*Lexer
@@ -36,6 +39,11 @@ func NewParser(src string) Parser {
 }
 
 func (p Parser) Parse() (Command, error) {
+
+	if ok, cmd := p.isTCL(); ok {
+		return cmd, nil
+	}
+
 	if p.isQuery() {
 		return p.Query()
 	}

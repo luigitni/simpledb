@@ -222,3 +222,41 @@ func TestCreateTableCommand(t *testing.T) {
 		}
 	}
 }
+
+func TestTCLCommands(t *testing.T) {
+	t.Parallel()
+	type test struct {
+		src     string
+		cmdType CommandType
+	}
+
+	for _, test := range []test{
+		{
+			src:     "BEGIN",
+			cmdType: CommandTypeTCLBegin,
+		},
+		{
+			src:     "COMMIT",
+			cmdType: CommandTypeTCLCommit,
+		},
+		{
+			src:     "ROLLBACK",
+			cmdType: CommandTypeTCLRollback,
+		},
+	} {
+		tt := test
+		t.Run(test.src, func(t *testing.T) {
+			t.Parallel()
+
+			p := NewParser(test.src)
+			ok, cmd := p.isTCL()
+			if !ok {
+				t.Fatal("expected TCL command")
+			}
+
+			if cmd.Type() != tt.cmdType {
+				t.Fatalf("expected %v got %v", test.cmdType, cmd.Type())
+			}
+		})
+	}
+}

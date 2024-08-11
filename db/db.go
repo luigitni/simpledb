@@ -56,35 +56,27 @@ func NewDB() (*DB, error) {
 	}, nil
 }
 
-func (db *DB) beginTx() tx.Transaction {
+func (db *DB) NewTx() tx.Transaction {
 	return tx.NewTx(db.fm, db.lm, db.bm)
 }
 
 // todo: define a common serialised format to return instead of a Stringer.
 // To the extents of playing with the database, this is good enough for the moment.
-func (db *DB) Exec(command string) (fmt.Stringer, error) {
+func (db *DB) Exec(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 
-	parser := sql.NewParser(command)
-
-	data, err := parser.Parse()
-	if err != nil {
-		return nil, err
-	}
-
-	switch data.Type() {
+	switch cmd.Type() {
 	case sql.CommandTypeQuery:
-		return db.runQuery(data.(sql.Query))
+		return db.RunQuery(x, cmd.(sql.Query))
 	case sql.CommandTypeDML:
-		return db.execDML(data)
+		return db.ExecDML(x, cmd)
 	case sql.CommandTypeDDL:
-		return db.execDDL(data)
+		return db.ExecDDL(x, cmd)
 	}
 
 	return nil, errors.New("invalid command")
 }
 
-func (db *DB) runQuery(q sql.Query) (Rows, error) {
-	x := db.beginTx()
+func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
 
 	run := func() (Rows, error) {
 		planner := record.NewHeuristicsQueryPlanner(db.mdm)
@@ -135,14 +127,7 @@ func (db *DB) runQuery(q sql.Query) (Rows, error) {
 		return rows, nil
 	}
 
-	rows, err := run()
-	if err != nil {
-		x.Rollback()
-	} else {
-		x.Commit()
-	}
-
-	return rows, err
+	return run()
 }
 
 type Result struct {
@@ -153,31 +138,23 @@ func (r Result) String() string {
 	return fmt.Sprintf("%d", r.affected)
 }
 
-func (db *DB) execDDL(cmd sql.Command) (Result, error) {
+func (db *DB) ExecDDL(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 	planner := record.NewUpdatePlanner(db.mdm)
-
-	x := db.beginTx()
 
 	res, err := record.ExecuteDDLStatement(planner, cmd, x)
 	if err != nil {
-		x.Rollback()
-	} else {
-		x.Commit()
+		return Result{}, err
 	}
 
 	return Result{res}, err
 }
 
-func (db *DB) execDML(cmd sql.Command) (Result, error) {
+func (db *DB) ExecDML(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 	planner := record.NewUpdatePlanner(db.mdm)
-
-	x := db.beginTx()
 
 	res, err := record.ExecuteDMLStatement(planner, cmd, x)
 	if err != nil {
-		x.Rollback()
-	} else {
-		x.Commit()
+		return Result{}, err
 	}
 
 	return Result{res}, err

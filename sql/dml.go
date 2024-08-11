@@ -11,6 +11,10 @@ const (
 	CommandTypeDML
 	// Data Definition Language statement (CREATE, ALTER, TRUNCATE, DROP)
 	CommandTypeDDL
+	// Transaction control language statement (BEGIN, COMMIT, ROLLBACK)
+	CommandTypeTCLBegin
+	CommandTypeTCLCommit
+	CommandTypeTCLRollback
 )
 
 type QueryCommandType struct{}

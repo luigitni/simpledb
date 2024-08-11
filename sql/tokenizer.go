@@ -43,6 +43,10 @@ const (
 	TokenWhere
 	TokenOrderBy
 
+	TokenBegin
+	TokenCommit
+	TokenRollback
+
 	TokenAnd
 	TokenValues
 	TokenSet
@@ -304,7 +308,14 @@ func (t *tokenizer) identifierType() tokenType {
 		if t.isKeyword(1, 2, "nd") {
 			return TokenAnd
 		}
+	case 'b':
+		if t.isKeyword(1, 4, "egin") {
+			return TokenBegin
+		}
 	case 'c':
+		if t.isKeyword(1, 5, "ommit") {
+			return TokenCommit
+		}
 		if t.isKeyword(1, 5, "reate") {
 			return TokenCreate
 		}
@@ -338,6 +349,10 @@ func (t *tokenizer) identifierType() tokenType {
 			if t.isKeyword(6, 2, "by") {
 				return TokenOrderBy
 			}
+		}
+	case 'r':
+		if t.isKeyword(1, 7, "ollback") {
+			return TokenRollback
 		}
 	case 's':
 		if t.isKeyword(1, 2, "et") {
