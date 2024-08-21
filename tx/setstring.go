@@ -57,7 +57,7 @@ func (ss setStringLogRecord) Undo(tx Transaction) {
 func logSetString(lm logManager, txnum int, block file.Block, offset int, val string) int {
 	pool := logPools.poolForString(val)
 	p := pool.Get().(*[]byte)
-	defer logPools.setSmallString.Put(p)
+	defer pool.Put(p)
 	writeString(p, txnum, block, offset, val)
 
 	return lm.Append(*p)

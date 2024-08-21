@@ -72,9 +72,6 @@ type Transaction interface {
 
 	// BlockSize returns the size of a block
 	BlockSize() int
-
-	// AvailableBuffers returns the number of unpinned buffers
-	AvailableBuffers() int
 }
 
 // incrTxNum generates transaction ids
@@ -203,7 +200,8 @@ func (tx transactionImpl) Append(fname string) (file.Block, error) {
 	return tx.fileMan.Append(fname), nil
 }
 
-func (tx transactionImpl) AvailableBuffers() int {
+// availableBuffers returns the number of unpinned buffers
+func (tx transactionImpl) availableBuffers() int {
 	return tx.bufMan.Available()
 }
 
