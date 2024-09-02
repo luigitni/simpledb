@@ -34,7 +34,12 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 	us := scan.(UpdateScan)
 	defer us.Close()
 
-	if err := us.Insert(); err != nil {
+	size := 0
+	for _, v := range data.Values {
+		size += v.Size()
+	}
+
+	if err := us.Insert(size); err != nil {
 		return 0, err
 	}
 
@@ -219,7 +224,7 @@ func (planner *IndexUpdatePlanner) executeCreateIndex(data sql.CreateIndexComman
 func (planner *IndexUpdatePlanner) executeCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error) {
 	schema := newSchema()
 	for _, f := range data.Fields {
-		schema.addField(f.Name, f.Type, f.Len)
+		schema.addField(f.Name, f.Type)
 	}
 	return 0, planner.mdm.createTable(data.TableName, schema, x)
 }

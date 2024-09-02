@@ -6,6 +6,7 @@ import (
 	"math/rand"
 	"testing"
 
+	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/tx"
 )
@@ -13,7 +14,7 @@ import (
 func TestTableScan(t *testing.T) {
 	schema := newSchema()
 	schema.addIntField("A")
-	schema.addStringField("B", 9)
+	schema.addStringField("B")
 
 	layout := NewLayout(schema)
 	for _, field := range layout.schema.fields {
@@ -28,11 +29,14 @@ func TestTableScan(t *testing.T) {
 	t.Log("Filling the table with 50 random records")
 	scan.BeforeFirst()
 
-	nodel := map[RID]struct{}{}
+	record := map[RID]struct{}{}
 
 	for i := 0; i < 50; i++ {
 		v := rand.Intn(50)
-		scan.Insert()
+		strVal := fmt.Sprintf("rec%d", v)
+
+		size := file.IntSize + file.StrLength(len(strVal))
+		scan.Insert(size)
 		if err := scan.SetInt("A", v); err != nil {
 			t.Fatal(err)
 		}
@@ -44,7 +48,7 @@ func TestTableScan(t *testing.T) {
 
 		rid := scan.GetRID()
 		if v >= 25 {
-			nodel[rid] = struct{}{}
+			record[rid] = struct{}{}
 		}
 
 		t.Logf("inserting into slot %s record {%d, %q}", rid, v, s)
@@ -70,7 +74,7 @@ func TestTableScan(t *testing.T) {
 
 		if a < 25 {
 			rid := scan.GetRID()
-			if _, ok := nodel[rid]; ok {
+			if _, ok := record[rid]; ok {
 				t.Fatalf("Unexpected deletion of record %q", rid)
 			}
 
@@ -114,7 +118,7 @@ func TestTableScan(t *testing.T) {
 		}
 
 		rid := scan.GetRID()
-		if _, ok := nodel[rid]; !ok {
+		if _, ok := record[rid]; !ok {
 			t.Fatalf("record %s: {%d, %q} was expected to be deleted", rid, a, b)
 		}
 

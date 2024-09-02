@@ -96,7 +96,12 @@ func (bup BasicUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Transac
 	us := s.(UpdateScan)
 	defer us.Close()
 
-	if err := us.Insert(); err != nil {
+	size := 0
+	for _, v := range data.Values {
+		size += v.Size()
+	}
+
+	if err := us.Insert(size); err != nil {
 		return 0, err
 	}
 
@@ -118,7 +123,7 @@ func (bup BasicUpdatePlanner) executeCreateTableFromSchema(tableName string, sch
 func (bup BasicUpdatePlanner) executeCreateTable(data sql.CreateTableCommand, x tx.Transaction) (int, error) {
 	schema := newSchema()
 	for _, field := range data.Fields {
-		schema.addField(field.Name, field.Type, field.Len)
+		schema.addField(field.Name, field.Type)
 	}
 
 	err := bup.mdm.createTable(data.TableName, schema, x)

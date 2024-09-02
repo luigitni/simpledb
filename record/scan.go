@@ -53,7 +53,7 @@ type UpdateScan interface {
 
 	SetVal(fname string, v file.Value) error
 
-	Insert() error
+	Insert(recordSize int) error
 
 	Delete() error
 

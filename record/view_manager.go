@@ -27,8 +27,8 @@ func newViewManager(tm *tableManager) *viewManager {
 
 func (vm viewManager) init(trans tx.Transaction) error {
 	schema := newSchema()
-	schema.addStringField(fieldViewName, NameMaxLen)
-	schema.addStringField(fieldViewDef, maxViewDefinition)
+	schema.addFixedLenStringField(fieldViewName, NameMaxLen)
+	schema.addFixedLenStringField(fieldViewDef, maxViewDefinition)
 	return vm.createTable(viewCatalogTableName, schema, trans)
 }
 
