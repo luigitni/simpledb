@@ -21,7 +21,7 @@ import "github.com/luigitni/simpledb/file"
 // <CreateTable> := CREATE TABLE TokenIdentifier ( <FieldDefs> )
 // <FieldDefs> := <FieldDef> [, <FieldDefs> ]
 // <FieldDef> := TokenIdentifier <TypeDef>
-// <TypeDef> := INT | VARCHAR ( TokenNumber )
+// <TypeDef> := INT | TEXT | VARCHAR ( TokenNumber )
 // <CreateView> := CREATE VIEW TokenIdentifier AS <Query>
 // <CreateIndex> := CREATE INDEX TokenIdentifier ON TokenIdentifier ( <Field> )
 // <BegingTransaction> := BEGIN

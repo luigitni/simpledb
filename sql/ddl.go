@@ -137,6 +137,16 @@ func (p Parser) fieldType(field string) ([]FieldDef, error) {
 		return fields, nil
 	}
 
+	if p.matchKeyword("text") {
+		p.eatKeyword("text")
+		fields = append(fields, FieldDef{
+			Name: field,
+			Type: file.STRING,
+		})
+		return fields, nil
+	}
+
+	// legacy varchar type
 	if err := p.eatKeyword("varchar"); err != nil {
 		return nil, err
 	}

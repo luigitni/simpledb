@@ -184,7 +184,7 @@ func TestInsertCommand(t *testing.T) {
 }
 
 func TestCreateTableCommand(t *testing.T) {
-	const src = "CREATE TABLE atable (name VARCHAR(10), age INT)"
+	const src = "CREATE TABLE atable (name TEXT, age INT)"
 
 	p := NewParser(src)
 
@@ -206,7 +206,7 @@ func TestCreateTableCommand(t *testing.T) {
 		{
 			Name: "name",
 			Type: file.STRING,
-			Len:  10,
+			Len:  0,
 		},
 		{
 			Name: "age",
