@@ -94,7 +94,7 @@ Hello user! Thanks for using SimpleDB!
 ---
 1 record found.
 (2.27 ms)
-> exit
+> exit;
 bye!
 ```
 
