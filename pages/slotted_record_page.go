@@ -8,10 +8,12 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-var errNoFreeSpaceAvailabe = errors.New("no free space available on page to insert record")
-var ErrNoFreeSlot = errors.New("no free slot available")
+var (
+	errNoFreeSpaceAvailabe = errors.New("no free space available on page to insert record")
+	ErrNoFreeSlot          = errors.New("no free slot available")
+)
 
-type flag uint8
+type flag uint16
 
 const (
 	flagEmptyRecord flag = 1 << iota
@@ -22,45 +24,46 @@ const headerEntrySize = file.IntSize
 
 // slottedRecordPageHeaderEntry represents an entry in the page header.
 // It is bitmasked to store:
-// - the first 3 bytes store the offset of the record within the block
-// - the next 3 bytes store the length of the record within the block
-// - the 7th byte store record flags (whether empty/deleted etc)
-// - the 8th byte is reserved
+// - the first 2 bytes store the offset of the record within the page
+// - the next 2 bytes store the length of the record within the page
+// - byte 5 and 6 store record flags (whether empty/deleted etc)
+// - byte 7 and 8th byte are reserved
 type slottedRecordPageHeaderEntry int
 
 func (e slottedRecordPageHeaderEntry) recordOffset() int {
 	bytes := file.IntToBytes(int(e))
 
-	return file.BytesToInt(bytes[:3])
+	return file.BytesToInt(bytes[:2])
 }
 
 func (e slottedRecordPageHeaderEntry) recordLength() int {
 	bytes := file.IntToBytes(int(e))
-	return file.BytesToInt(bytes[3:6])
+	return file.BytesToInt(bytes[2:4])
 }
 
 func (e slottedRecordPageHeaderEntry) flags() flag {
 	bytes := file.IntToBytes(int(e))
-	return flag(file.BytesToInt(bytes[6:7]))
+	return flag(file.BytesToInt(bytes[4:6]))
 }
 
 func (e slottedRecordPageHeaderEntry) setOffset(offset int) slottedRecordPageHeaderEntry {
 	bytes := file.IntToBytes(int(e))
-	ob := file.IntToBytes(offset)
-	copy(bytes[:3], ob[:3])
+	ob := file.IntToBytes(int(offset))
+	copy(bytes[:2], ob[:2])
 	return slottedRecordPageHeaderEntry(file.BytesToInt(bytes))
 }
 
 func (e slottedRecordPageHeaderEntry) setLength(length int) slottedRecordPageHeaderEntry {
 	bytes := file.IntToBytes(int(e))
-	lb := file.IntToBytes(length)
-	copy(bytes[3:6], lb[:3])
+	lb := file.IntToBytes(int(length))
+	copy(bytes[2:4], lb[:2])
 	return slottedRecordPageHeaderEntry(file.BytesToInt(bytes))
 }
 
 func (e slottedRecordPageHeaderEntry) setFlag(f flag) slottedRecordPageHeaderEntry {
 	bytes := file.IntToBytes(int(e))
-	bytes[6] = uint8(f)
+	fb := file.IntToBytes(int(f))
+	copy(bytes[4:6], fb[:2])
 	return slottedRecordPageHeaderEntry(file.BytesToInt(bytes))
 }
 
