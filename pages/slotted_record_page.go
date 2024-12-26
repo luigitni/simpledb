@@ -18,6 +18,7 @@ type flag uint16
 const (
 	flagEmptyRecord flag = 1 << iota
 	flagInUseRecord
+	flagDeletedRecord
 )
 
 const headerEntrySize = file.IntSize
@@ -376,7 +377,7 @@ func (p *SlottedRecordPage) SetString(slot int, fieldname string, val string) er
 
 // Delete flags the record's slot as empty by setting its flag
 func (p *SlottedRecordPage) Delete(slot int) error {
-	return p.setFlag(slot, flagEmptyRecord)
+	return p.setFlag(slot, flagDeletedRecord)
 }
 
 // Format formats the page by writing a default header
@@ -423,6 +424,10 @@ func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int) (int, error) {
 	}
 
 	if err != nil {
+		return -1, err
+	}
+
+	if err := p.setFlag(nextSlot, flagInUseRecord); err != nil {
 		return -1, err
 	}
 

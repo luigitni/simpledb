@@ -93,22 +93,8 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 		return 0, err
 	}
 
-	rid := updateScan.GetRID()
-
-	updateIndex := func(info *indexInfo, oldVal file.Value, newVal file.Value) error {
-		idx := info.Open()
-		if err := idx.Delete(oldVal, rid); err != nil {
-			return err
-		}
-
-		if err := idx.Insert(newVal, rid); err != nil {
-			return err
-		}
-
-		return nil
-	}
-
-	c := 0
+	updatedRows := 0
+	schema := selectPlan.Schema()
 
 	for {
 		err := updateScan.Next()
@@ -117,39 +103,78 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 		}
 
 		if err != nil {
-			return c, err
+			return updatedRows, err
 		}
 
-		for _, column := range data.Fields {
+		m := make(map[string]file.Value, len(data.Fields))
 
-			newVal, err := column.NewValue.Evaluate(updateScan)
+		for _, f := range data.Fields {
+			v, err := f.NewValue.Evaluate(updateScan)
 			if err != nil {
-				return c, err
+				return updatedRows, err
 			}
 
-			oldVal, err := updateScan.Val(column.Field)
-			if err != nil {
-				return c, err
+			m[f.Field] = v
+		}
+
+		vals := make([]file.Value, len(schema.fields))
+		size := 0
+
+		for i, fieldName := range schema.fields {
+			var err error
+
+			val, ok := m[fieldName]
+			if !ok {
+				if val, err = updateScan.Val(fieldName); err != nil {
+					return updatedRows, err
+				}
 			}
 
-			if err := updateScan.SetVal(column.Field, newVal); err != nil {
-				return c, err
+			vals[i] = val
+			size += val.Size()
+		}
+
+		oldRid := updateScan.GetRID()
+
+		if err := updateScan.Delete(); err != nil {
+			return updatedRows, err
+		}
+
+		if err := updateScan.Insert(size); err != nil {
+			return updatedRows, err
+		}
+
+		newRid := updateScan.GetRID()
+
+		for i, val := range vals {
+			field := schema.fields[i]
+
+			if err := updateScan.SetVal(field, val); err != nil {
+				return updatedRows, err
 			}
 
-			info, ok := ii[column.Field]
+			// check if the field is indexed. If it is, save it
+			info, ok := ii[field]
 			if !ok {
 				continue
 			}
 
-			if err := updateIndex(info, oldVal, newVal); err != nil {
-				return c, err
+			idx := info.Open()
+			defer idx.Close()
+
+			if err := idx.Delete(val, oldRid); err != nil {
+				return updatedRows, err
+			}
+
+			if err := idx.Insert(val, newRid); err != nil {
+				return updatedRows, err
 			}
 		}
 
-		c++
+		updatedRows++
 	}
 
-	return c, nil
+	return updatedRows, nil
 }
 
 func (planner *IndexUpdatePlanner) executeDelete(data sql.DeleteCommand, x tx.Transaction) (int, error) {
