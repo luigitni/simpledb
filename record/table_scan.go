@@ -71,7 +71,6 @@ func (ts *tableScan) Close() {
 // It then continues until either a next record is found or the end of the file is encountered, in which case returns false
 func (ts *tableScan) Next() error {
 	for {
-
 		slot, err := ts.recordPage.NextAfter(ts.currentSlot)
 		if err == nil {
 			ts.currentSlot = slot
@@ -156,7 +155,7 @@ func (ts *tableScan) SetVal(fieldname string, val file.Value) error {
 // Insert looks for an empty slot to flag as used.
 // It starts scanning the current block until such a slot is found.
 // If the current block does not contain free slots, it attempts to move to the next block
-// If the next block is at the end of the file, appends a new block and start scanning from there.
+// If the next block is at the end of the file, appends a new block and starts scanning from there.
 func (ts *tableScan) Insert(recordSize int) error {
 	for {
 		slot, err := ts.recordPage.InsertAfter(ts.currentSlot, recordSize)
