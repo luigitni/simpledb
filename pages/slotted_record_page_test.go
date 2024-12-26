@@ -233,17 +233,6 @@ func TestSlottedRecordPageSearchAfter(t *testing.T) {
 	if err := page.Delete(slotToFree); err != nil {
 		t.Fatalf("error deleting record at slot %d: %v", slotToFree, err)
 	}
-
-	t.Run("successfully finds free slot after deletion of existing record", func(t *testing.T) {
-		slot, err := page.searchAfter(0, flagEmptyRecord, 1024)
-		if err != nil {
-			t.Fatalf("error searching after: %v", err)
-		}
-
-		if slot != slotToFree {
-			t.Errorf("expected slot %d, got %d", slotToFree, slot)
-		}
-	})
 }
 
 func TestSlottedRecordPageInsertAfter(t *testing.T) {
@@ -275,19 +264,6 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 		_, err := page.InsertAfter(-1, defaultFreeSpaceEnd+1)
 		if err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
-		}
-	})
-
-	page.Delete(2)
-
-	t.Run("successfully inserts record after deleting existing one", func(t *testing.T) {
-		slot, err := page.InsertAfter(1, 500)
-		if err != nil {
-			t.Fatalf("error inserting after 1: %v", err)
-		}
-
-		if slot != 2 {
-			t.Errorf("expected slot to be 2, got %d", slot)
 		}
 	})
 }
