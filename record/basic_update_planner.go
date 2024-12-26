@@ -59,13 +59,15 @@ func (bup BasicUpdatePlanner) iterateAndExecute(x tx.Transaction, tableName stri
 
 func (bup BasicUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Transaction) (int, error) {
 	exec := func(us UpdateScan) error {
-		val, err := data.NewValue.Evaluate(us)
-		if err != nil {
-			return err
-		}
+		for _, column := range data.Fields {
+			val, err := column.NewValue.Evaluate(us)
+			if err != nil {
+				return err
+			}
 
-		if err := us.SetVal(data.Field, val); err != nil {
-			return err
+			if err := us.SetVal(column.Field, val); err != nil {
+				return err
+			}
 		}
 
 		return nil

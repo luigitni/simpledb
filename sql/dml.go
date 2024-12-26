@@ -77,22 +77,25 @@ func NewDeleteCommandWithPredicate(table string, predicate Predicate) DeleteComm
 type UpdateCommand struct {
 	DMLCommandType
 	TableName string
-	Field     string
-	NewValue  Expression
+	Fields    []UpdateField
 	Predicate Predicate
 }
 
-func NewUpdateCommand(table string, field string, expression Expression) UpdateCommand {
+type UpdateField struct {
+	Field    string
+	NewValue Expression
+}
+
+func NewUpdateCommand(table string, fields []UpdateField) UpdateCommand {
 	return UpdateCommand{
 		TableName: table,
-		Field:     field,
-		NewValue:  expression,
+		Fields:    fields,
 		Predicate: Predicate{},
 	}
 }
 
-func NewUpdateCommandWithPredicate(table string, field string, expression Expression, predicate Predicate) UpdateCommand {
-	m := NewUpdateCommand(table, field, expression)
+func NewUpdateCommandWithPredicate(table string, fields []UpdateField, predicate Predicate) UpdateCommand {
+	m := NewUpdateCommand(table, fields)
 	m.Predicate = predicate
 	return m
 }
@@ -243,6 +246,44 @@ func (p Parser) constantList() ([]file.Value, error) {
 	return list, nil
 }
 
+// <ModifyFieldList> := <Field> = <Expression> [ , <ModifyFieldList> ]
+func (p Parser) modifyFieldList() ([]UpdateField, error) {
+	var list []UpdateField
+
+	field, err := p.field()
+	if err != nil {
+		return nil, err
+	}
+
+	if err := p.eatTokenType(TokenEqual); err != nil {
+		return nil, err
+	}
+
+	expr, err := p.expression()
+	if err != nil {
+		return nil, err
+	}
+
+	list = append(list, UpdateField{Field: field, NewValue: expr})
+
+	if !p.matchTokenType(TokenComma) {
+		return list, nil
+	}
+
+	if err := p.eatTokenType(TokenComma); err != nil {
+		return nil, err
+	}
+
+	others, err := p.modifyFieldList()
+	if err != nil {
+		return nil, err
+	}
+
+	list = append(list, others...)
+
+	return list, nil
+}
+
 // <Modify> := UPDATE TokenIdentifier SET <Field> = <Expression> [ WHERE <Predicate> ]
 func (p Parser) modify() (UpdateCommand, error) {
 	if err := p.eatKeyword("update"); err != nil {
@@ -258,16 +299,7 @@ func (p Parser) modify() (UpdateCommand, error) {
 		return UpdateCommand{}, err
 	}
 
-	field, err := p.field()
-	if err != nil {
-		return UpdateCommand{}, err
-	}
-
-	if err := p.eatTokenType(TokenEqual); err != nil {
-		return UpdateCommand{}, err
-	}
-
-	expr, err := p.expression()
+	fields, err := p.modifyFieldList()
 	if err != nil {
 		return UpdateCommand{}, err
 	}
@@ -282,8 +314,8 @@ func (p Parser) modify() (UpdateCommand, error) {
 			return UpdateCommand{}, err
 		}
 
-		return NewUpdateCommandWithPredicate(table, field, expr, pred), nil
+		return NewUpdateCommandWithPredicate(table, fields, pred), nil
 	}
 
-	return NewUpdateCommand(table, field, expr), nil
+	return NewUpdateCommand(table, fields), nil
 }

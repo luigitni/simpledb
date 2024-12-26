@@ -95,12 +95,7 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 
 	rid := updateScan.GetRID()
 
-	updateIndex := func(oldVal file.Value, newVal file.Value) error {
-		info, ok := ii[data.Field]
-		if !ok {
-			return nil
-		}
-
+	updateIndex := func(info *indexInfo, oldVal file.Value, newVal file.Value) error {
 		idx := info.Open()
 		if err := idx.Delete(oldVal, rid); err != nil {
 			return err
@@ -125,22 +120,30 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 			return c, err
 		}
 
-		newVal, err := data.NewValue.Evaluate(updateScan)
-		if err != nil {
-			return c, err
-		}
+		for _, column := range data.Fields {
 
-		oldVal, err := updateScan.Val(data.Field)
-		if err != nil {
-			return c, err
-		}
+			newVal, err := column.NewValue.Evaluate(updateScan)
+			if err != nil {
+				return c, err
+			}
 
-		if err := updateScan.SetVal(data.Field, newVal); err != nil {
-			return c, err
-		}
+			oldVal, err := updateScan.Val(column.Field)
+			if err != nil {
+				return c, err
+			}
 
-		if err := updateIndex(oldVal, newVal); err != nil {
-			return c, err
+			if err := updateScan.SetVal(column.Field, newVal); err != nil {
+				return c, err
+			}
+
+			info, ok := ii[column.Field]
+			if !ok {
+				continue
+			}
+
+			if err := updateIndex(info, oldVal, newVal); err != nil {
+				return c, err
+			}
 		}
 
 		c++

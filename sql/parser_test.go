@@ -23,7 +23,6 @@ func TestFieldList(t *testing.T) {
 	p := NewParser(src)
 
 	sl, err := p.selectList()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -41,7 +40,6 @@ func TestFieldList(t *testing.T) {
 }
 
 func TestConstant(t *testing.T) {
-
 	type test struct {
 		src string
 		exp string
@@ -75,7 +73,6 @@ func TestQuery(t *testing.T) {
 	p := NewParser(src)
 
 	qd, err := p.Query()
-
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -97,12 +94,18 @@ func TestUpdateCommandSimple(t *testing.T) {
 
 	upd := cmd.(UpdateCommand)
 
-	if upd.Field != "col" {
-		t.Fatalf("expected field to be %q, got %s", "col", upd.Field)
+	if len(upd.Fields) != 1 {
+		t.Fatalf("expected 1 field, got %d", len(upd.Fields))
 	}
 
-	if v := upd.NewValue.String(); v != "5" {
-		t.Fatalf("expected newValue to be %q, got %s", "5", upd.Field)
+	field := upd.Fields[0]
+
+	if field.Field != "col" {
+		t.Fatalf("expected field to be %q, got %s", "col", field.Field)
+	}
+
+	if v := field.NewValue.String(); v != "5" {
+		t.Fatalf("expected newValue to be %q, got %s", "5", field.Field)
 	}
 }
 
@@ -118,12 +121,75 @@ func TestUpdateCommandPredicate(t *testing.T) {
 
 	upd := cmd.(UpdateCommand)
 
-	if upd.Field != "col" {
-		t.Fatalf("expected field to be %q, got %s", "col", upd.Field)
+	if len(upd.Fields) != 1 {
+		t.Fatalf("expected 1 field, got %d", len(upd.Fields))
 	}
 
-	if v := upd.NewValue.AsConstant().AsIntVal(); v != 5 {
+	field := upd.Fields[0]
+
+	if field.Field != "col" {
+		t.Fatalf("expected field to be %q, got %s", "col", field.Field)
+	}
+
+	if v := field.NewValue.AsConstant().AsIntVal(); v != 5 {
 		t.Fatalf("expected newValue to be %d, got %d", 5, v)
+	}
+
+	if s := upd.Predicate.String(); s != "anothercol = 3" {
+		t.Fatalf("expected predicate to be %q, got %q", "anothercol = 3", s)
+	}
+}
+
+func TestUpdateCommandMultipleFields(t *testing.T) {
+	const src = "UPDATE atable SET col = 5, second = 'test' WHERE anothercol = 3"
+
+	p := NewParser(src)
+
+	cmd, err := p.dml()
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	upd := cmd.(UpdateCommand)
+
+	if len(upd.Fields) != 2 {
+		t.Fatalf("expected 2 fields, got %d", len(upd.Fields))
+	}
+
+	type exp struct {
+		Field string
+		Value interface{}
+	}
+
+	for i, e := range []exp{
+		{
+			Field: "col",
+			Value: 5,
+		},
+		{
+			Field: "second",
+			Value: "test",
+		},
+	} {
+
+		field := upd.Fields[i]
+
+		if field.Field != e.Field {
+			t.Fatalf("expected field to be %q, got %q", e.Field, field.Field)
+		}
+
+		v := field.NewValue.AsConstant()
+
+		switch val := e.Value.(type) {
+		case int:
+			if v := v.AsIntVal(); v != val {
+				t.Fatalf("expected newValue to be %d, got %d", val, v)
+			}
+		case string:
+			if v := v.AsStringVal(); v != val {
+				t.Fatalf("expected newValue to be %q, got %s", val, v)
+			}
+		}
 	}
 
 	if s := upd.Predicate.String(); s != "anothercol = 3" {
