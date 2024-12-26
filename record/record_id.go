@@ -1,6 +1,12 @@
 package record
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/luigitni/simpledb/file"
+)
+
+const ridSize = 2 * file.IntSize
 
 // RID is an identifier of the record within a file.
 // A RID consists of the block number in the file,

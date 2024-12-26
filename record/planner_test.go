@@ -17,8 +17,8 @@ func createAndInsertTable(t *testing.T, fm *file.FileManager, lm *log.WalWriter,
 
 	// STUDENTS table definition
 	schema := newSchema()
-	schema.addStringField("sname", 15)
-	schema.addStringField("ssurname", 20)
+	schema.addFixedLenStringField("sname", 15)
+	schema.addFixedLenStringField("ssurname", 20)
 	schema.addIntField("gradyear")
 	schema.addIntField("dob")
 

@@ -16,7 +16,7 @@ func TestTableManager(t *testing.T) {
 
 	schema := newSchema()
 	schema.addIntField("A")
-	schema.addStringField("B", 9)
+	schema.addFixedLenStringField("B", 9)
 
 	if err := tm.createTable("MyTable", schema, trans); err != nil {
 		t.Fatal(err)

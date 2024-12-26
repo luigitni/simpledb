@@ -3,6 +3,7 @@ package record
 import (
 	"io"
 
+	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
 )
 
@@ -45,15 +46,22 @@ func (mp *materializePlan) Open() (Scan, error) {
 			return nil, err
 		}
 
-		if err := dst.Insert(); err != nil {
-			return nil, err
-		}
-
+		size := 0
+		vals := make(map[string]file.Value)
 		for _, fname := range schema.fields {
 			v, err := src.Val(fname)
 			if err != nil {
 				return nil, err
 			}
+			vals[fname] = v
+			size += v.Size()
+		}
+
+		if err := dst.Insert(size); err != nil {
+			return nil, err
+		}
+
+		for fname, v := range vals {
 			dst.SetVal(fname, v)
 		}
 	}
