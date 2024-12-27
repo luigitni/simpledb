@@ -3,6 +3,7 @@ package conn
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -46,6 +47,8 @@ func Listen(ctx context.Context, port string, db db) error {
 }
 
 func handleConn(ctx context.Context, conn net.Conn, db db) {
+	defer conn.Close()
+
 	greet(conn)
 
 	session := session{
@@ -58,23 +61,26 @@ func handleConn(ctx context.Context, conn net.Conn, db db) {
 		if err != nil {
 			fmt.Fprintf(conn, "Error reading command: %s", err)
 		}
+
 		cmd = cmd[:len(cmd)-1]
 		cmd = strings.TrimSpace(cmd)
 
 		out, err := session.processInput(ctx, cmd)
 
-		if err == io.EOF {
+		if errors.Is(err, io.EOF) {
 			fmt.Fprint(conn, out)
-			conn.Close()
-			return
-		}
 
-		if err != nil {
+			return
+		} else if errors.Is(err, sql.ErrInvalidSyntax) {
+			fmt.Fprint(conn, "Invalid syntax")
+		} else if err != nil {
 			fmt.Fprint(conn, err)
+
 			return
+		} else {
+			fmt.Fprint(conn, out)
 		}
 
-		fmt.Fprint(conn, out)
 		fmt.Fprint(conn, "\n> ")
 	}
 }
