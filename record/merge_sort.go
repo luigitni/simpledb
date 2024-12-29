@@ -343,7 +343,7 @@ func (ss *sortScan) Next() error {
 		}
 
 		ss.firstHasMore = hasMore
-	} else if ss.currentScan == ss.secondScan {
+	} else if ss.secondScan != nil && ss.currentScan == ss.secondScan {
 		hasMore, err := hasNextOrError(ss.secondScan)
 		if err != nil {
 			return err
@@ -353,7 +353,6 @@ func (ss *sortScan) Next() error {
 	}
 
 	if !ss.firstHasMore && !ss.secondHasMore {
-
 		return io.EOF
 	} else if ss.firstHasMore && ss.secondHasMore {
 		less, err := ss.Less(ss.firstScan, ss.secondScan)
