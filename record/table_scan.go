@@ -8,7 +8,7 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-var _ Scan = &tableScan{}
+var _ UpdateScan = &tableScan{}
 
 // tableScan store arbitrarily many records in multiple blocks of a file.
 // The tableScan manages the records in a table: it hides the block structure
@@ -157,30 +157,55 @@ func (ts *tableScan) SetVal(fieldname string, val file.Value) error {
 // If the current block does not contain free slots, it attempts to move to the next block
 // If the next block is at the end of the file, appends a new block and starts scanning from there.
 func (ts *tableScan) Insert(recordSize int) error {
+	rid, err := ts.insert(recordSize, false)
+	if err != nil {
+		return err
+	}
+
+	ts.MoveToRID(rid)
+
+	return nil
+}
+
+func (ts *tableScan) insert(recordSize int, update bool) (RID, error) {
 	for {
-		slot, err := ts.recordPage.InsertAfter(ts.currentSlot, recordSize)
+		slot, err := ts.recordPage.InsertAfter(ts.currentSlot, recordSize, update)
 		if err == nil {
-			ts.currentSlot = slot
-			return nil
+			return NewRID(ts.recordPage.Block().Number(), slot), nil
 		}
 
 		if err != pages.ErrNoFreeSlot {
-			return err
+			return RID{}, err
 		}
 
 		atLastBlock, err := ts.isAtLastBlock()
 		if err != nil {
-			return err
+			return RID{}, err
 		}
 
 		if atLastBlock {
 			if err := ts.moveToNewBlock(); err != nil {
-				return err
+				return RID{}, err
 			}
 		} else {
 			ts.moveToBlock(ts.recordPage.Block().Number() + 1)
 		}
 	}
+}
+
+func (ts *tableScan) Update(recordSize int) error {
+	if err := ts.Delete(); err != nil {
+		return err
+	}
+
+	rid, err := ts.insert(recordSize, true)
+	if err != nil {
+		return err
+	}
+
+	ts.MoveToRID(rid)
+
+	return nil
 }
 
 func (ts *tableScan) Delete() error {

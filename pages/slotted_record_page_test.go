@@ -62,7 +62,7 @@ func TestSlottedRecordPageAppendRecordSlot(t *testing.T) {
 	}
 
 	t.Run("record is too large", func(t *testing.T) {
-		if err := header.appendRecordSlot(defaultFreeSpaceEnd + 1); err != errNoFreeSpaceAvailabe {
+		if err := header.appendRecordSlot(defaultFreeSpaceEnd + 1); err != errNoFreeSpaceAvailable {
 			t.Errorf("expected errNoFreeSpaceAvailabe, got %v", err)
 		}
 	})
@@ -249,7 +249,7 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 
 	t.Run("successfully inserts records one after another", func(t *testing.T) {
 		for i, v := range []int{255, 1024, 512, 323, 8} {
-			slot, err := page.InsertAfter(i-1, v)
+			slot, err := page.InsertAfter(i-1, v, false)
 			if err != nil {
 				t.Errorf("error inserting after -1: %v", err)
 			}
@@ -261,7 +261,7 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 	})
 
 	t.Run("no space is availale for inserting records", func(t *testing.T) {
-		_, err := page.InsertAfter(-1, defaultFreeSpaceEnd+1)
+		_, err := page.InsertAfter(-1, defaultFreeSpaceEnd+1, false)
 		if err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
 		}
@@ -298,20 +298,20 @@ func TestSlottedRecordPageSet(t *testing.T) {
 		12, "This is a variable string", 4567890, "This is another string",
 	}
 
-	recordLenght := 0
+	recordLength := 0
 	for _, v := range record {
 		switch val := v.(type) {
 		case int:
-			recordLenght += file.IntSize
+			recordLength += file.IntSize
 		case string:
 			l := file.StrLength(len(val))
-			recordLenght += l
+			recordLength += l
 		default:
 			t.Fatal("unsupported type")
 		}
 	}
 
-	slot, err := page.InsertAfter(-1, recordLenght)
+	slot, err := page.InsertAfter(-1, recordLength, false)
 	if err != nil {
 		t.Fatal(err)
 	}

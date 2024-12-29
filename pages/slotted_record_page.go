@@ -9,8 +9,8 @@ import (
 )
 
 var (
-	errNoFreeSpaceAvailabe = errors.New("no free space available on page to insert record")
-	ErrNoFreeSlot          = errors.New("no free slot available")
+	errNoFreeSpaceAvailable = errors.New("no free space available on page to insert record")
+	ErrNoFreeSlot           = errors.New("no free slot available")
 )
 
 type flag uint16
@@ -100,7 +100,7 @@ func (h slottedRecordPageHeader) freeSpaceAvailable() int {
 
 func (header *slottedRecordPageHeader) appendRecordSlot(actualRecordSize int) error {
 	if actualRecordSize > header.freeSpaceAvailable() {
-		return errNoFreeSpaceAvailabe
+		return errNoFreeSpaceAvailable
 	}
 
 	header.freeSpaceEnd -= actualRecordSize
@@ -165,9 +165,39 @@ type SlottedRecordPage struct {
 // todo: this can be represented by an array of 16 bit ints to save space
 // and possibly speed up access, once support for smaller ints is added
 type recordHeader struct {
-	// ends stores the offsets of the ends of each record field
+	// ends stores the offsets of the ends of each field in the record
 	ends []int
+
+	txinfo recordHeaderTxInfo
 }
+
+type recordHeaderTxInfo struct {
+	// xmin stores the transaction id that created the record
+	xmin int
+	// xmax stores the transaction id that deleted the record
+	xmax int
+	// txop stores the operation number of the transaction that created or deleted the record
+	txop int
+	// flags stores additional flags for the record
+	flags recordHeaderFlag
+}
+
+type recordHeaderFlag int
+
+const (
+	flagUpdated recordHeaderFlag = 1 << iota
+)
+
+func (h recordHeader) setFlag(flag recordHeaderFlag) recordHeader {
+	h.txinfo.flags |= flag
+	return h
+}
+
+func (h recordHeader) hasFlag(flag recordHeaderFlag) bool {
+	return h.txinfo.flags&flag != 0
+}
+
+const recordHeaderTxInfoSize = 4 * file.IntSize
 
 // NewSlottedRecordPage creates a new SlottedRecordPage struct
 func NewSlottedRecordPage(tx tx.Transaction, block file.Block, layout Layout) *SlottedRecordPage {
@@ -188,10 +218,13 @@ func (p *SlottedRecordPage) Block() file.Block {
 	return p.block
 }
 
+func (p *SlottedRecordPage) recordHeaderSize() int {
+	return recordHeaderTxInfoSize + p.layout.FieldsCount()*file.IntSize
+}
+
 // recordSizeIncludingRecordHeader calculates the size of a record on disk including header
 func (p *SlottedRecordPage) recordSizeIncludingRecordHeader(originalSize int) int {
-	recordHeader := p.layout.FieldsCount() * file.IntSize
-	return recordHeader + originalSize
+	return p.recordHeaderSize() + originalSize
 }
 
 func (p *SlottedRecordPage) writeHeader(header slottedRecordPageHeader) error {
@@ -253,6 +286,90 @@ func (p *SlottedRecordPage) readHeader() (slottedRecordPageHeader, error) {
 	}, nil
 }
 
+func (p *SlottedRecordPage) writeRecordHeader(offset int, recordHeader recordHeader) error {
+	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.xmin, false); err != nil {
+		return err
+	}
+
+	offset += file.IntSize
+
+	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.xmax, false); err != nil {
+		return err
+	}
+
+	offset += file.IntSize
+
+	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.txop, false); err != nil {
+		return err
+	}
+
+	offset += file.IntSize
+
+	if err := p.tx.SetInt(p.block, offset, int(recordHeader.txinfo.flags), false); err != nil {
+		return err
+	}
+
+	offset += file.IntSize
+
+	for i, end := range recordHeader.ends {
+		if err := p.tx.SetInt(p.block, offset+i*file.IntSize, end, false); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *SlottedRecordPage) readRecordHeader(offset int) (recordHeader, error) {
+	xmin, err := p.tx.Int(p.block, offset)
+	if err != nil {
+		return recordHeader{}, err
+	}
+
+	offset += file.IntSize
+
+	xmax, err := p.tx.Int(p.block, offset)
+	if err != nil {
+		return recordHeader{}, err
+	}
+
+	offset += file.IntSize
+
+	txop, err := p.tx.Int(p.block, offset)
+	if err != nil {
+		return recordHeader{}, err
+	}
+
+	offset += file.IntSize
+
+	flags, err := p.tx.Int(p.block, offset)
+	if err != nil {
+		return recordHeader{}, err
+	}
+
+	ends := make([]int, 0, p.layout.FieldsCount())
+
+	for i := 0; i < p.layout.FieldsCount(); i++ {
+		offset += file.IntSize
+		end, err := p.tx.Int(p.block, offset)
+		if err != nil {
+			return recordHeader{}, err
+		}
+
+		ends = append(ends, end)
+	}
+
+	return recordHeader{
+		ends: ends,
+		txinfo: recordHeaderTxInfo{
+			xmin:  xmin,
+			xmax:  xmax,
+			txop:  txop,
+			flags: recordHeaderFlag(flags),
+		},
+	}, nil
+}
+
 // entry returns the entry of the record pointed to by the given slot
 func (p *SlottedRecordPage) entry(slot int) (slottedRecordPageHeaderEntry, error) {
 	offset := entriesOffset + headerEntrySize*slot
@@ -276,7 +393,7 @@ func (p *SlottedRecordPage) setFlag(slot int, flag flag) error {
 	return p.tx.SetInt(p.block, entryOffset, int(entry), false)
 }
 
-// fieldOffset returrns the offset of the field for the record pointed by the given slot
+// fieldOffset returns the offset of the field for the record pointed by the given slot
 func (p *SlottedRecordPage) fieldOffset(slot int, fieldname string) (int, error) {
 	entry, err := p.entry(slot)
 	if err != nil {
@@ -289,17 +406,17 @@ func (p *SlottedRecordPage) fieldOffset(slot int, fieldname string) (int, error)
 		return 0, fmt.Errorf("invalid field %s for record", fieldname)
 	}
 
-	recordDataOffset := entry.recordOffset()
-	// add the size of the record header to get the offset of the start of fields
-	recordDataOffset += p.layout.FieldsCount() * file.IntSize
+	recordOffset := entry.recordOffset()
+	// the first field starts right after the record header
+	firstFieldOffset := recordOffset + p.recordHeaderSize()
 
 	if fieldIndex == 0 {
-		return recordDataOffset, nil
+		return firstFieldOffset, nil
 	}
 
-	// read the end of the previous field to find the start of this one
 	prevIndex := fieldIndex - 1
-	fieldOffset := entry.recordOffset() + prevIndex*file.IntSize
+	// read the end of the previous field to find the start of this one
+	fieldOffset := recordOffset + recordHeaderTxInfoSize + prevIndex*file.IntSize
 
 	return p.tx.Int(p.block, fieldOffset)
 }
@@ -335,7 +452,7 @@ func (p *SlottedRecordPage) updateFieldEnd(slot int, fieldname string, fieldEnd 
 		return err
 	}
 
-	fieldOffsetEntry := entry.recordOffset() + fieldIndex*file.IntSize
+	fieldOffsetEntry := recordHeaderTxInfoSize + entry.recordOffset() + fieldIndex*file.IntSize
 
 	return p.tx.SetInt(p.block, fieldOffsetEntry, fieldEnd, false)
 }
@@ -377,7 +494,27 @@ func (p *SlottedRecordPage) SetString(slot int, fieldname string, val string) er
 
 // Delete flags the record's slot as empty by setting its flag
 func (p *SlottedRecordPage) Delete(slot int) error {
-	return p.setFlag(slot, flagDeletedRecord)
+	if err := p.setFlag(slot, flagDeletedRecord); err != nil {
+		return err
+	}
+
+	entry, err := p.entry(slot)
+	if err != nil {
+		return err
+	}
+
+	recordHeader, err := p.readRecordHeader(entry.recordOffset())
+	if err != nil {
+		return err
+	}
+
+	recordHeader.txinfo.xmax = p.tx.Id()
+
+	if err := p.writeRecordHeader(entry.recordOffset(), recordHeader); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 // Format formats the page by writing a default header
@@ -399,7 +536,7 @@ func (p *SlottedRecordPage) NextAfter(slot int) (int, error) {
 
 // InsertAfter returns the next empty slot after the given one such that
 // it can hold the provided record size.
-func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int) (int, error) {
+func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int, update bool) (int, error) {
 	nextSlot, err := p.searchAfter(slot, flagEmptyRecord, recordSize)
 	// no empty slot found, try to append to the end
 	if err == ErrNoFreeSlot {
@@ -408,15 +545,33 @@ func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int) (int, error) {
 			return -1, err
 		}
 
+		// calculate the actual size of the record including the record header
 		actualRecordSize := p.recordSizeIncludingRecordHeader(recordSize)
 
-		if err := header.appendRecordSlot(actualRecordSize); err == errNoFreeSpaceAvailabe {
+		// append a new slot to the page header for the record
+		if err := header.appendRecordSlot(actualRecordSize); err == errNoFreeSpaceAvailable {
 			return -1, ErrNoFreeSlot
 		}
 
-		// write the record header at the offset
-
 		if err := p.writeHeader(header); err != nil {
+			return -1, err
+		}
+
+		recordHeader := recordHeader{
+			ends: make([]int, p.layout.FieldsCount()),
+			txinfo: recordHeaderTxInfo{
+				xmin: p.tx.Id(),
+				xmax: 0,
+				txop: p.tx.Id(),
+			},
+		}
+
+		if update {
+			recordHeader = recordHeader.setFlag(flagUpdated)
+		}
+
+		// write the record header at the end of the free space
+		if err := p.writeRecordHeader(header.freeSpaceEnd, recordHeader); err != nil {
 			return -1, err
 		}
 
@@ -424,10 +579,6 @@ func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int) (int, error) {
 	}
 
 	if err != nil {
-		return -1, err
-	}
-
-	if err := p.setFlag(nextSlot, flagInUseRecord); err != nil {
 		return -1, err
 	}
 
@@ -449,6 +600,15 @@ func (p *SlottedRecordPage) searchAfter(slot int, flag flag, recordSize int) (in
 		entry, err := p.entry(i)
 		if err != nil {
 			return -1, err
+		}
+
+		recordHeader, err := p.readRecordHeader(entry.recordOffset())
+		if err != nil {
+			return -1, err
+		}
+
+		if recordHeader.txinfo.xmin == p.tx.Id() && recordHeader.hasFlag(flagUpdated) {
+			continue
 		}
 
 		if entry.flags() == flag && entry.recordLength() >= recordSize {

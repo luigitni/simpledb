@@ -144,11 +144,7 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 
 		oldRid := updateScan.GetRID()
 
-		if err := updateScan.Delete(); err != nil {
-			return updatedRows, err
-		}
-
-		if err := updateScan.Insert(size); err != nil {
+		if err := updateScan.Update(size); err != nil {
 			return updatedRows, err
 		}
 
@@ -176,6 +172,8 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 				return updatedRows, err
 			}
 		}
+
+		updateScan.MoveToRID(oldRid)
 
 		updatedRows++
 	}
