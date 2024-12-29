@@ -110,6 +110,16 @@ bye!
 - `file`: File management for database storage
 - `tx`: Transaction and buffer management
 
+## Roadmap
+
+- [ ] Implement overflow pages for off-page data
+- [ ] Implement smaller header and metadata format for optimised access
+- [ ] Implement garbage collection for dead heap tuples
+- [ ] Implement MVCC and snapshot isolation for concurrency control
+- [ ] Improve B-tree indexing and concurrent index operations
+- [ ] Improve planner and executor for better query performance
+- [ ] Implement additional data types and SQL statements
+
 ## License
 
 This project is licensed under the [MIT License](https://opensource.org/license/mit).
