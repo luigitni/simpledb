@@ -51,7 +51,6 @@ const (
 	TokenValues
 	TokenSet
 	TokenTable
-	TokenText
 	TokenVarchar
 	TokenInt
 	TokenView
@@ -365,9 +364,6 @@ func (t *tokenizer) identifierType() tokenType {
 	case 't':
 		if t.isKeyword(1, 4, "able") {
 			return TokenTable
-		}
-		if t.isKeyword(1, 3, "ext") {
-			return TokenText
 		}
 	case 'u':
 		if t.isKeyword(1, 5, "pdate") {

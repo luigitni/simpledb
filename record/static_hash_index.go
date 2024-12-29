@@ -94,10 +94,7 @@ func (idx *StaticHashIndex) DataRID() (RID, error) {
 
 func (idx *StaticHashIndex) Insert(v file.Value, rid RID) error {
 	idx.BeforeFirst(v)
-	size := file.IntSize * 2
-	size += v.Size()
-
-	if err := idx.scan.Insert(size); err != nil {
+	if err := idx.scan.Insert(); err != nil {
 		return fmt.Errorf("error inserting into tablescan: %w", err)
 	}
 

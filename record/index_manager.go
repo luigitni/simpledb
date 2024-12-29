@@ -52,7 +52,7 @@ func idxLayout(tableSchema Schema, fieldName string) Layout {
 	case file.INTEGER:
 		schema.addIntField("dataval")
 	case file.STRING:
-		schema.addFixedLenStringField("dataval", tableSchema.flen(fieldName))
+		schema.addStringField("dataval", tableSchema.flen(fieldName))
 	}
 
 	return NewLayout(schema)
@@ -99,9 +99,9 @@ type indexManager struct {
 
 func indexCatalogSchema() Schema {
 	schema := newSchema()
-	schema.addFixedLenStringField(fieldIdxName, NameMaxLen)
-	schema.addFixedLenStringField(catFieldTableName, NameMaxLen)
-	schema.addFixedLenStringField(catFieldFieldName, NameMaxLen)
+	schema.addStringField(fieldIdxName, NameMaxLen)
+	schema.addStringField(catFieldTableName, NameMaxLen)
+	schema.addStringField(catFieldFieldName, NameMaxLen)
 	return schema
 }
 
@@ -121,10 +121,7 @@ func (im indexManager) init(x tx.Transaction) error {
 func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName string, fldName string) error {
 	ts := newTableScan(x, idxCatalogTableName, im.l)
 
-	// todo: create fixed size string type
-	size := file.StrLength(len(idxName)) + file.StrLength(len(tblName)) + file.StrLength(len(fldName))
-
-	ts.Insert(size)
+	ts.Insert()
 	defer ts.Close()
 
 	if err := ts.SetString(fieldIdxName, idxName); err != nil {
@@ -147,7 +144,7 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 
 	m := map[string]*indexInfo{}
 
-	scan := newTableScan(x, idxCatalogTableName, im.l)
+	scan := newTableScan(x, tblName, im.l)
 	defer scan.Close()
 
 	for {
@@ -160,12 +157,12 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		table, err := scan.String(catFieldTableName)
+		t, err := scan.String("tablename")
 		if err != nil {
 			return nil, err
 		}
 
-		if table != tblName {
+		if t != tblName {
 			continue
 		}
 

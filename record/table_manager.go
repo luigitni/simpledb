@@ -13,11 +13,13 @@ import (
 const (
 	tableCatalogTableName = "tblcat"
 	catFieldTableName     = "tblname"
+	catFieldSlotSize      = "slotsize"
 
 	fieldsCatalogTableName = "fldcat"
 	catFieldFieldName      = "fldname"
 	catFieldType           = "type"
-	catFieldIndex          = "fldidx"
+	catFieldLength         = "length"
+	catFieldOffset         = "offset"
 
 	// NameMaxLen is the maximum len of a field or table name
 	NameMaxLen = 16
@@ -30,12 +32,14 @@ var ErrViewNotFound = errors.New("cannot find table in catalog")
 // Table metadata is held in two tables:
 //   - "tblcat" stores metadata specific to each table and has the following fields:
 //     -- TblName: name of the table
+//     -- SlotSize: the size in byte of each record
 //   - "fldcat" stores metadata of each field in each table.
 //     Each record in the table represents a table field, and has the following keys:
 //     -- TblName: name of the table the field belongs to.
 //     -- FldName: name of the field.
 //     -- Type: type of the field.
-//     -- FldIdx: index of the field in the table's record layout.
+//     -- Length: size of the single field.
+//     -- Offset: offset of the fields from the beginning of the record.
 type tableManager struct {
 	// tcat is the catalog table for tables
 	tcat Layout
@@ -45,14 +49,16 @@ type tableManager struct {
 
 func newTableManager() *tableManager {
 	tcats := newSchema()
-	tcats.addFixedLenStringField(catFieldTableName, NameMaxLen)
+	tcats.addStringField(catFieldTableName, NameMaxLen)
+	tcats.addIntField(catFieldSlotSize)
 	tcat := NewLayout(tcats)
 
 	fcats := newSchema()
-	fcats.addFixedLenStringField(catFieldTableName, NameMaxLen)
-	fcats.addFixedLenStringField(catFieldFieldName, NameMaxLen)
+	fcats.addStringField(catFieldTableName, NameMaxLen)
+	fcats.addStringField(catFieldFieldName, NameMaxLen)
 	fcats.addIntField(catFieldType)
-	fcats.addIntField(catFieldIndex)
+	fcats.addIntField(catFieldLength)
+	fcats.addIntField(catFieldOffset)
 	fcat := NewLayout(fcats)
 
 	return &tableManager{
@@ -118,13 +124,15 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 	tcat := newTableScan(x, tableCatalogTableName, tm.tcat)
 	defer tcat.Close()
 
-	// add the new table into the table catalog
-	size := file.StrLength(len(tblname))
-	if err := tcat.Insert(size); err != nil {
+	if err := tcat.Insert(); err != nil {
 		return err
 	}
 
 	if err := tcat.SetString(catFieldTableName, tblname); err != nil {
+		return err
+	}
+
+	if err := tcat.SetInt(catFieldSlotSize, layout.SlotSize()); err != nil {
 		return err
 	}
 
@@ -133,14 +141,8 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 	defer fcat.Close()
 
 	for _, fname := range sch.fields {
-		size := 0
-		size += file.StrLength(len(tblname))
-		size += file.StrLength(len(fname))
-		size += file.IntSize // fieldType
-		size += file.IntSize // fieldIndex
-
 		// scan up to the first available slot and add the field data to the field catalog
-		if err := fcat.Insert(size); err != nil {
+		if err := fcat.Insert(); err != nil {
 			return err
 		}
 
@@ -156,7 +158,11 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 			return err
 		}
 
-		if err := fcat.SetInt(catFieldIndex, layout.FieldIndex(fname)); err != nil {
+		if err := fcat.SetInt(catFieldLength, sch.flen(fname)); err != nil {
+			return err
+		}
+
+		if err := fcat.SetInt(catFieldOffset, layout.Offset(fname)); err != nil {
 			return err
 		}
 	}
@@ -170,12 +176,13 @@ func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, err
 
 	var empty Layout
 
+	size := -1
 	tcat := newTableScan(trans, tableCatalogTableName, tm.tcat)
 	defer tcat.Close()
 	for {
 		err := tcat.Next()
 		if err == io.EOF {
-			return empty, fmt.Errorf("%w: %q", ErrViewNotFound, tblname)
+			break
 		}
 
 		if err != nil {
@@ -188,14 +195,25 @@ func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, err
 		}
 
 		if tname == tblname {
+			size, err = tcat.Int(catFieldSlotSize)
+			if err != nil {
+				return empty, err
+			}
 			break
 		}
 	}
 
+	if size < 0 {
+		// could not find the table in the catalogue
+		return empty, fmt.Errorf("%w: %q", ErrViewNotFound, tblname)
+	}
+
+	schema := newSchema()
+	offsets := map[string]int{}
+
 	fcat := newTableScan(trans, fieldsCatalogTableName, tm.fcat)
 	defer fcat.Close()
 
-	schema := newSchema()
 	// scan over the pages of the fields catalog
 	// to look for fields belonging to the requested table.
 	// Once found, build the layout
@@ -225,14 +243,20 @@ func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, err
 				return empty, err
 			}
 
-			fldidx, err := fcat.Int(catFieldIndex)
+			fldlen, err := fcat.Int(catFieldLength)
 			if err != nil {
 				return empty, err
 			}
 
-			schema.setFieldAtIndex(fldname, file.FieldType(fldtype), fldidx)
+			offset, err := fcat.Int(catFieldOffset)
+			if err != nil {
+				return empty, err
+			}
+
+			offsets[fldname] = offset
+			schema.addField(fldname, file.FieldType(fldtype), fldlen)
 		}
 	}
 
-	return NewLayout(schema), nil
+	return newLayoutFromMetadata(schema, offsets, size), nil
 }

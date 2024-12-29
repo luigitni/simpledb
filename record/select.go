@@ -134,12 +134,12 @@ func (sel *Select) MoveToRID(rid RID) {
 }
 
 // Insert implements UpdateScan.
-func (sel *Select) Insert(size int) error {
+func (sel *Select) Insert() error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot update over anon update scan")
 	}
-	return u.Insert(size)
+	return u.Insert()
 }
 
 // SetInt implements UpdateScan.

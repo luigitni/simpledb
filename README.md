@@ -2,9 +2,6 @@
 
 SimpleDB is a Go implementation of a basic database system, as described in the book ["Database Design and Implementation"](https://link.springer.com/book/10.1007/978-3-030-33836-7) by Edward Sciore.
 
-SimpleDB expands on the core functionality demonstrated in the book by adding additional features and optimisations.
-It aims to serve as a learning tool for understanding fundamental database concepts.
-
 ## Overview
 
 This project aims to create a simple, educational database system that demonstrates core concepts of database management systems. It includes components for file management, SQL parsing, query execution, and more.
@@ -22,7 +19,7 @@ This project aims to create a simple, educational database system that demonstra
 SimpleDB currently supports the following data types:
 
 - INT: Integer values
-- TEXT: Variable-length character strings
+- VARCHAR: Variable-length character strings
 
 Additional data types will be added in future updates to enhance the database's capabilities.
 
@@ -83,7 +80,7 @@ You can then enter SQL commands followed by a semicolon (;).
 Example session:
 ```
 Hello user! Thanks for using SimpleDB!
-> CREATE TABLE users (id INT, name TEXT);
+> CREATE TABLE users (id INT, name VARCHAR(20));
 0
 (5.69 ms)
 > INSERT INTO users (id, name) VALUES (1, 'Alice');

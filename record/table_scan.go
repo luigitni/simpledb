@@ -4,7 +4,6 @@ import (
 	"io"
 
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/pages"
 	"github.com/luigitni/simpledb/tx"
 )
 
@@ -25,7 +24,7 @@ var _ Scan = &tableScan{}
 type tableScan struct {
 	x           tx.Transaction
 	layout      Layout
-	recordPage  *pages.SlottedRecordPage
+	recordPage  *RecordPage
 	fileName    string
 	currentSlot int
 }
@@ -61,7 +60,7 @@ func (ts *tableScan) BeforeFirst() error {
 // Close unpins the underlying buffer over the record page.
 func (ts *tableScan) Close() {
 	if ts.recordPage != nil {
-		ts.recordPage.Close()
+		ts.x.Unpin(ts.recordPage.Block())
 	}
 }
 
@@ -70,29 +69,38 @@ func (ts *tableScan) Close() {
 // and gets its next record.
 // It then continues until either a next record is found or the end of the file is encountered, in which case returns false
 func (ts *tableScan) Next() error {
+	slot, err := ts.recordPage.NextAfter(ts.currentSlot)
+	if err != nil {
+		return err
+	}
+
+	ts.currentSlot = slot
+
 	for {
-		slot, err := ts.recordPage.NextAfter(ts.currentSlot)
-		if err == nil {
-			ts.currentSlot = slot
+		if ts.currentSlot >= 0 {
 			break
 		}
 
-		if err != pages.ErrNoFreeSlot {
-			return err
-		}
-
-		atLastBlock, err := ts.isAtLastBlock()
+		// return false if the record page is pointing to the last block
+		lb, err := ts.isAtLastBlock()
 		if err != nil {
 			return err
 		}
 
-		if atLastBlock {
+		if lb {
 			return io.EOF
 		}
 
 		// move to block next to the one the record page is pointing to
 		nextBlock := ts.recordPage.Block().Number() + 1
+
 		ts.moveToBlock(nextBlock)
+		slot, err := ts.recordPage.NextAfter(ts.currentSlot)
+		if err != nil {
+			return err
+		}
+
+		ts.currentSlot = slot
 	}
 
 	return nil
@@ -155,32 +163,45 @@ func (ts *tableScan) SetVal(fieldname string, val file.Value) error {
 // Insert looks for an empty slot to flag as used.
 // It starts scanning the current block until such a slot is found.
 // If the current block does not contain free slots, it attempts to move to the next block
-// If the next block is at the end of the file, appends a new block and starts scanning from there.
-func (ts *tableScan) Insert(recordSize int) error {
+// If the next block is at the end of the file, appends a new block and start scanning from there.
+func (ts *tableScan) Insert() error {
+
+	slot, err := ts.recordPage.InsertAfter(ts.currentSlot)
+	if err != nil {
+		return err
+	}
+
+	ts.currentSlot = slot
 	for {
-		slot, err := ts.recordPage.InsertAfter(ts.currentSlot, recordSize)
-		if err == nil {
-			ts.currentSlot = slot
-			return nil
+		if ts.currentSlot >= 0 {
+			break
 		}
 
-		if err != pages.ErrNoFreeSlot {
-			return err
-		}
-
-		atLastBlock, err := ts.isAtLastBlock()
+		last, err := ts.isAtLastBlock()
 		if err != nil {
 			return err
 		}
 
-		if atLastBlock {
+		// if we reached the end of the file, append a new file
+		// otherwise move to the next block
+		// and claim the slot
+		if last {
 			if err := ts.moveToNewBlock(); err != nil {
 				return err
 			}
 		} else {
-			ts.moveToBlock(ts.recordPage.Block().Number() + 1)
+			ts.moveToBlock(ts.recordPage.block.Number() + 1)
 		}
+
+		slot, err := ts.recordPage.InsertAfter(ts.currentSlot)
+		if err != nil {
+			return err
+		}
+
+		ts.currentSlot = slot
 	}
+
+	return nil
 }
 
 func (ts *tableScan) Delete() error {
@@ -190,12 +211,12 @@ func (ts *tableScan) Delete() error {
 func (ts *tableScan) MoveToRID(rid RID) {
 	ts.Close()
 	block := file.NewBlock(ts.fileName, rid.Blocknum)
-	ts.recordPage = pages.NewSlottedRecordPage(ts.x, block, ts.layout)
+	ts.recordPage = newRecordPage(ts.x, block, ts.layout)
 	ts.currentSlot = rid.Slot
 }
 
 func (ts *tableScan) GetRID() RID {
-	return NewRID(ts.recordPage.Block().Number(), ts.currentSlot)
+	return NewRID(ts.recordPage.block.Number(), ts.currentSlot)
 }
 
 // moveToBlock closes the current page record page and opens a new one for the specified block.
@@ -203,7 +224,7 @@ func (ts *tableScan) GetRID() RID {
 func (ts *tableScan) moveToBlock(block int) {
 	ts.Close()
 	b := file.NewBlock(ts.fileName, block)
-	ts.recordPage = pages.NewSlottedRecordPage(ts.x, b, ts.layout)
+	ts.recordPage = newRecordPage(ts.x, b, ts.layout)
 	ts.currentSlot = -1
 }
 
@@ -216,7 +237,7 @@ func (ts *tableScan) moveToNewBlock() error {
 	if err != nil {
 		return err
 	}
-	ts.recordPage = pages.NewSlottedRecordPage(ts.x, block, ts.layout)
+	ts.recordPage = newRecordPage(ts.x, block, ts.layout)
 	ts.recordPage.Format()
 	ts.currentSlot = -1
 	return nil

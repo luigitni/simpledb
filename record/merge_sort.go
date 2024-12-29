@@ -206,8 +206,9 @@ func (sp *sortPlan) merge(first *tmpTable, second *tmpTable) (*tmpTable, error) 
 }
 
 func (sp *sortPlan) copy(src Scan, dst UpdateScan) error {
-	size := 0
-	vals := make(map[string]file.Value)
+	if err := dst.Insert(); err != nil {
+		return err
+	}
 
 	for _, f := range sp.schema.fields {
 		v, err := src.Val(f)
@@ -215,15 +216,6 @@ func (sp *sortPlan) copy(src Scan, dst UpdateScan) error {
 			return err
 		}
 
-		size += v.Size()
-		vals[f] = v
-	}
-
-	if err := dst.Insert(size); err != nil {
-		return err
-	}
-
-	for f, v := range vals {
 		if err := dst.SetVal(f, v); err != nil {
 			return err
 		}

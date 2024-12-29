@@ -35,14 +35,6 @@ func (c Value) AsStringVal() string {
 	return c.strVal
 }
 
-func (c Value) Size() int {
-	if c.isInt {
-		return IntSize
-	}
-
-	return StrLength(len(c.strVal))
-}
-
 func (c Value) Hash() int {
 	if c.isInt {
 		return c.intVal

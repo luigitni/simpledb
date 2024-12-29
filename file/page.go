@@ -97,25 +97,6 @@ func bytesToInt(b []byte) int64 {
 	return int64(v)
 }
 
-// BytesToInt converts a byte slice to an int
-// It pads the slice to IntSize bytes if it is smaller
-func BytesToInt(b []byte) int {
-	if len(b) < IntSize {
-		bb := make([]byte, IntSize)
-		copy(bb, b)
-		return int(bytesToInt(bb))
-	}
-	return int(bytesToInt(b))
-}
-
-// IntToBytes converts an int to a byte slice
-func IntToBytes(i int) []byte {
-	v := uint64(i)
-	b := make([]byte, IntSize)
-	binary.LittleEndian.PutUint64(b, v)
-	return b
-}
-
 // StrLength returns the size of an encoded string
 // this is currently equal to the length of the string (or byte slice) plus the int32 prefix
 func StrLength(strlen int) int {
