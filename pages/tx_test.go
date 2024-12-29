@@ -1,6 +1,7 @@
 package pages
 
 import (
+	"math/rand"
 	"sync"
 
 	"github.com/luigitni/simpledb/file"
@@ -13,6 +14,8 @@ type mockTx struct {
 	sync.Mutex
 
 	storage mockTxStorage
+
+	id int
 
 	isPinned   bool
 	isCommit   bool
@@ -92,8 +95,20 @@ func (s defaultMockTxStorage) setString(blockID file.Block, offset int, val stri
 
 func newMockTx() *mockTx {
 	return &mockTx{
+		id:      rand.Int(),
 		storage: defaultMockTxStorage{},
 	}
+}
+
+func newMockTxWithId(id int) *mockTx {
+	mtx := newMockTx()
+	mtx.id = id
+
+	return mtx
+}
+
+func (t *mockTx) Id() int {
+	return t.id
 }
 
 // Append implements tx.Transaction.
