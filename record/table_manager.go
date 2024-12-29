@@ -74,7 +74,6 @@ func (tm tableManager) init(x tx.Transaction) error {
 }
 
 func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
-
 	tcat := newTableScan(tr, tableCatalogTableName, tm.tcat)
 
 	q := "SELECT tblname FROM tblcat WHERE tblname = " + tblname
@@ -166,11 +165,10 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 
 // layout opens two table scans, one into the table catalog table and the other one
 // into the fields catalog, and retrieves the layout of the requested table.
-func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, error) {
-
+func (tm tableManager) layout(tblname string, x tx.Transaction) (Layout, error) {
 	var empty Layout
 
-	tcat := newTableScan(trans, tableCatalogTableName, tm.tcat)
+	tcat := newTableScan(x, tableCatalogTableName, tm.tcat)
 	defer tcat.Close()
 	for {
 		err := tcat.Next()
@@ -192,7 +190,7 @@ func (tm tableManager) layout(tblname string, trans tx.Transaction) (Layout, err
 		}
 	}
 
-	fcat := newTableScan(trans, fieldsCatalogTableName, tm.fcat)
+	fcat := newTableScan(x, fieldsCatalogTableName, tm.fcat)
 	defer fcat.Close()
 
 	schema := newSchema()

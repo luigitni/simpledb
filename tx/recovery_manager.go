@@ -1,6 +1,8 @@
 package tx
 
 import (
+	"sync/atomic"
+
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/log"
 )
@@ -101,10 +103,13 @@ func (man recoveryManager) doRollback() {
 // recover recovers uncompleted transactions from the log
 // and then writes a quiescent checkpoint record to the log and flushes it
 func (man recoveryManager) recover() {
-	man.doRecover()
+	maxTx := man.doRecover()
 	man.bm.FlushAll(man.txnum)
 	lsn := logCheckpoint(man.lm)
 	man.lm.Flush(lsn)
+
+	// set the next tx number to the max transaction number
+	atomic.StoreInt64(&nextTxNum, int64(maxTx))
 }
 
 // doRecover does a complete database recovery.
@@ -112,10 +117,12 @@ func (man recoveryManager) recover() {
 // Whenever it finds a log record for an unfinished transaction,
 // it calls undo() on that record.
 // The method stops when it encounters a CHECKPOINT record or the end of the log file
-func (man recoveryManager) doRecover() {
+func (man recoveryManager) doRecover() int {
 	finishedTxs := map[int]struct{}{}
 	reader := man.lm.Iterator()
 	defer reader.Close()
+
+	maxTxNum := 0
 
 	for {
 		if !reader.HasNext() {
@@ -125,12 +132,22 @@ func (man recoveryManager) doRecover() {
 		bytes := reader.Next()
 		record := createLogRecord(bytes)
 		if record.Op() == CHECKPOINT {
-			return
+			if record.TxNumber() > maxTxNum {
+				maxTxNum = record.TxNumber()
+			}
+
+			return maxTxNum
 		}
 		// if the transaction ended with a commit or a rollback,
 		// add it to the list of completed txs
 		if record.Op() == COMMIT || record.Op() == ROLLBACK {
-			finishedTxs[record.TxNumber()] = struct{}{}
+
+			txNum := record.TxNumber()
+			finishedTxs[txNum] = struct{}{}
+
+			if txNum > maxTxNum {
+				maxTxNum = txNum
+			}
 
 			// otherwise, and if the record's transaction does not belong to the list of finished txs
 			// undo it.
@@ -138,4 +155,6 @@ func (man recoveryManager) doRecover() {
 			record.Undo(man.tx)
 		}
 	}
+
+	return maxTxNum
 }

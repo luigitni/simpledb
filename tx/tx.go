@@ -10,6 +10,9 @@ import (
 var nextTxNum int64
 
 type Transaction interface {
+	// Id returns the transaction id
+	Id() int
+
 	// Commit commits the current transaction
 	// Flushes all the modified buffers and their log records
 	// writes and flushes a commit record to the log
@@ -102,6 +105,10 @@ func NewTx(fm *file.FileManager, lm logManager, bm *buffer.BufferManager) Transa
 	tx.recoverMan = newRecoveryManagerForTx(tx, tx.num, lm, bm)
 
 	return tx
+}
+
+func (tx transactionImpl) Id() int {
+	return tx.num
 }
 
 func (tx transactionImpl) Commit() {

@@ -137,9 +137,17 @@ func (sel *Select) MoveToRID(rid RID) {
 func (sel *Select) Insert(size int) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
-		return errors.New("cannot update over anon update scan")
+		return errors.New("cannot insert over anon update scan")
 	}
 	return u.Insert(size)
+}
+
+func (sel *Select) Update(size int) error {
+	u, ok := sel.scan.(UpdateScan)
+	if !ok {
+		return errors.New("cannot update over anon update scan")
+	}
+	return u.Update(size)
 }
 
 // SetInt implements UpdateScan.

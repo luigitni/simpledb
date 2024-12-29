@@ -55,6 +55,8 @@ type UpdateScan interface {
 
 	Insert(recordSize int) error
 
+	Update(recordSize int) error
+
 	Delete() error
 
 	GetRID() RID
