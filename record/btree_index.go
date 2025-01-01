@@ -4,8 +4,8 @@ import (
 	"io"
 	"math"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var _ Index = &BTreeIndex{}
@@ -16,7 +16,7 @@ type BTreeIndex struct {
 	leafLayout Layout
 	leafTable  string
 	leaf       *bTreeLeaf
-	rootBlock  file.Block
+	rootBlock  types.Block
 }
 
 func BTreeIndexSearchCost(numblocks int, recordsPerBucket int) int {
@@ -51,7 +51,7 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 	dirTable := idxName + "_dir"
 
 	dirLayout := NewLayout(dirSchema)
-	rootBlock := file.NewBlock(dirTable, 0)
+	rootBlock := types.NewBlock(dirTable, 0)
 
 	dirSize, err := x.Size(dirTable)
 	if err != nil {
@@ -72,12 +72,12 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 
 		fldType := dirSchema.ftype("dataval")
 
-		var minVal file.Value
+		var minVal types.Value
 		switch fldType {
-		case file.INTEGER:
-			minVal = file.ValueFromInt(math.MinInt)
-		case file.STRING:
-			minVal = file.ValueFromString("")
+		case types.INTEGER:
+			minVal = types.ValueFromInt(math.MinInt)
+		case types.STRING:
+			minVal = types.ValueFromString("")
 		}
 
 		if err := node.insertDirectoryRecord(0, minVal, 0); err != nil {
@@ -101,7 +101,7 @@ func (idx *BTreeIndex) Close() {
 	}
 }
 
-func (idx *BTreeIndex) BeforeFirst(key file.Value) error {
+func (idx *BTreeIndex) BeforeFirst(key types.Value) error {
 	idx.Close()
 
 	root := newBTreeDir(idx.x, idx.rootBlock, idx.dirLayout)
@@ -112,7 +112,7 @@ func (idx *BTreeIndex) BeforeFirst(key file.Value) error {
 		return err
 	}
 
-	leafBlock := file.NewBlock(idx.leafTable, blockNum)
+	leafBlock := types.NewBlock(idx.leafTable, blockNum)
 	leaf, err := newBTreeLeaf(idx.x, leafBlock, idx.leafLayout, key)
 	if err != nil {
 		return err
@@ -140,7 +140,7 @@ func (idx *BTreeIndex) DataRID() (RID, error) {
 	return idx.leaf.getDataRID()
 }
 
-func (idx *BTreeIndex) Insert(v file.Value, rid RID) error {
+func (idx *BTreeIndex) Insert(v types.Value, rid RID) error {
 	if err := idx.BeforeFirst(v); err != nil {
 		return err
 	}
@@ -169,7 +169,7 @@ func (idx *BTreeIndex) Insert(v file.Value, rid RID) error {
 	return nil
 }
 
-func (idx *BTreeIndex) Delete(v file.Value, rid RID) error {
+func (idx *BTreeIndex) Delete(v types.Value, rid RID) error {
 	if err := idx.BeforeFirst(v); err != nil {
 		return err
 	}

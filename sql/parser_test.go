@@ -3,7 +3,7 @@ package sql
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 func TestParseField(t *testing.T) {
@@ -271,12 +271,12 @@ func TestCreateTableCommand(t *testing.T) {
 	expF := []FieldDef{
 		{
 			Name: "name",
-			Type: file.STRING,
+			Type: types.STRING,
 			Len:  0,
 		},
 		{
 			Name: "age",
-			Type: file.INTEGER,
+			Type: types.INTEGER,
 			Len:  0,
 		},
 	}

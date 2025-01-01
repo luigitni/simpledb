@@ -3,7 +3,7 @@ package sql
 import (
 	"strings"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 // Predicate specifies a condition that returns
@@ -77,7 +77,7 @@ func (p Predicate) JoinSubPredicate(joined Schema, first Schema, second Schema) 
 	return out, len(out.terms) > 0
 }
 
-func (p Predicate) EquatesWithConstant(fieldName string) (file.Value, bool) {
+func (p Predicate) EquatesWithConstant(fieldName string) (types.Value, bool) {
 	for _, t := range p.terms {
 		ok, c := t.EquatesWithConstant(fieldName)
 		if ok {
@@ -85,7 +85,7 @@ func (p Predicate) EquatesWithConstant(fieldName string) (file.Value, bool) {
 		}
 	}
 
-	return file.Value{}, false
+	return types.Value{}, false
 }
 
 func (p Predicate) EquatesWithField(fieldname string) (string, bool) {

@@ -7,10 +7,10 @@ import (
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/log"
 	"github.com/luigitni/simpledb/test"
+	"github.com/luigitni/simpledb/types"
 )
 
 func TestLog(t *testing.T) {
-
 	conf := test.DefaultConfig(t)
 	dbFolder := conf.DbFolder
 	logfile := conf.LogFile
@@ -41,7 +41,7 @@ func testLogIteration(t *testing.T, lm *log.WalWriter, from int) {
 	t.Log("The log file has now these records:")
 	iter := lm.Iterator()
 	f := from
-	page := file.NewPage()
+	page := types.NewPage()
 	for {
 		if !iter.HasNext() {
 			break
@@ -59,7 +59,7 @@ func testLogIteration(t *testing.T, lm *log.WalWriter, from int) {
 			t.Fatalf("expected key %q, got %q", vexp, s)
 		}
 
-		npos := file.StrLength(len(s))
+		npos := types.StrLength(len(s))
 		v := page.Int(npos)
 
 		if v != vexp {
@@ -74,7 +74,7 @@ func testLogIteration(t *testing.T, lm *log.WalWriter, from int) {
 // populateLogManager appends logs of format K -> V to the logfile
 func populateLogManager(t *testing.T, lm *log.WalWriter, start, end int) {
 	t.Log("Creating log records:")
-	page := file.NewPage()
+	page := types.NewPage()
 	for i := start; i <= end; i++ {
 		record := createLogRecord(page, makeLogKey(i), makeLogVal(i))
 		lsn := lm.Append(record)
@@ -83,12 +83,12 @@ func populateLogManager(t *testing.T, lm *log.WalWriter, start, end int) {
 	t.Log("Records created.")
 }
 
-func createLogRecord(page *file.Page, s string, val int) []byte {
-	npos := file.StrLength(len(s))
-	b := make([]byte, npos+file.IntSize)
+func createLogRecord(page *types.Page, s string, val int) []byte {
+	npos := types.StrLength(len(s))
+	b := make([]byte, npos+types.IntSize)
 	page.SetString(0, s)
 	page.SetInt(npos, val)
 
-	copy(b, page.Slice(0, npos+file.IntSize))
+	copy(b, page.Slice(0, npos+types.IntSize))
 	return b
 }

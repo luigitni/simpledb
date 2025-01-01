@@ -1,4 +1,4 @@
-package file
+package types
 
 import (
 	"encoding/binary"
@@ -31,7 +31,7 @@ func (p *Page) assertSize(offset int, size int) {
 	}
 }
 
-func (p *Page) contents() []byte {
+func (p *Page) Contents() []byte {
 	return p.buf[:]
 }
 
@@ -77,7 +77,6 @@ func (p *Page) Int(offset int) int {
 // at the offset without conversion
 func (p *Page) RawInt(offset int) []byte {
 	return p.buf[offset : offset+IntSize]
-
 }
 
 func (p *Page) SetString(offset int, v string) {

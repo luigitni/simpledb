@@ -6,9 +6,9 @@ import (
 	"math/rand"
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 func TestTableScan(t *testing.T) {
@@ -35,7 +35,7 @@ func TestTableScan(t *testing.T) {
 		v := rand.Intn(50)
 		strVal := fmt.Sprintf("rec%d", v)
 
-		size := file.IntSize + file.StrLength(len(strVal))
+		size := types.IntSize + types.StrLength(len(strVal))
 		scan.Insert(size)
 		if err := scan.SetInt("A", v); err != nil {
 			t.Fatal(err)

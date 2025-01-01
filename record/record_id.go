@@ -3,10 +3,10 @@ package record
 import (
 	"fmt"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
-const ridSize = 2 * file.IntSize
+const ridSize = 2 * types.IntSize
 
 // RID is an identifier of the record within a file.
 // A RID consists of the block number in the file,

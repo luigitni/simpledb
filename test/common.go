@@ -10,10 +10,12 @@ import (
 	"github.com/luigitni/simpledb/log"
 )
 
-const logfile = "testlog"
-const blockfile = "testfile"
-const blockSize = 400
-const buffersAvaialble = 3
+const (
+	logfile          = "testlog"
+	blockfile        = "testfile"
+	blockSize        = 400
+	buffersAvaialble = 3
+)
 
 type Conf struct {
 	DbFolder         string

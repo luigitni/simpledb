@@ -3,7 +3,7 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 // Product is a relational algebra operator.
@@ -68,7 +68,7 @@ func (pr Product) String(fname string) (string, error) {
 }
 
 // Val implements Scan.
-func (pr Product) Val(fname string) (file.Value, error) {
+func (pr Product) Val(fname string) (types.Value, error) {
 	if pr.first.HasField(fname) {
 		return pr.first.Val(fname)
 	}

@@ -5,6 +5,7 @@ import (
 	"sync"
 
 	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 type pools struct {
@@ -17,20 +18,20 @@ type pools struct {
 }
 
 const (
-	logUpdateHeaderSize = file.IntSize * 4
+	logUpdateHeaderSize = types.IntSize * 4
 	logSetIntSize       = logUpdateHeaderSize + file.MaxLoggedTableFileNameSize
 )
 
 var logPools = pools{
 	tiny1int: sync.Pool{
 		New: func() interface{} {
-			b := make([]byte, file.IntSize)
+			b := make([]byte, types.IntSize)
 			return &b
 		},
 	},
 	small2ints: sync.Pool{
 		New: func() interface{} {
-			s := make([]byte, 2*file.IntSize)
+			s := make([]byte, 2*types.IntSize)
 			return &s
 		},
 	},
@@ -79,7 +80,7 @@ type recordBuffer struct {
 
 func (r *recordBuffer) writeInt(v int) {
 	binary.LittleEndian.PutUint64(r.bytes[r.offset:], uint64(v))
-	r.offset += file.IntSize
+	r.offset += types.IntSize
 }
 
 func (r *recordBuffer) writeString(v string) {
@@ -89,33 +90,32 @@ func (r *recordBuffer) writeString(v string) {
 	r.offset += l
 }
 
-func (r *recordBuffer) writeBlock(block file.Block) {
+func (r *recordBuffer) writeBlock(block types.Block) {
 	r.writeString(block.FileName())
 	r.writeInt(block.Number())
 }
 
 func (r *recordBuffer) readInt() int {
 	v := binary.LittleEndian.Uint64(r.bytes[r.offset:])
-	r.offset += file.IntSize
+	r.offset += types.IntSize
 	return int(v)
 }
 
 func (r *recordBuffer) readString() string {
 	length := int(binary.LittleEndian.Uint64(r.bytes[r.offset:]))
-	r.offset += file.IntSize
+	r.offset += types.IntSize
 	str := string(r.bytes[r.offset : r.offset+length])
 	r.offset += length
 	return str
 }
 
-func (r *recordBuffer) readBlock() file.Block {
+func (r *recordBuffer) readBlock() types.Block {
 	fileName := r.readString()
 	blockID := r.readInt()
-	return file.NewBlock(fileName, blockID)
+	return types.NewBlock(fileName, blockID)
 }
 
 type logRecord interface {
-
 	// op returns the log record's type
 	Op() txType
 

@@ -3,7 +3,7 @@ package tx
 import (
 	"fmt"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 // setIntLogRecord represents an update record of the WAL
@@ -13,7 +13,7 @@ import (
 type setIntLogRecord struct {
 	txnum  int
 	offset int
-	block  file.Block
+	block  types.Block
 	val    int
 }
 
@@ -49,7 +49,7 @@ func (si setIntLogRecord) Undo(tx Transaction) {
 // logSetInt appends a string records to the log file, by calling log.Manager.Append
 // An int log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func logSetInt(lm logManager, txnum int, block file.Block, offset int, val int) int {
+func logSetInt(lm logManager, txnum int, block types.Block, offset int, val int) int {
 	p := logPools.setInt.Get().(*[]byte)
 	defer logPools.setInt.Put(p)
 	writeInt(p, txnum, block, offset, val)
@@ -57,7 +57,7 @@ func logSetInt(lm logManager, txnum int, block file.Block, offset int, val int) 
 	return lm.Append(*p)
 }
 
-func writeInt(dst *[]byte, txnum int, block file.Block, offset int, val int) {
+func writeInt(dst *[]byte, txnum int, block types.Block, offset int, val int) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeInt(int(SETINT))
 	rbuf.writeInt(txnum)

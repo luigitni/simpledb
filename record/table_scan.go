@@ -3,9 +3,9 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/pages"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var _ UpdateScan = &tableScan{}
@@ -106,20 +106,20 @@ func (ts *tableScan) String(fieldname string) (string, error) {
 	return ts.recordPage.String(ts.currentSlot, fieldname)
 }
 
-func (ts *tableScan) Val(fieldname string) (file.Value, error) {
+func (ts *tableScan) Val(fieldname string) (types.Value, error) {
 	switch ts.layout.schema.ftype(fieldname) {
-	case file.INTEGER:
+	case types.INTEGER:
 		v, err := ts.Int(fieldname)
 		if err != nil {
-			return file.Value{}, err
+			return types.Value{}, err
 		}
-		return file.ValueFromInt(v), nil
-	case file.STRING:
+		return types.ValueFromInt(v), nil
+	case types.STRING:
 		v, err := ts.String(fieldname)
 		if err != nil {
-			return file.Value{}, err
+			return types.Value{}, err
 		}
-		return file.ValueFromString(v), nil
+		return types.ValueFromString(v), nil
 	}
 
 	pm := "invalid type for field " + fieldname
@@ -140,11 +140,11 @@ func (ts *tableScan) SetString(fieldname string, val string) error {
 	return ts.recordPage.SetString(ts.currentSlot, fieldname, val)
 }
 
-func (ts *tableScan) SetVal(fieldname string, val file.Value) error {
+func (ts *tableScan) SetVal(fieldname string, val types.Value) error {
 	switch ts.layout.schema.ftype(fieldname) {
-	case file.INTEGER:
+	case types.INTEGER:
 		return ts.SetInt(fieldname, val.AsIntVal())
-	case file.STRING:
+	case types.STRING:
 		return ts.SetString(fieldname, val.AsStringVal())
 	}
 
@@ -214,7 +214,7 @@ func (ts *tableScan) Delete() error {
 
 func (ts *tableScan) MoveToRID(rid RID) {
 	ts.Close()
-	block := file.NewBlock(ts.fileName, rid.Blocknum)
+	block := types.NewBlock(ts.fileName, rid.Blocknum)
 	ts.recordPage = pages.NewSlottedRecordPage(ts.x, block, ts.layout)
 	ts.currentSlot = rid.Slot
 }
@@ -227,7 +227,7 @@ func (ts *tableScan) GetRID() RID {
 // After the page has been changed, the TableScan positions itself before the first slot of the new block
 func (ts *tableScan) moveToBlock(block int) {
 	ts.Close()
-	b := file.NewBlock(ts.fileName, block)
+	b := types.NewBlock(ts.fileName, block)
 	ts.recordPage = pages.NewSlottedRecordPage(ts.x, b, ts.layout)
 	ts.currentSlot = -1
 }

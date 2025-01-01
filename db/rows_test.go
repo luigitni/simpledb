@@ -3,7 +3,7 @@ package db
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 func TestRowsString(t *testing.T) {
@@ -39,17 +39,17 @@ func TestRowsString(t *testing.T) {
 			},
 			rows: []Row{
 				{
-					vals: []file.Value{
-						file.ValueFromInt(123),
-						file.ValueFromString("abc"),
-						file.ValueFromString("This is a much longer value"),
+					vals: []types.Value{
+						types.ValueFromInt(123),
+						types.ValueFromString("abc"),
+						types.ValueFromString("This is a much longer value"),
 					},
 				},
 				{
-					vals: []file.Value{
-						file.ValueFromInt(0),
-						file.ValueFromString("This is a much longer value"),
-						file.ValueFromString("short"),
+					vals: []types.Value{
+						types.ValueFromInt(0),
+						types.ValueFromString("This is a much longer value"),
+						types.ValueFromString("short"),
 					},
 				},
 			},

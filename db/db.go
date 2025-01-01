@@ -11,12 +11,13 @@ import (
 	"github.com/luigitni/simpledb/record"
 	"github.com/luigitni/simpledb/sql"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 const (
 	defaultPath      = "../data"
 	defaultLogFile   = "../data/wal"
-	blockSize        = file.PageSize
+	blockSize        = types.PageSize
 	buffersAvaialble = 500
 )
 
@@ -63,7 +64,6 @@ func (db *DB) NewTx() tx.Transaction {
 // todo: define a common serialised format to return instead of a Stringer.
 // To the extents of playing with the database, this is good enough for the moment.
 func (db *DB) Exec(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
-
 	switch cmd.Type() {
 	case sql.CommandTypeQuery:
 		return db.RunQuery(x, cmd.(sql.Query))
@@ -77,7 +77,6 @@ func (db *DB) Exec(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 }
 
 func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
-
 	run := func() (Rows, error) {
 		planner := record.NewHeuristicsQueryPlanner(db.mdm)
 

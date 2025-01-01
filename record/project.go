@@ -3,7 +3,7 @@ package record
 import (
 	"errors"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 // Project is a relational algebra operator.
@@ -69,9 +69,9 @@ func (project Project) String(fname string) (string, error) {
 // Val checks if the specified fieldname is in the list.
 // If it is, it calls the underlying scan, if not, it returns an
 // ErrNoField error
-func (project Project) Val(fname string) (file.Value, error) {
+func (project Project) Val(fname string) (types.Value, error) {
 	if !project.HasField(fname) {
-		return file.Value{}, ErrNoField
+		return types.Value{}, ErrNoField
 	}
 	return project.scan.Val(fname)
 }

@@ -3,8 +3,8 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var _ Plan = &materializePlan{}
@@ -47,7 +47,7 @@ func (mp *materializePlan) Open() (Scan, error) {
 		}
 
 		size := 0
-		vals := make(map[string]file.Value)
+		vals := make(map[string]types.Value)
 		for _, fname := range schema.fields {
 			v, err := src.Val(fname)
 			if err != nil {

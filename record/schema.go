@@ -1,9 +1,9 @@
 package record
 
-import "github.com/luigitni/simpledb/file"
+import "github.com/luigitni/simpledb/types"
 
 type fieldInfo struct {
-	Type   file.FieldType
+	Type   types.FieldType
 	Lenght int
 	Index  int
 }
@@ -32,7 +32,7 @@ func newJoinedSchema(first Schema, second Schema) Schema {
 	return schema
 }
 
-func (s *Schema) ftype(name string) file.FieldType {
+func (s *Schema) ftype(name string) types.FieldType {
 	return s.info[name].Type
 }
 
@@ -40,7 +40,7 @@ func (s *Schema) flen(name string) int {
 	return s.info[name].Lenght
 }
 
-func (s *Schema) addField(name string, typ file.FieldType) {
+func (s *Schema) addField(name string, typ types.FieldType) {
 	s.fields = append(s.fields, name)
 	s.info[name] = fieldInfo{
 		Type:  typ,
@@ -49,7 +49,7 @@ func (s *Schema) addField(name string, typ file.FieldType) {
 	s.idx++
 }
 
-func (s *Schema) setFieldAtIndex(name string, typ file.FieldType, index int) {
+func (s *Schema) setFieldAtIndex(name string, typ types.FieldType, index int) {
 	s.fields = append(s.fields, name)
 	s.info[name] = fieldInfo{
 		Type:  typ,
@@ -58,11 +58,11 @@ func (s *Schema) setFieldAtIndex(name string, typ file.FieldType, index int) {
 }
 
 func (s *Schema) addIntField(name string) {
-	s.addField(name, file.INTEGER)
+	s.addField(name, types.INTEGER)
 }
 
 func (s *Schema) addStringField(name string) {
-	s.addField(name, file.STRING)
+	s.addField(name, types.STRING)
 }
 
 // addFixedLenStringField adds a string field to the schema, of type VARCHAR

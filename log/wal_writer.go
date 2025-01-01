@@ -4,13 +4,14 @@ import (
 	"sync"
 
 	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 type WalWriter struct {
 	fm           *file.FileManager
 	logfile      string
-	logpage      *file.Page
-	currentBlock file.Block
+	logpage      *types.Page
+	currentBlock types.Block
 	latestLSN    int
 	lastSavedLSN int
 	sync.Mutex
@@ -19,7 +20,7 @@ type WalWriter struct {
 func NewLogManager(fm *file.FileManager, logfile string) *WalWriter {
 	logsize := fm.Size(logfile)
 
-	logpage := file.NewPage()
+	logpage := types.NewPage()
 
 	man := &WalWriter{
 		fm:           fm,
@@ -33,7 +34,7 @@ func NewLogManager(fm *file.FileManager, logfile string) *WalWriter {
 		// empty log, create a new one
 		man.currentBlock = man.appendNewBlock()
 	} else {
-		man.currentBlock = file.NewBlock(logfile, logsize-1)
+		man.currentBlock = types.NewBlock(logfile, logsize-1)
 		fm.Read(man.currentBlock, logpage)
 	}
 
@@ -59,7 +60,7 @@ func (man *WalWriter) Flush(lsn int) {
 
 func (man *WalWriter) Iterator() *WalIterator {
 	man.flush()
-	p := iteratorPool.Get().(*file.Page)
+	p := iteratorPool.Get().(*types.Page)
 	return newWalIterator(p, man.fm, man.currentBlock)
 }
 
@@ -90,12 +91,12 @@ func (man *WalWriter) Append(records []byte) int {
 
 	recsize := len(records)
 
-	bytesneeded := recsize + file.IntSize
+	bytesneeded := recsize + types.IntSize
 
 	// if the bytes needed to insert the record, PLUS the page header, are larger than the space left
 	// the record won't fit.
 	// In this case, flush the current page and move to the next block
-	if bytesneeded+file.IntSize > spaceLeft {
+	if bytesneeded+types.IntSize > spaceLeft {
 		man.flush()
 		man.currentBlock = man.appendNewBlock()
 		spaceLeft = man.logpage.Int(0)
@@ -114,7 +115,7 @@ func (man *WalWriter) Append(records []byte) int {
 // appendNewBlock appends a new block-sized array to the logfile via the file manager and returns it's index
 // It then writes the size of the block in the page first IntBytes (the page header?)
 // We will use the header to keep track of where we are when prepending data to the page.
-func (man *WalWriter) appendNewBlock() file.Block {
+func (man *WalWriter) appendNewBlock() types.Block {
 	block := man.fm.Append(man.logfile)
 	man.logpage.SetInt(0, man.fm.BlockSize())
 

@@ -3,7 +3,7 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 var _ Plan = &IndexSelectPlan{}
@@ -11,10 +11,10 @@ var _ Plan = &IndexSelectPlan{}
 type IndexSelectPlan struct {
 	p         Plan
 	indexInfo *indexInfo
-	val       file.Value
+	val       types.Value
 }
 
-func NewIndexSelectPlan(p Plan, ii *indexInfo, val file.Value) *IndexSelectPlan {
+func NewIndexSelectPlan(p Plan, ii *indexInfo, val types.Value) *IndexSelectPlan {
 	return &IndexSelectPlan{
 		p:         p,
 		indexInfo: ii,
@@ -54,10 +54,10 @@ var _ Scan = &indexSelectScan{}
 type indexSelectScan struct {
 	tableScan *tableScan
 	idx       Index
-	val       file.Value
+	val       types.Value
 }
 
-func newIndexSelectScan(ts *tableScan, idx Index, val file.Value) (*indexSelectScan, error) {
+func newIndexSelectScan(ts *tableScan, idx Index, val types.Value) (*indexSelectScan, error) {
 	scan := &indexSelectScan{
 		tableScan: ts,
 		idx:       idx,
@@ -97,7 +97,7 @@ func (scan *indexSelectScan) String(fname string) (string, error) {
 	return scan.tableScan.String(fname)
 }
 
-func (scan *indexSelectScan) Val(fname string) (file.Value, error) {
+func (scan *indexSelectScan) Val(fname string) (types.Value, error) {
 	return scan.tableScan.Val(fname)
 }
 

@@ -2,19 +2,19 @@ package tx
 
 import (
 	"github.com/luigitni/simpledb/buffer"
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 type bufferList struct {
-	buffers map[file.BlockID]*buffer.Buffer
-	pins    map[file.BlockID]int // holds a counter of pins
+	buffers map[types.BlockID]*buffer.Buffer
+	pins    map[types.BlockID]int // holds a counter of pins
 	bm      *buffer.BufferManager
 }
 
 func makeBufferList(bm *buffer.BufferManager) bufferList {
 	return bufferList{
-		buffers: map[file.BlockID]*buffer.Buffer{},
-		pins:    map[file.BlockID]int{},
+		buffers: map[types.BlockID]*buffer.Buffer{},
+		pins:    map[types.BlockID]int{},
 		bm:      bm,
 	}
 }
@@ -22,13 +22,13 @@ func makeBufferList(bm *buffer.BufferManager) bufferList {
 // buffer returns the buffer pinned to the specified block.
 // If such a buffer does not exists, it returns nil
 // (for example, if the tx has not yet pinned the block)
-func (list *bufferList) buffer(block file.Block) *buffer.Buffer {
+func (list *bufferList) buffer(block types.Block) *buffer.Buffer {
 	return list.buffers[block.ID()]
 }
 
 // pin pins the specified block and keeps track of the buffer internally.
 // Returns a buffer.ErrClientTimeOut If the buffer cannot be pinned due to none being available
-func (list *bufferList) pin(block file.Block) error {
+func (list *bufferList) pin(block types.Block) error {
 	buf, err := list.bm.Pin(block)
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func (list *bufferList) pin(block file.Block) error {
 	return nil
 }
 
-func (list *bufferList) unpin(block file.Block) {
+func (list *bufferList) unpin(block types.Block) {
 	key := block.ID()
 	buf := list.buffers[key]
 	// todo: handle the case in which the buffer has not been pinned yet
@@ -62,6 +62,6 @@ func (list *bufferList) unpinAll() {
 		list.bm.Unpin(buf)
 	}
 
-	list.buffers = map[file.BlockID]*buffer.Buffer{}
-	list.pins = map[file.BlockID]int{}
+	list.buffers = map[types.BlockID]*buffer.Buffer{}
+	list.pins = map[types.BlockID]int{}
 }

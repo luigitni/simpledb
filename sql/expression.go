@@ -1,9 +1,9 @@
 package sql
 
-import "github.com/luigitni/simpledb/file"
+import "github.com/luigitni/simpledb/types"
 
 type Scan interface {
-	Val(fieldName string) (file.Value, error)
+	Val(fieldName string) (types.Value, error)
 }
 
 type Schema interface {
@@ -11,11 +11,11 @@ type Schema interface {
 }
 
 type Expression struct {
-	val   file.Value
+	val   types.Value
 	fname string
 }
 
-func NewExpressionWithVal(v file.Value) Expression {
+func NewExpressionWithVal(v types.Value) Expression {
 	return Expression{val: v}
 }
 
@@ -27,7 +27,7 @@ func (exp Expression) IsFieldName() bool {
 	return exp.fname != ""
 }
 
-func (exp Expression) AsConstant() file.Value {
+func (exp Expression) AsConstant() types.Value {
 	return exp.val
 }
 
@@ -35,8 +35,8 @@ func (exp Expression) AsFieldName() string {
 	return exp.fname
 }
 
-func (exp Expression) Evaluate(scan Scan) (file.Value, error) {
-	if empty := (file.Value{}); exp.val != empty {
+func (exp Expression) Evaluate(scan Scan) (types.Value, error) {
+	if empty := (types.Value{}); exp.val != empty {
 		return exp.val, nil
 	}
 
@@ -44,7 +44,7 @@ func (exp Expression) Evaluate(scan Scan) (file.Value, error) {
 }
 
 func (exp Expression) AppliesTo(schema Schema) bool {
-	if empty := (file.Value{}); exp.val != empty {
+	if empty := (types.Value{}); exp.val != empty {
 		return true
 	}
 
@@ -52,7 +52,7 @@ func (exp Expression) AppliesTo(schema Schema) bool {
 }
 
 func (exp Expression) String() string {
-	if empty := (file.Value{}); exp.val != empty {
+	if empty := (types.Value{}); exp.val != empty {
 		return exp.val.String()
 	}
 

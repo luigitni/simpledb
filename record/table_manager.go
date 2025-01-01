@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/sql"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 const (
@@ -118,7 +118,7 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 	defer tcat.Close()
 
 	// add the new table into the table catalog
-	size := file.StrLength(len(tblname))
+	size := types.StrLength(len(tblname))
 	if err := tcat.Insert(size); err != nil {
 		return err
 	}
@@ -133,10 +133,10 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 
 	for _, fname := range sch.fields {
 		size := 0
-		size += file.StrLength(len(tblname))
-		size += file.StrLength(len(fname))
-		size += file.IntSize // fieldType
-		size += file.IntSize // fieldIndex
+		size += types.StrLength(len(tblname))
+		size += types.StrLength(len(fname))
+		size += types.IntSize // fieldType
+		size += types.IntSize // fieldIndex
 
 		// scan up to the first available slot and add the field data to the field catalog
 		if err := fcat.Insert(size); err != nil {
@@ -228,7 +228,7 @@ func (tm tableManager) layout(tblname string, x tx.Transaction) (Layout, error) 
 				return empty, err
 			}
 
-			schema.setFieldAtIndex(fldname, file.FieldType(fldtype), fldidx)
+			schema.setFieldAtIndex(fldname, types.FieldType(fldtype), fldidx)
 		}
 	}
 

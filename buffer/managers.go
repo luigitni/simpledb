@@ -1,11 +1,11 @@
 package buffer
 
-import "github.com/luigitni/simpledb/file"
+import "github.com/luigitni/simpledb/types"
 
 type fileManager interface {
 	BlockSize() int
-	Read(block file.Block, page *file.Page)
-	Write(block file.Block, page *file.Page)
+	Read(block types.Block, page *types.Page)
+	Write(block types.Block, page *types.Page)
 }
 
 type logManager interface {

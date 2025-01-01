@@ -1,6 +1,6 @@
 package record
 
-import "github.com/luigitni/simpledb/file"
+import "github.com/luigitni/simpledb/types"
 
 // Layout describes the structure of a record.
 // It contains the name, type, length and offset of each field of the table
@@ -16,7 +16,7 @@ func NewLayout(schema Schema) Layout {
 	offsets := make(map[string]int, len(schema.fields))
 	fieldIndexes := make(map[string]int, len(schema.fields))
 
-	s := file.IntSize
+	s := types.IntSize
 	// compute the offset of each field
 	for _, f := range schema.fields {
 		fieldIndexes[f] = schema.info[f].Index
@@ -35,10 +35,10 @@ func NewLayout(schema Schema) Layout {
 func lenInBytes(schema Schema, field string) int {
 	t := schema.ftype(field)
 	switch t {
-	case file.INTEGER:
-		return file.IntSize
-	case file.STRING:
-		return file.StrLength(schema.flen(field))
+	case types.INTEGER:
+		return types.IntSize
+	case types.STRING:
+		return types.StrLength(schema.flen(field))
 	}
 	panic("unsupported type")
 }

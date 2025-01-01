@@ -3,7 +3,7 @@ package buffer
 import (
 	"sync"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 const maxPins = 5
@@ -21,8 +21,8 @@ type Buffer struct {
 	sync.RWMutex
 	fm       fileManager
 	lm       logManager
-	contents *file.Page
-	block    file.Block
+	contents *types.Page
+	block    types.Block
 	pins     int
 	txnum    int
 	lsn      int
@@ -32,17 +32,17 @@ func newBuffer(fm fileManager, lm logManager) *Buffer {
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,
-		contents: file.NewPage(),
+		contents: types.NewPage(),
 		txnum:    -1,
 		lsn:      -1,
 	}
 }
 
-func (buf *Buffer) Contents() *file.Page {
+func (buf *Buffer) Contents() *types.Page {
 	return buf.contents
 }
 
-func (buf *Buffer) Block() file.Block {
+func (buf *Buffer) Block() types.Block {
 	return buf.block
 }
 
@@ -92,7 +92,7 @@ func (buf *Buffer) flush() {
 // The buffer is first flushed so that any modifications to the
 // previous block are preserved.
 // The buffer is then associated with the specified block, reading its contents from disk.
-func (buf *Buffer) assignBlock(block file.Block) {
+func (buf *Buffer) assignBlock(block types.Block) {
 	buf.Lock()
 	defer buf.Unlock()
 	// flush current contents

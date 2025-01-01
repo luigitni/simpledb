@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 // bucketsNum is the static number of buckets supported by the index.
@@ -27,7 +27,7 @@ type StaticHashIndex struct {
 	x         tx.Transaction
 	name      string
 	layout    Layout
-	searchKey file.Value
+	searchKey types.Value
 	scan      *tableScan
 }
 
@@ -43,7 +43,7 @@ func NewStaticHashIndex(x tx.Transaction, name string, layout Layout) *StaticHas
 	}
 }
 
-func (idx *StaticHashIndex) BeforeFirst(searchKey file.Value) error {
+func (idx *StaticHashIndex) BeforeFirst(searchKey types.Value) error {
 	idx.Close()
 	idx.searchKey = searchKey
 	bucket := searchKey.Hash() % bucketsNum
@@ -92,9 +92,9 @@ func (idx *StaticHashIndex) DataRID() (RID, error) {
 	return NewRID(block, id), nil
 }
 
-func (idx *StaticHashIndex) Insert(v file.Value, rid RID) error {
+func (idx *StaticHashIndex) Insert(v types.Value, rid RID) error {
 	idx.BeforeFirst(v)
-	size := file.IntSize * 2
+	size := types.IntSize * 2
 	size += v.Size()
 
 	if err := idx.scan.Insert(size); err != nil {
@@ -116,7 +116,7 @@ func (idx *StaticHashIndex) Insert(v file.Value, rid RID) error {
 	return nil
 }
 
-func (idx *StaticHashIndex) Delete(v file.Value, rid RID) error {
+func (idx *StaticHashIndex) Delete(v types.Value, rid RID) error {
 	idx.BeforeFirst(v)
 	for {
 		err := idx.Next()

@@ -3,9 +3,9 @@ package tx_test
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 func TestSerialTx(t *testing.T) {
@@ -15,7 +15,7 @@ func TestSerialTx(t *testing.T) {
 
 	tx1 := tx.NewTx(fm, lm, bm)
 
-	block := file.NewBlock(blockname, 1)
+	block := types.NewBlock(blockname, 1)
 	tx1.Pin(block)
 
 	const intVal1 = 1

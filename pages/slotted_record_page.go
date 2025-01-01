@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var (
@@ -21,7 +21,7 @@ const (
 	flagDeletedRecord
 )
 
-const headerEntrySize = file.IntSize
+const headerEntrySize = types.IntSize
 
 // slottedRecordPageHeaderEntry represents an entry in the page header.
 // It is bitmasked to store:
@@ -32,40 +32,40 @@ const headerEntrySize = file.IntSize
 type slottedRecordPageHeaderEntry int
 
 func (e slottedRecordPageHeaderEntry) recordOffset() int {
-	bytes := file.IntToBytes(int(e))
+	bytes := types.IntToBytes(int(e))
 
-	return file.BytesToInt(bytes[:2])
+	return types.BytesToInt(bytes[:2])
 }
 
 func (e slottedRecordPageHeaderEntry) recordLength() int {
-	bytes := file.IntToBytes(int(e))
-	return file.BytesToInt(bytes[2:4])
+	bytes := types.IntToBytes(int(e))
+	return types.BytesToInt(bytes[2:4])
 }
 
 func (e slottedRecordPageHeaderEntry) flags() flag {
-	bytes := file.IntToBytes(int(e))
-	return flag(file.BytesToInt(bytes[4:6]))
+	bytes := types.IntToBytes(int(e))
+	return flag(types.BytesToInt(bytes[4:6]))
 }
 
 func (e slottedRecordPageHeaderEntry) setOffset(offset int) slottedRecordPageHeaderEntry {
-	bytes := file.IntToBytes(int(e))
-	ob := file.IntToBytes(int(offset))
+	bytes := types.IntToBytes(int(e))
+	ob := types.IntToBytes(int(offset))
 	copy(bytes[:2], ob[:2])
-	return slottedRecordPageHeaderEntry(file.BytesToInt(bytes))
+	return slottedRecordPageHeaderEntry(types.BytesToInt(bytes))
 }
 
 func (e slottedRecordPageHeaderEntry) setLength(length int) slottedRecordPageHeaderEntry {
-	bytes := file.IntToBytes(int(e))
-	lb := file.IntToBytes(int(length))
+	bytes := types.IntToBytes(int(e))
+	lb := types.IntToBytes(int(length))
 	copy(bytes[2:4], lb[:2])
-	return slottedRecordPageHeaderEntry(file.BytesToInt(bytes))
+	return slottedRecordPageHeaderEntry(types.BytesToInt(bytes))
 }
 
 func (e slottedRecordPageHeaderEntry) setFlag(f flag) slottedRecordPageHeaderEntry {
-	bytes := file.IntToBytes(int(e))
-	fb := file.IntToBytes(int(f))
+	bytes := types.IntToBytes(int(e))
+	fb := types.IntToBytes(int(f))
 	copy(bytes[4:6], fb[:2])
-	return slottedRecordPageHeaderEntry(file.BytesToInt(bytes))
+	return slottedRecordPageHeaderEntry(types.BytesToInt(bytes))
 }
 
 // slottedRecordPageHeader represents the header of a slotted record page
@@ -77,13 +77,13 @@ type slottedRecordPageHeader struct {
 	entries      []slottedRecordPageHeaderEntry
 }
 
-const defaultFreeSpaceEnd = file.PageSize
+const defaultFreeSpaceEnd = types.PageSize
 
 const (
 	blockNumberOffset  = 0
-	numSlotsOffset     = blockNumberOffset + file.IntSize
-	freeSpaceEndOffset = numSlotsOffset + file.IntSize
-	entriesOffset      = freeSpaceEndOffset + file.IntSize
+	numSlotsOffset     = blockNumberOffset + types.IntSize
+	freeSpaceEndOffset = numSlotsOffset + types.IntSize
+	entriesOffset      = freeSpaceEndOffset + types.IntSize
 )
 
 func (h slottedRecordPageHeader) freeSpaceStart() int {
@@ -156,7 +156,7 @@ func (header *slottedRecordPageHeader) popRecordSlot() slottedRecordPageHeaderEn
 // for all basic record operations, as well as utilities for page formatting and maintenance.
 type SlottedRecordPage struct {
 	tx     tx.Transaction
-	block  file.Block
+	block  types.Block
 	layout Layout
 }
 
@@ -197,10 +197,10 @@ func (h recordHeader) hasFlag(flag recordHeaderFlag) bool {
 	return h.txinfo.flags&flag != 0
 }
 
-const recordHeaderTxInfoSize = 4 * file.IntSize
+const recordHeaderTxInfoSize = 4 * types.IntSize
 
 // NewSlottedRecordPage creates a new SlottedRecordPage struct
-func NewSlottedRecordPage(tx tx.Transaction, block file.Block, layout Layout) *SlottedRecordPage {
+func NewSlottedRecordPage(tx tx.Transaction, block types.Block, layout Layout) *SlottedRecordPage {
 	tx.Pin(block)
 	return &SlottedRecordPage{
 		tx:     tx,
@@ -214,12 +214,12 @@ func (p *SlottedRecordPage) Close() {
 	p.tx.Unpin(p.block)
 }
 
-func (p *SlottedRecordPage) Block() file.Block {
+func (p *SlottedRecordPage) Block() types.Block {
 	return p.block
 }
 
 func (p *SlottedRecordPage) recordHeaderSize() int {
-	return recordHeaderTxInfoSize + p.layout.FieldsCount()*file.IntSize
+	return recordHeaderTxInfoSize + p.layout.FieldsCount()*types.IntSize
 }
 
 // recordSizeIncludingRecordHeader calculates the size of a record on disk including header
@@ -291,28 +291,28 @@ func (p *SlottedRecordPage) writeRecordHeader(offset int, recordHeader recordHea
 		return err
 	}
 
-	offset += file.IntSize
+	offset += types.IntSize
 
 	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.xmax, false); err != nil {
 		return err
 	}
 
-	offset += file.IntSize
+	offset += types.IntSize
 
 	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.txop, false); err != nil {
 		return err
 	}
 
-	offset += file.IntSize
+	offset += types.IntSize
 
 	if err := p.tx.SetInt(p.block, offset, int(recordHeader.txinfo.flags), false); err != nil {
 		return err
 	}
 
-	offset += file.IntSize
+	offset += types.IntSize
 
 	for i, end := range recordHeader.ends {
-		if err := p.tx.SetInt(p.block, offset+i*file.IntSize, end, false); err != nil {
+		if err := p.tx.SetInt(p.block, offset+i*types.IntSize, end, false); err != nil {
 			return err
 		}
 	}
@@ -326,21 +326,21 @@ func (p *SlottedRecordPage) readRecordHeader(offset int) (recordHeader, error) {
 		return recordHeader{}, err
 	}
 
-	offset += file.IntSize
+	offset += types.IntSize
 
 	xmax, err := p.tx.Int(p.block, offset)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	offset += file.IntSize
+	offset += types.IntSize
 
 	txop, err := p.tx.Int(p.block, offset)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	offset += file.IntSize
+	offset += types.IntSize
 
 	flags, err := p.tx.Int(p.block, offset)
 	if err != nil {
@@ -350,7 +350,7 @@ func (p *SlottedRecordPage) readRecordHeader(offset int) (recordHeader, error) {
 	ends := make([]int, 0, p.layout.FieldsCount())
 
 	for i := 0; i < p.layout.FieldsCount(); i++ {
-		offset += file.IntSize
+		offset += types.IntSize
 		end, err := p.tx.Int(p.block, offset)
 		if err != nil {
 			return recordHeader{}, err
@@ -416,7 +416,7 @@ func (p *SlottedRecordPage) fieldOffset(slot int, fieldname string) (int, error)
 
 	prevIndex := fieldIndex - 1
 	// read the end of the previous field to find the start of this one
-	fieldOffset := recordOffset + recordHeaderTxInfoSize + prevIndex*file.IntSize
+	fieldOffset := recordOffset + recordHeaderTxInfoSize + prevIndex*types.IntSize
 
 	return p.tx.Int(p.block, fieldOffset)
 }
@@ -452,7 +452,7 @@ func (p *SlottedRecordPage) updateFieldEnd(slot int, fieldname string, fieldEnd 
 		return err
 	}
 
-	fieldOffsetEntry := recordHeaderTxInfoSize + entry.recordOffset() + fieldIndex*file.IntSize
+	fieldOffsetEntry := recordHeaderTxInfoSize + entry.recordOffset() + fieldIndex*types.IntSize
 
 	return p.tx.SetInt(p.block, fieldOffsetEntry, fieldEnd, false)
 }
@@ -471,7 +471,7 @@ func (p *SlottedRecordPage) SetInt(slot int, fieldname string, val int) error {
 	}
 
 	// update the end of this field in the record header
-	fieldEnd := offset + file.IntSize
+	fieldEnd := offset + types.IntSize
 
 	return p.updateFieldEnd(slot, fieldname, fieldEnd)
 }
@@ -487,7 +487,7 @@ func (p *SlottedRecordPage) SetString(slot int, fieldname string, val string) er
 		return err
 	}
 
-	fieldEnd := offset + file.StrLength(len(val))
+	fieldEnd := offset + types.StrLength(len(val))
 
 	return p.updateFieldEnd(slot, fieldname, fieldEnd)
 }

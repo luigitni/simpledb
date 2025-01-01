@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"sync"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var _ tx.Transaction = &mockTx{}
@@ -33,16 +33,16 @@ type mockTx struct {
 }
 
 type mockTxStorage interface {
-	setInt(blockID file.Block, offset int, val int, shouldLog bool) error
-	setString(blockID file.Block, offset int, val string, shouldLog bool) error
+	setInt(blockID types.Block, offset int, val int, shouldLog bool) error
+	setString(blockID types.Block, offset int, val string, shouldLog bool) error
 
-	getInt(blockID file.Block, offset int) (int, error)
-	getString(blockID file.Block, offset int) (string, error)
+	getInt(blockID types.Block, offset int) (int, error)
+	getString(blockID types.Block, offset int) (string, error)
 }
 
-type defaultMockTxStorage map[file.Block]map[int]interface{}
+type defaultMockTxStorage map[types.Block]map[int]interface{}
 
-func (s defaultMockTxStorage) getInt(blockID file.Block, offset int) (int, error) {
+func (s defaultMockTxStorage) getInt(blockID types.Block, offset int) (int, error) {
 	om, ok := s[blockID]
 	if !ok {
 		return 0, nil
@@ -55,7 +55,7 @@ func (s defaultMockTxStorage) getInt(blockID file.Block, offset int) (int, error
 	return 0, nil
 }
 
-func (s defaultMockTxStorage) getString(blockID file.Block, offset int) (string, error) {
+func (s defaultMockTxStorage) getString(blockID types.Block, offset int) (string, error) {
 	om, ok := s[blockID]
 	if !ok {
 		return "", nil
@@ -68,7 +68,7 @@ func (s defaultMockTxStorage) getString(blockID file.Block, offset int) (string,
 	return "", nil
 }
 
-func (s defaultMockTxStorage) setInt(blockID file.Block, offset int, val int, shouldLog bool) error {
+func (s defaultMockTxStorage) setInt(blockID types.Block, offset int, val int, shouldLog bool) error {
 	om, ok := s[blockID]
 
 	if !ok {
@@ -81,7 +81,7 @@ func (s defaultMockTxStorage) setInt(blockID file.Block, offset int, val int, sh
 	return nil
 }
 
-func (s defaultMockTxStorage) setString(blockID file.Block, offset int, val string, shouldLog bool) error {
+func (s defaultMockTxStorage) setString(blockID types.Block, offset int, val string, shouldLog bool) error {
 	om, ok := s[blockID]
 
 	if !ok {
@@ -112,17 +112,17 @@ func (t *mockTx) Id() int {
 }
 
 // Append implements tx.Transaction.
-func (t *mockTx) Append(fname string) (file.Block, error) {
+func (t *mockTx) Append(fname string) (types.Block, error) {
 	t.Lock()
 	defer t.Unlock()
 	t.appendCalls++
 
-	return file.Block{}, nil
+	return types.Block{}, nil
 }
 
 // BlockSize implements tx.Transaction.
 func (t *mockTx) BlockSize() int {
-	return file.PageSize
+	return types.PageSize
 }
 
 // Commit implements tx.Transaction.
@@ -134,7 +134,7 @@ func (t *mockTx) Commit() {
 }
 
 // Pin implements tx.Transaction.
-func (t *mockTx) Pin(blockID file.Block) {
+func (t *mockTx) Pin(blockID types.Block) {
 	t.Lock()
 	defer t.Unlock()
 	t.isPinned = true
@@ -156,7 +156,7 @@ func (t *mockTx) Rollback() {
 }
 
 // Int implements tx.Transaction.
-func (t *mockTx) Int(blockID file.Block, offset int) (int, error) {
+func (t *mockTx) Int(blockID types.Block, offset int) (int, error) {
 	t.Lock()
 	defer t.Unlock()
 
@@ -165,7 +165,7 @@ func (t *mockTx) Int(blockID file.Block, offset int) (int, error) {
 }
 
 // SetInt implements tx.Transaction.
-func (t *mockTx) SetInt(blockID file.Block, offset int, val int, shouldLog bool) error {
+func (t *mockTx) SetInt(blockID types.Block, offset int, val int, shouldLog bool) error {
 	t.Lock()
 	defer t.Unlock()
 
@@ -174,7 +174,7 @@ func (t *mockTx) SetInt(blockID file.Block, offset int, val int, shouldLog bool)
 }
 
 // String implements tx.Transaction.
-func (t *mockTx) String(blockID file.Block, offset int) (string, error) {
+func (t *mockTx) String(blockID types.Block, offset int) (string, error) {
 	t.Lock()
 	defer t.Unlock()
 
@@ -183,7 +183,7 @@ func (t *mockTx) String(blockID file.Block, offset int) (string, error) {
 }
 
 // SetString implements tx.Transaction.
-func (t *mockTx) SetString(blockID file.Block, offset int, val string, shouldLog bool) error {
+func (t *mockTx) SetString(blockID types.Block, offset int, val string, shouldLog bool) error {
 	t.Lock()
 	defer t.Unlock()
 
@@ -197,7 +197,7 @@ func (t *mockTx) Size(fname string) (int, error) {
 }
 
 // Unpin implements tx.Transaction.
-func (t *mockTx) Unpin(blockID file.Block) {
+func (t *mockTx) Unpin(blockID types.Block) {
 	t.Lock()
 	defer t.Unlock()
 	t.isPinned = false

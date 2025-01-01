@@ -3,8 +3,8 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 const (
@@ -13,11 +13,11 @@ const (
 )
 
 type Index interface {
-	BeforeFirst(searchKey file.Value) error
+	BeforeFirst(searchKey types.Value) error
 	Next() error
 	DataRID() (RID, error)
-	Insert(v file.Value, rid RID) error
-	Delete(v file.Value, rid RID) error
+	Insert(v types.Value, rid RID) error
+	Delete(v types.Value, rid RID) error
 	Close()
 }
 
@@ -49,9 +49,9 @@ func idxLayout(tableSchema Schema, fieldName string) Layout {
 	schema.addIntField("block")
 	schema.addIntField("id")
 	switch tableSchema.ftype(fieldName) {
-	case file.INTEGER:
+	case types.INTEGER:
 		schema.addIntField("dataval")
-	case file.STRING:
+	case types.STRING:
 		schema.addFixedLenStringField("dataval", tableSchema.flen(fieldName))
 	}
 
@@ -122,7 +122,7 @@ func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName st
 	ts := newTableScan(x, idxCatalogTableName, im.l)
 
 	// todo: create fixed size string type
-	size := file.StrLength(len(idxName)) + file.StrLength(len(tblName)) + file.StrLength(len(fldName))
+	size := types.StrLength(len(idxName)) + types.StrLength(len(tblName)) + types.StrLength(len(fldName))
 
 	ts.Insert(size)
 	defer ts.Close()

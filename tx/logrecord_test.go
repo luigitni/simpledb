@@ -3,7 +3,7 @@ package tx
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 func assertIntAtPos(t *testing.T, data []byte, pos int, exp int) {
@@ -37,7 +37,7 @@ func TestLogStartRecord(t *testing.T) {
 	writeStart(&p, txNum)
 
 	assertIntAtPos(t, p, 0, int(START))
-	assertIntAtPos(t, p, file.IntSize, txNum)
+	assertIntAtPos(t, p, types.IntSize, txNum)
 
 	newStartLogRecord(recordBuffer{bytes: p})
 }
@@ -50,7 +50,7 @@ func TestLogRollbackRecord(t *testing.T) {
 
 	// test that the first entry is ROLLBACK
 	assertIntAtPos(t, p, 0, int(ROLLBACK))
-	assertIntAtPos(t, p, file.IntSize, txNum)
+	assertIntAtPos(t, p, types.IntSize, txNum)
 
 	newRollbackRecord(recordBuffer{bytes: p})
 }
@@ -62,7 +62,7 @@ func TestLogCommitRecord(t *testing.T) {
 	writeCommit(&p, txNum)
 
 	assertIntAtPos(t, p, 0, int(COMMIT))
-	assertIntAtPos(t, p, file.IntSize, txNum)
+	assertIntAtPos(t, p, types.IntSize, txNum)
 
 	newCommitRecord(recordBuffer{bytes: p})
 }
@@ -74,20 +74,20 @@ func TestLogSetIntRecord(t *testing.T) {
 	const fname = "testblock"
 	const bid = 1
 
-	block := file.NewBlock(fname, bid)
+	block := types.NewBlock(fname, bid)
 
 	p := make([]byte, logSetIntSize)
 	writeInt(&p, txNum, block, offset, val)
 
-	const tpos = file.IntSize
+	const tpos = types.IntSize
 	// filename
-	const fpos = tpos + file.IntSize
+	const fpos = tpos + types.IntSize
 	// block id number
-	bpos := fpos + file.StrLength(len(block.FileName()))
+	bpos := fpos + types.StrLength(len(block.FileName()))
 	// offset
-	opos := bpos + file.IntSize
+	opos := bpos + types.IntSize
 	// value
-	vpos := opos + file.IntSize
+	vpos := opos + types.IntSize
 
 	assertIntAtPos(t, p, 0, int(SETINT))
 	assertIntAtPos(t, p, tpos, txNum)
@@ -105,20 +105,20 @@ func TestLogSetStrRecord(t *testing.T) {
 	const fname = "testblock"
 	const bid = 1
 
-	block := file.NewBlock(fname, bid)
+	block := types.NewBlock(fname, bid)
 
 	p := make([]byte, logSetIntSize+len(val))
 	writeString(&p, txNum, block, offset, val)
 
-	const tpos = file.IntSize
+	const tpos = types.IntSize
 	// filename
-	const fpos = tpos + file.IntSize
+	const fpos = tpos + types.IntSize
 	// block id number
-	bpos := fpos + file.StrLength(len(block.FileName()))
+	bpos := fpos + types.StrLength(len(block.FileName()))
 	// offset
-	opos := bpos + file.IntSize
+	opos := bpos + types.IntSize
 	// value
-	vpos := opos + file.IntSize
+	vpos := opos + types.IntSize
 
 	assertIntAtPos(t, p, 0, int(SETSTRING))
 	assertIntAtPos(t, p, tpos, txNum)

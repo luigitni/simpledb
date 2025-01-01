@@ -3,7 +3,7 @@ package pages
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 type mockLayout struct {
@@ -51,7 +51,7 @@ func TestSlottedRecordPageAppendRecordSlot(t *testing.T) {
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedRecordPage(tx, file.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -98,7 +98,7 @@ func TestSlottedRecordPageWriteHeader(t *testing.T) {
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedRecordPage(tx, file.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -156,7 +156,7 @@ func TestSlottedRecordPageReadHeader(t *testing.T) {
 		slottedRecordPageHeaderEntry(0).setOffset(1024).setLength(1024).setFlag(flagInUseRecord),
 	}
 
-	page := NewSlottedRecordPage(tx, file.Block{}, nil)
+	page := NewSlottedRecordPage(tx, types.Block{}, nil)
 
 	tx.SetInt(page.block, blockNumberOffset, blockNumber, false)
 	tx.SetInt(page.block, numSlotsOffset, len(entries), false)
@@ -195,7 +195,7 @@ func TestSlottedRecordPageSearchAfter(t *testing.T) {
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedRecordPage(tx, file.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
 
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -241,7 +241,7 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedRecordPage(tx, file.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
 
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -280,7 +280,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 		},
 	}
 
-	page := NewSlottedRecordPage(tx, file.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -302,9 +302,9 @@ func TestSlottedRecordPageSet(t *testing.T) {
 	for _, v := range record {
 		switch val := v.(type) {
 		case int:
-			recordLength += file.IntSize
+			recordLength += types.IntSize
 		case string:
-			l := file.StrLength(len(val))
+			l := types.StrLength(len(val))
 			recordLength += l
 		default:
 			t.Fatal("unsupported type")

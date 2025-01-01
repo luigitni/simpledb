@@ -4,8 +4,8 @@ import (
 	"os"
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var lockTable = tx.GetLockTable()
@@ -18,7 +18,7 @@ func TestMain(m *testing.M) {
 
 func TestLockTable(t *testing.T) {
 
-	block := file.NewBlock("test", 1)
+	block := types.NewBlock("test", 1)
 
 	// test that no wait happens when all clients request Slocks
 	for i := 0; i < 100; i++ {
@@ -38,7 +38,7 @@ func TestLockTable(t *testing.T) {
 	out := make(chan error)
 
 	for i := 0; i < 100; i++ {
-		go func(block file.Block) {
+		go func(block types.Block) {
 			out <- lockTable.SLock(block)
 		}(block)
 	}
@@ -54,7 +54,7 @@ func TestLockTable(t *testing.T) {
 	t.Log("xlock has been unlocked")
 
 	for i := 0; i < 100; i++ {
-		go func(block file.Block) {
+		go func(block types.Block) {
 			out <- lockTable.SLock(block)
 		}(block)
 	}
@@ -77,10 +77,10 @@ func TestAcquireXLock(t *testing.T) {
 	const fname = "tesblock"
 	const howMany = 1000
 
-	blocks := make([]file.Block, howMany)
+	blocks := make([]types.Block, howMany)
 
 	for i := 0; i < howMany; i++ {
-		block := file.NewBlock(fname, i)
+		block := types.NewBlock(fname, i)
 		if e := lockTable.XLock(block); e != nil {
 			t.Fatalf("expected x lock to be acquired on block %d. Got error %s", i, e.Error())
 		}

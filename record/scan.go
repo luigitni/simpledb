@@ -3,7 +3,7 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 // Scan represents the output of a relational algebra query.
@@ -19,7 +19,7 @@ type Scan interface {
 
 	String(fname string) (string, error)
 
-	Val(fname string) (file.Value, error)
+	Val(fname string) (types.Value, error)
 
 	HasField(fname string) bool
 
@@ -51,7 +51,7 @@ type UpdateScan interface {
 
 	SetString(fname string, v string) error
 
-	SetVal(fname string, v file.Value) error
+	SetVal(fname string, v types.Value) error
 
 	Insert(recordSize int) error
 

@@ -4,21 +4,21 @@ import (
 	"context"
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 type mockFileManager struct {
 	writeCalls    int
 	readCalls     int
-	writtenBlocks []file.BlockID
+	writtenBlocks []types.BlockID
 }
 
-func (fm *mockFileManager) Write(block file.Block, page *file.Page) {
+func (fm *mockFileManager) Write(block types.Block, page *types.Page) {
 	fm.writeCalls++
 	fm.writtenBlocks = append(fm.writtenBlocks, block.ID())
 }
 
-func (fm *mockFileManager) Read(block file.Block, page *file.Page) {
+func (fm *mockFileManager) Read(block types.Block, page *types.Page) {
 	fm.readCalls++
 }
 
@@ -85,7 +85,7 @@ func TestBufferManager(t *testing.T) {
 
 		bufMan := NewBufferManager(fm, lm, size)
 		for i := 0; i < size-1; i++ {
-			block := file.NewBlock("test", i)
+			block := types.NewBlock("test", i)
 			bufMan.Pin(block)
 		}
 
@@ -101,7 +101,7 @@ func TestBufferManager(t *testing.T) {
 
 		bufMan := NewBufferManager(fm, lm, size)
 		for i := 0; i < size; i++ {
-			block := file.NewBlock("test", i)
+			block := types.NewBlock("test", i)
 			bufMan.Pin(block)
 		}
 
@@ -116,7 +116,7 @@ func TestBufferManager(t *testing.T) {
 		const size = 10
 
 		bufMan := NewBufferManager(fm, lm, size)
-		block := file.NewBlock("test", 1)
+		block := types.NewBlock("test", 1)
 		bufMan.Pin(block)
 		bufMan.Pin(block)
 
@@ -132,7 +132,7 @@ func TestBufferManager(t *testing.T) {
 
 		bufMan := NewBufferManager(fm, lm, size)
 		for i := 0; i < size; i++ {
-			block := file.NewBlock("test", i)
+			block := types.NewBlock("test", i)
 			buf, err := bufMan.Pin(block)
 			if err != nil {
 				t.Fatal(err)
@@ -140,9 +140,9 @@ func TestBufferManager(t *testing.T) {
 			buf.SetModified(1, 1)
 		}
 
-		toBeEvicted := file.NewBlock("test", 3).ID()
+		toBeEvicted := types.NewBlock("test", 3).ID()
 		for i := 0; i < size; i++ {
-			block := file.NewBlock("test", i)
+			block := types.NewBlock("test", i)
 			if block.ID() == toBeEvicted {
 				continue
 			}
@@ -151,7 +151,7 @@ func TestBufferManager(t *testing.T) {
 			}
 		}
 
-		block := file.NewBlock("anothertable", 1)
+		block := types.NewBlock("anothertable", 1)
 		bufMan.Pin(block)
 
 		if n := bufMan.Available(); n > 0 {
@@ -187,10 +187,10 @@ func TestBufferManager(t *testing.T) {
 		started := make(chan struct{})
 
 		go func(ctx context.Context) {
-			blocks := []file.Block{
-				file.NewBlock(fname, 1),
-				file.NewBlock(fname, 2),
-				file.NewBlock(fname, 3),
+			blocks := []types.Block{
+				types.NewBlock(fname, 1),
+				types.NewBlock(fname, 2),
+				types.NewBlock(fname, 3),
 			}
 
 			done := false
@@ -214,7 +214,7 @@ func TestBufferManager(t *testing.T) {
 
 		<-started
 
-		_, err := bufMan.Pin(file.NewBlock("anotherfile", 0))
+		_, err := bufMan.Pin(types.NewBlock("anotherfile", 0))
 		if err != ErrClientTimeout {
 			t.Fatalf("expected ErrClientTimeout, got %s", err)
 		}

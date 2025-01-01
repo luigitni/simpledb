@@ -3,11 +3,11 @@ package log
 import (
 	"sync"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 var iteratorPool = sync.Pool{
 	New: func() any {
-		return file.NewPage()
+		return types.NewPage()
 	},
 }

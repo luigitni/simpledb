@@ -3,9 +3,9 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/sql"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var _ UpdatePlanner = &IndexUpdatePlanner{}
@@ -98,7 +98,7 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 
 	type fieldValue struct {
 		field string
-		value file.Value
+		value types.Value
 	}
 
 	entryFields := make([]fieldValue, len(schema.fields))

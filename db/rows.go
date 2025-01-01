@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 const printRowsNoResult = "No records found."
 
 type Row struct {
-	vals []file.Value
+	vals []types.Value
 }
 
 type Rows struct {

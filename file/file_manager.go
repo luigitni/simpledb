@@ -7,6 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
+
+	"github.com/luigitni/simpledb/types"
 )
 
 const (
@@ -70,7 +72,7 @@ func (manager *FileManager) getFile(fname string) *os.File {
 	f, ok := manager.openFiles[fname]
 	if !ok {
 		p := path.Join(manager.folder, fname)
-		table, err := os.OpenFile(p, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0755)
+		table, err := os.OpenFile(p, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0o755)
 		if err != nil {
 			panic(err)
 		}
@@ -86,31 +88,31 @@ func (manager *FileManager) IsNew() bool {
 }
 
 func (manager *FileManager) BlockSize() int {
-	return PageSize
+	return types.PageSize
 }
 
 // todo: code improvement: implement reader and writer interfaces
 
 // Read reads the content of block id blk into Page p
-func (manager *FileManager) Read(blk Block, p *Page) {
+func (manager *FileManager) Read(blk types.Block, p *types.Page) {
 	manager.Lock()
 	defer manager.Unlock()
 
 	f := manager.getFile(blk.FileName())
 
 	// io.EOF is returned if we are reading too far into the file. This is ok, as we can read an empty block into the page
-	if _, err := f.ReadAt(p.contents(), int64(blk.Number())*int64(manager.blockSize)); err != io.EOF && err != nil {
+	if _, err := f.ReadAt(p.Contents(), int64(blk.Number())*int64(manager.blockSize)); err != io.EOF && err != nil {
 		panic(err)
 	}
 }
 
 // Write writes Page p to BlockID block, persisted to a file
-func (manager *FileManager) Write(blk Block, p *Page) {
+func (manager *FileManager) Write(blk types.Block, p *types.Page) {
 	manager.Lock()
 	defer manager.Unlock()
 
 	f := manager.getFile(blk.FileName())
-	f.WriteAt(p.contents(), int64(blk.Number())*int64(manager.blockSize))
+	f.WriteAt(p.Contents(), int64(blk.Number())*int64(manager.blockSize))
 }
 
 // Size returns the size, in blocks, of the given file
@@ -125,10 +127,9 @@ func (manager *FileManager) Size(filename string) int {
 
 // Append seeks to the end of the file and writes an empty array of bytes to the file
 // todo: this might not be needed in go
-func (manager *FileManager) Append(fname string) Block {
-
+func (manager *FileManager) Append(fname string) types.Block {
 	newBlkNum := manager.Size(fname)
-	block := NewBlock(fname, newBlkNum)
+	block := types.NewBlock(fname, newBlkNum)
 	buf := make([]byte, manager.blockSize)
 
 	f := manager.getFile(fname)

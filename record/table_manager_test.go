@@ -3,9 +3,9 @@ package record
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 func TestTableManager(t *testing.T) {
@@ -33,9 +33,9 @@ func TestTableManager(t *testing.T) {
 	sch := layout.Schema()
 	for _, fname := range sch.fields {
 		switch sch.ftype(fname) {
-		case file.INTEGER:
+		case types.INTEGER:
 			t.Logf("%s INTEGER", fname)
-		case file.STRING:
+		case types.STRING:
 			t.Logf("%s VARCHAR(%d)", fname, sch.flen(fname))
 		}
 	}

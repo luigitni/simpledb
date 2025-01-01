@@ -3,8 +3,8 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 var (
@@ -207,7 +207,7 @@ func (sp *sortPlan) merge(first *tmpTable, second *tmpTable) (*tmpTable, error) 
 
 func (sp *sortPlan) copy(src Scan, dst UpdateScan) error {
 	size := 0
-	vals := make(map[string]file.Value)
+	vals := make(map[string]types.Value)
 
 	for _, f := range sp.schema.fields {
 		v, err := src.Val(f)
@@ -381,7 +381,7 @@ func (ss *sortScan) Close() {
 	}
 }
 
-func (ss *sortScan) Val(fieldName string) (file.Value, error) {
+func (ss *sortScan) Val(fieldName string) (types.Value, error) {
 	return ss.currentScan.Val(fieldName)
 }
 

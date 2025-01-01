@@ -5,6 +5,7 @@ import (
 
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/test"
+	"github.com/luigitni/simpledb/types"
 )
 
 func TestFile(t *testing.T) {
@@ -12,8 +13,8 @@ func TestFile(t *testing.T) {
 	conf := test.DefaultConfig(t)
 	fman := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 
-	block := file.NewBlock(conf.BlockFile, 2)
-	page := file.NewPage()
+	block := types.NewBlock(conf.BlockFile, 2)
+	page := types.NewPage()
 
 	pos := 88
 
@@ -21,13 +22,13 @@ func TestFile(t *testing.T) {
 	const intv = 352
 	page.SetString(pos, val)
 
-	pos2 := pos + file.StrLength(len(val))
+	pos2 := pos + types.StrLength(len(val))
 
 	page.SetInt(pos2, intv)
 
 	fman.Write(block, page)
 
-	p2 := file.NewPage()
+	p2 := types.NewPage()
 	fman.Read(block, p2)
 
 	if got := p2.Int(pos2); got != intv {

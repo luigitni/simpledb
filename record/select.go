@@ -4,13 +4,13 @@ import (
 	"errors"
 	"io"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/sql"
+	"github.com/luigitni/simpledb/types"
 )
 
 type Predicate interface {
 	IsSatisfied(plan sql.Scan) (bool, error)
-	EquatesWithConstant(fieldName string) (file.Value, bool)
+	EquatesWithConstant(fieldName string) (types.Value, bool)
 	EquatesWithField(fieldname string) (string, bool)
 	ReductionFactor(plan sql.Plan) int
 	// Return the subpredicate consisting of terms that apply
@@ -68,7 +68,7 @@ func (sel *Select) String(fname string) (string, error) {
 }
 
 // Val implements Scan.
-func (sel *Select) Val(fname string) (file.Value, error) {
+func (sel *Select) Val(fname string) (types.Value, error) {
 	return sel.scan.Val(fname)
 }
 
@@ -171,7 +171,7 @@ func (sel *Select) SetString(fname string, v string) error {
 }
 
 // SetVal implements UpdateScan.
-func (sel *Select) SetVal(fname string, v file.Value) error {
+func (sel *Select) SetVal(fname string, v types.Value) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot update over anon update scan")

@@ -3,7 +3,7 @@ package record
 import (
 	"io"
 
-	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/types"
 )
 
 var _ Plan = &IndexJoinPlan{}
@@ -148,7 +148,7 @@ func (ijs *IndexJoinScan) HasField(field string) bool {
 	return ijs.rhs.HasField(field) || ijs.lhs.HasField(field)
 }
 
-func (ijs *IndexJoinScan) Val(field string) (file.Value, error) {
+func (ijs *IndexJoinScan) Val(field string) (types.Value, error) {
 	if ijs.rhs.HasField(field) {
 		return ijs.rhs.Val(field)
 	}

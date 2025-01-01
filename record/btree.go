@@ -3,8 +3,8 @@ package record
 import (
 	"fmt"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 const (
@@ -13,10 +13,10 @@ const (
 	bTreePageFlagOffset = 0
 	// bTreePageNumRecordsOffset is the byte offset of the records number.
 	// The number of records is a value of type INT.
-	bTreePageNumRecordsOffset = file.IntSize
+	bTreePageNumRecordsOffset = types.IntSize
 	// bTreePageContentOffset is the byte offset from the left of the page
 	// where records start
-	bTreePageContentOffset = bTreePageNumRecordsOffset + file.IntSize
+	bTreePageContentOffset = bTreePageNumRecordsOffset + types.IntSize
 )
 
 // bTreePage represents a page used by B-Tree blocks.
@@ -35,11 +35,11 @@ const (
 // The page also maintains an integer that stores the number of records.
 type bTreePage struct {
 	x       tx.Transaction
-	blockID file.Block
+	blockID types.Block
 	layout  Layout
 }
 
-func newBTreePage(x tx.Transaction, currentBlock file.Block, layout Layout) bTreePage {
+func newBTreePage(x tx.Transaction, currentBlock types.Block, layout Layout) bTreePage {
 	x.Pin(currentBlock)
 	return bTreePage{
 		x:       x,
@@ -79,15 +79,15 @@ func (page bTreePage) string(slot int, fieldName string) (string, error) {
 	return page.x.String(page.blockID, pos)
 }
 
-func (page bTreePage) setVal(slot int, fieldName string, val file.Value) error {
-	if t := page.layout.schema.ftype(fieldName); t == file.INTEGER {
+func (page bTreePage) setVal(slot int, fieldName string, val types.Value) error {
+	if t := page.layout.schema.ftype(fieldName); t == types.INTEGER {
 		return page.setInt(slot, fieldName, val.AsIntVal())
 	}
 
 	return page.setString(slot, fieldName, val.AsStringVal())
 }
 
-func (page bTreePage) mustGetVal(slot int, fieldName string) file.Value {
+func (page bTreePage) mustGetVal(slot int, fieldName string) types.Value {
 	v, err := page.val(slot, fieldName)
 	if err != nil {
 		panic(err)
@@ -96,18 +96,18 @@ func (page bTreePage) mustGetVal(slot int, fieldName string) file.Value {
 	return v
 }
 
-func (page bTreePage) val(slot int, fieldName string) (file.Value, error) {
+func (page bTreePage) val(slot int, fieldName string) (types.Value, error) {
 	t := page.layout.schema.ftype(fieldName)
-	if t == file.INTEGER {
+	if t == types.INTEGER {
 		v, err := page.int(slot, fieldName)
-		return file.ValueFromInt(v), err
+		return types.ValueFromInt(v), err
 	}
 
 	v, err := page.string(slot, fieldName)
-	return file.ValueFromString(v), err
+	return types.ValueFromString(v), err
 }
 
-func (page bTreePage) mustGetDataVal(slot int) file.Value {
+func (page bTreePage) mustGetDataVal(slot int) types.Value {
 	v, err := page.getDataVal(slot)
 	if err != nil {
 		panic(err)
@@ -116,7 +116,7 @@ func (page bTreePage) mustGetDataVal(slot int) file.Value {
 	return v
 }
 
-func (page bTreePage) getDataVal(slot int) (file.Value, error) {
+func (page bTreePage) getDataVal(slot int) (types.Value, error) {
 	return page.val(slot, "dataval")
 }
 
@@ -189,10 +189,10 @@ func (page bTreePage) Close() {
 
 // appendNew creates a new block and appends at the end of the file.
 // The block is then formatted as a bTreePage.
-func (page bTreePage) appendNew(flag int) (file.Block, error) {
+func (page bTreePage) appendNew(flag int) (types.Block, error) {
 	block, err := page.x.Append(page.blockID.FileName())
 	if err != nil {
-		return file.Block{}, fmt.Errorf("error appending at blockID: %w", err)
+		return types.Block{}, fmt.Errorf("error appending at blockID: %w", err)
 	}
 
 	page.x.Pin(block)
@@ -203,12 +203,12 @@ func (page bTreePage) appendNew(flag int) (file.Block, error) {
 // format formats the page and initialises it with the flag and the number or records.
 // The operations that occurs when the page is being formatted are NOT logged to
 // the WAL.
-func (page bTreePage) format(block file.Block, flag int) error {
+func (page bTreePage) format(block types.Block, flag int) error {
 	if err := page.x.SetInt(block, 0, flag, false); err != nil {
 		return err
 	}
 
-	if err := page.x.SetInt(block, file.IntSize, 0, false); err != nil {
+	if err := page.x.SetInt(block, types.IntSize, 0, false); err != nil {
 		return err
 	}
 
@@ -221,14 +221,14 @@ func (page bTreePage) format(block file.Block, flag int) error {
 	return nil
 }
 
-func (page bTreePage) makeDefaultRecord(block file.Block, pos int) error {
+func (page bTreePage) makeDefaultRecord(block types.Block, pos int) error {
 	for _, f := range page.layout.schema.fields {
 		offset := page.layout.Offset(f)
-		if page.layout.schema.ftype(f) == file.INTEGER {
+		if page.layout.schema.ftype(f) == types.INTEGER {
 			if err := page.x.SetInt(block, pos+offset, 0, false); err != nil {
 				return fmt.Errorf("error creating default int record: %w", err)
 			}
-		} else if page.layout.schema.ftype(f) == file.STRING {
+		} else if page.layout.schema.ftype(f) == types.STRING {
 			if err := page.x.SetString(block, pos+offset, "", false); err != nil {
 				return fmt.Errorf("error creating default string record: %w", err)
 			}
@@ -240,7 +240,7 @@ func (page bTreePage) makeDefaultRecord(block file.Block, pos int) error {
 
 // findSlotBefore looks for the smallest slot such that its dataval is
 // the highest for which dataval(slot) <= key still holds.
-func (page bTreePage) findSlotBefore(key file.Value) (int, error) {
+func (page bTreePage) findSlotBefore(key types.Value) (int, error) {
 	slot := 0
 	for {
 		rec, err := page.getNumRecords()
@@ -274,21 +274,21 @@ func (page bTreePage) isFull() (bool, error) {
 // It appends a new bTreePage to the underlying index file and copies there the records
 // starting from splitpos position.
 // Once records have been moved, it sets the flag to the new page and closes it.
-func (page bTreePage) split(splitpos int, flag int) (file.Block, error) {
+func (page bTreePage) split(splitpos int, flag int) (types.Block, error) {
 
 	block, err := page.appendNew(flag)
 	if err != nil {
-		return file.Block{}, fmt.Errorf("error in split when appending new block: %w", err)
+		return types.Block{}, fmt.Errorf("error in split when appending new block: %w", err)
 	}
 
 	newPage := newBTreePage(page.x, block, page.layout)
 
 	if err := page.transferRecords(splitpos, newPage); err != nil {
-		return file.Block{}, fmt.Errorf("error in split when transferring records: %w", err)
+		return types.Block{}, fmt.Errorf("error in split when transferring records: %w", err)
 	}
 
 	if err := newPage.setFlag(flag); err != nil {
-		return file.Block{}, err
+		return types.Block{}, err
 	}
 
 	newPage.Close()
@@ -417,7 +417,7 @@ func (page bTreePage) getChildNum(slot int) (int, error) {
 }
 
 // insertDirectory insert a directory value into the page
-func (page bTreePage) insertDirectoryRecord(slot int, val file.Value, blockNumber int) error {
+func (page bTreePage) insertDirectoryRecord(slot int, val types.Value, blockNumber int) error {
 	if err := page.insert(slot); err != nil {
 		return err
 	}
@@ -434,7 +434,7 @@ func (page bTreePage) insertDirectoryRecord(slot int, val file.Value, blockNumbe
 }
 
 // insertLeaf inserts a leaf value into the page
-func (page bTreePage) insertLeafRecord(slot int, val file.Value, rid RID) error {
+func (page bTreePage) insertLeafRecord(slot int, val types.Value, rid RID) error {
 	if err := page.insert(slot); err != nil {
 		return err
 	}
@@ -463,7 +463,7 @@ func (page bTreePage) insertLeafRecord(slot int, val file.Value, rid RID) error 
 type bTreeLeaf struct {
 	x           tx.Transaction
 	layout      Layout
-	key         file.Value
+	key         types.Value
 	contents    bTreePage
 	currentSlot int
 	fileName    string
@@ -471,7 +471,7 @@ type bTreeLeaf struct {
 
 // newBTreeLeaf creates a new bTreePage for the specified block, and then positions the slot
 // pointer to the slot immediately before the first record containing the search key.
-func newBTreeLeaf(x tx.Transaction, blk file.Block, layout Layout, key file.Value) (*bTreeLeaf, error) {
+func newBTreeLeaf(x tx.Transaction, blk types.Block, layout Layout, key types.Value) (*bTreeLeaf, error) {
 	contents := newBTreePage(x, blk, layout)
 	currentSlot, err := contents.findSlotBefore(key)
 	if err != nil {
@@ -538,7 +538,7 @@ func (leaf *bTreeLeaf) tryOverflow() (bool, error) {
 
 	leaf.Close()
 
-	nextBlock := file.NewBlock(leaf.fileName, flag)
+	nextBlock := types.NewBlock(leaf.fileName, flag)
 	leaf.contents = newBTreePage(leaf.x, nextBlock, leaf.layout)
 	leaf.currentSlot = 0
 
@@ -576,7 +576,7 @@ func (leaf *bTreeLeaf) delete(rid RID) error {
 }
 
 type dirEntry struct {
-	value    file.Value
+	value    types.Value
 	blockNum int
 }
 
@@ -696,7 +696,7 @@ type bTreeDir struct {
 	fileName string
 }
 
-func newBTreeDir(x tx.Transaction, block file.Block, layout Layout) bTreeDir {
+func newBTreeDir(x tx.Transaction, block types.Block, layout Layout) bTreeDir {
 	return bTreeDir{
 		x:        x,
 		layout:   layout,
@@ -742,7 +742,7 @@ func (dir *bTreeDir) makeNewRoot(entry dirEntry) error {
 // The method starts at the root of the tree and moves down the B+ tree levels.
 // Once the level 0 is found, it searches that page and returns the block number
 // of the leaf containing the search key.
-func (dir *bTreeDir) search(key file.Value) (int, error) {
+func (dir *bTreeDir) search(key types.Value) (int, error) {
 	child, err := dir.findChildBlock(key)
 	if err != nil {
 		return 0, err
@@ -766,15 +766,15 @@ func (dir *bTreeDir) search(key file.Value) (int, error) {
 	return child.Number(), nil
 }
 
-func (dir *bTreeDir) findChildBlock(key file.Value) (file.Block, error) {
+func (dir *bTreeDir) findChildBlock(key types.Value) (types.Block, error) {
 	slot, err := dir.contents.findSlotBefore(key)
 	if err != nil {
-		return file.Block{}, err
+		return types.Block{}, err
 	}
 
 	val, err := dir.contents.getDataVal(slot + 1)
 	if err != nil {
-		return file.Block{}, err
+		return types.Block{}, err
 	}
 
 	if val.Equals(key) {
@@ -783,10 +783,10 @@ func (dir *bTreeDir) findChildBlock(key file.Value) (file.Block, error) {
 
 	blockNum, err := dir.contents.getChildNum(slot)
 	if err != nil {
-		return file.Block{}, err
+		return types.Block{}, err
 	}
 
-	return file.NewBlock(dir.fileName, blockNum), nil
+	return types.NewBlock(dir.fileName, blockNum), nil
 }
 
 // insert recursively traverses the tree, starting from the root, and
