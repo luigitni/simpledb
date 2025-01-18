@@ -12,8 +12,8 @@ type WalIterator struct {
 	fm         *file.FileManager
 	block      types.Block
 	page       *types.Page
-	currentPos int
-	boundary   int
+	currentPos types.Offset
+	boundary   types.Offset
 }
 
 func newWalIterator(page *types.Page, fm *file.FileManager, start types.Block) *WalIterator {
@@ -36,15 +36,20 @@ func (it *WalIterator) HasNext() bool {
 func (it *WalIterator) Next() []byte {
 	if it.currentPos == it.fm.BlockSize() {
 		// we are at the end of the block, read the previous one
-		block := types.NewBlock(it.block.FileName(), it.block.Number()-1)
+		prev := it.block.Number() - 1
+		if prev == types.EOF {
+			return nil
+		}
+
+		block := types.NewBlock(it.block.FileName(), prev)
 		it.moveToBlock(block)
 	}
 
-	// each record is prepended by its length
-	record := it.page.Bytes(it.currentPos)
+	// each WAL record is prepended by its size
+	record := it.page.UnsafeGetVarlen(it.currentPos)
 	// move the iterator pointer to the next record
-	it.currentPos += len(record) + types.IntSize
-	return record
+	it.currentPos += types.Offset(record.Size())
+	return record.Data()
 }
 
 func (it *WalIterator) Close() {
@@ -59,7 +64,7 @@ func (it *WalIterator) moveToBlock(block types.Block) {
 	it.fm.Read(block, it.page)
 	// boundary contains the offset of the most recently added record
 	// read the boundary from the page
-	it.boundary = it.page.Int(0)
+	it.boundary = it.page.UnsafeGetFixedLen(0, types.SizeOfOffset).UnsafeAsOffset()
 	// position the iterator after the boundary offset
 	it.currentPos = it.boundary
 	it.block = block

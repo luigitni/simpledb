@@ -74,7 +74,7 @@ func (ii *indexInfo) RecordsOutput() int {
 }
 
 func (ii *indexInfo) BlocksAccessed() int {
-	rpb := ii.x.BlockSize() / ii.idxLayout.slotsize
+	rpb := int(ii.x.BlockSize()) / ii.idxLayout.slotsize
 	numBlocks := ii.stats.records / rpb
 	return BTreeIndexSearchCost(numBlocks, rpb)
 }
@@ -122,20 +122,22 @@ func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName st
 	ts := newTableScan(x, idxCatalogTableName, im.l)
 
 	// todo: create fixed size string type
-	size := types.StrLength(len(idxName)) + types.StrLength(len(tblName)) + types.StrLength(len(fldName))
+	size := types.UnsafeSizeOfStringAsVarlen(idxName) +
+		types.UnsafeSizeOfStringAsVarlen(tblName) +
+		types.UnsafeSizeOfStringAsVarlen(fldName)
 
-	ts.Insert(size)
+	ts.Insert(types.Offset(size))
 	defer ts.Close()
 
-	if err := ts.SetString(fieldIdxName, idxName); err != nil {
+	if err := ts.SetVal(fieldIdxName, types.ValueFromGoString(idxName)); err != nil {
 		return err
 	}
 
-	if err := ts.SetString(catFieldTableName, tblName); err != nil {
+	if err := ts.SetVal(catFieldTableName, types.ValueFromGoString(tblName)); err != nil {
 		return err
 	}
 
-	if err := ts.SetString(catFieldFieldName, fldName); err != nil {
+	if err := ts.SetVal(catFieldFieldName, types.ValueFromGoString(fldName)); err != nil {
 		return err
 	}
 
@@ -144,7 +146,6 @@ func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName st
 
 // indexInfo returns a map of indexInfo defined over the fields of the provided table.
 func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]*indexInfo, error) {
-
 	m := map[string]*indexInfo{}
 
 	scan := newTableScan(x, idxCatalogTableName, im.l)
@@ -160,21 +161,21 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		table, err := scan.String(catFieldTableName)
+		table, err := scan.Val(catFieldTableName)
 		if err != nil {
 			return nil, err
 		}
 
-		if table != tblName {
+		if table.AsGoString() != tblName {
 			continue
 		}
 
-		idxName, err := scan.String(fieldIdxName)
+		idxName, err := scan.Val(fieldIdxName)
 		if err != nil {
 			return nil, err
 		}
 
-		fldName, err := scan.String(catFieldFieldName)
+		fldName, err := scan.Val(catFieldFieldName)
 		if err != nil {
 			return nil, err
 		}
@@ -189,8 +190,10 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		ii := newIndexInfo(x, idxName, fldName, *layout.Schema(), stat)
-		m[fldName] = ii
+		fn := fldName.AsGoString()
+
+		ii := newIndexInfo(x, idxName.AsGoString(), fn, *layout.Schema(), stat)
+		m[fn] = ii
 	}
 
 	return m, nil

@@ -12,11 +12,11 @@ const ridSize = 2 * types.IntSize
 // A RID consists of the block number in the file,
 // and the location of the record in that block.
 type RID struct {
-	Blocknum int
-	Slot     int
+	Blocknum types.Long
+	Slot     types.SmallInt
 }
 
-func NewRID(blocknum int, slot int) RID {
+func NewRID(blocknum types.Long, slot types.SmallInt) RID {
 	return RID{
 		Blocknum: blocknum,
 		Slot:     slot,

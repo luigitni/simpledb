@@ -206,7 +206,7 @@ func (sp *sortPlan) merge(first *tmpTable, second *tmpTable) (*tmpTable, error) 
 }
 
 func (sp *sortPlan) copy(src Scan, dst UpdateScan) error {
-	size := 0
+	var size types.Offset
 	vals := make(map[string]types.Value)
 
 	for _, f := range sp.schema.fields {
@@ -215,7 +215,9 @@ func (sp *sortPlan) copy(src Scan, dst UpdateScan) error {
 			return err
 		}
 
-		size += v.Size()
+		t := sp.schema.ftype(f)
+
+		size += v.Size(t)
 		vals[f] = v
 	}
 
@@ -383,14 +385,6 @@ func (ss *sortScan) Close() {
 
 func (ss *sortScan) Val(fieldName string) (types.Value, error) {
 	return ss.currentScan.Val(fieldName)
-}
-
-func (ss *sortScan) Int(fieldName string) (int, error) {
-	return ss.currentScan.Int(fieldName)
-}
-
-func (ss *sortScan) String(fieldName string) (string, error) {
-	return ss.currentScan.String(fieldName)
 }
 
 func (ss *sortScan) HasField(fieldName string) bool {

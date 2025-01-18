@@ -155,19 +155,3 @@ func (ijs *IndexJoinScan) Val(field string) (types.Value, error) {
 
 	return ijs.lhs.Val(field)
 }
-
-func (ijs *IndexJoinScan) Int(field string) (int, error) {
-	if ijs.rhs.HasField(field) {
-		return ijs.rhs.Int(field)
-	}
-
-	return ijs.lhs.Int(field)
-}
-
-func (ijs *IndexJoinScan) String(field string) (string, error) {
-	if ijs.rhs.HasField(field) {
-		return ijs.rhs.String(field)
-	}
-
-	return ijs.lhs.String(field)
-}

@@ -24,7 +24,7 @@ type Buffer struct {
 	contents *types.Page
 	block    types.Block
 	pins     int
-	txnum    int
+	txnum    types.TxID
 	lsn      int
 }
 
@@ -33,7 +33,7 @@ func newBuffer(fm fileManager, lm logManager) *Buffer {
 		fm:       fm,
 		lm:       lm,
 		contents: types.NewPage(),
-		txnum:    -1,
+		txnum:    types.TxIDInvalid,
 		lsn:      -1,
 	}
 }
@@ -47,7 +47,7 @@ func (buf *Buffer) Block() types.Block {
 }
 
 // SetModified
-func (buf *Buffer) SetModified(txnum int, lsn int) {
+func (buf *Buffer) SetModified(txnum types.TxID, lsn int) {
 	buf.Lock()
 	defer buf.Unlock()
 
@@ -57,7 +57,7 @@ func (buf *Buffer) SetModified(txnum int, lsn int) {
 	}
 }
 
-func (buf *Buffer) modifyingTxNumber() int {
+func (buf *Buffer) modifyingTxNumber() types.TxID {
 	buf.RLock()
 	defer buf.RUnlock()
 
@@ -84,7 +84,7 @@ func (buf *Buffer) flush() {
 		buf.lm.Flush(buf.lsn)
 		// persist contents of the buffer to the assigned block
 		buf.fm.Write(buf.block, buf.contents)
-		buf.txnum = -1
+		buf.txnum = types.TxIDInvalid
 	}
 }
 

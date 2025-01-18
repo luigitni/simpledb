@@ -8,11 +8,11 @@ type Layout struct {
 	schema       Schema
 	fieldIndexes map[string]int
 	offsets      map[string]int
+	sizes        map[string]int
 	slotsize     int
 }
 
 func NewLayout(schema Schema) Layout {
-
 	offsets := make(map[string]int, len(schema.fields))
 	fieldIndexes := make(map[string]int, len(schema.fields))
 
@@ -32,13 +32,15 @@ func NewLayout(schema Schema) Layout {
 	}
 }
 
+const varlen = -1
+
 func lenInBytes(schema Schema, field string) int {
 	t := schema.ftype(field)
 	switch t {
 	case types.INTEGER:
-		return types.IntSize
+		return int(types.SizeOfInt)
 	case types.STRING:
-		return types.StrLength(schema.flen(field))
+		return -1
 	}
 	panic("unsupported type")
 }
@@ -58,6 +60,10 @@ func (l Layout) FieldIndex(fname string) int {
 	}
 
 	return idx
+}
+
+func (l Layout) FieldSize(fname string) types.Size {
+	return types.Size(lenInBytes(l.schema, fname))
 }
 
 func (l Layout) FieldsCount() int {

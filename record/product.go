@@ -49,24 +49,6 @@ func (pr Product) Close() {
 	pr.second.Close()
 }
 
-// Int implements Scan.
-func (pr Product) Int(fname string) (int, error) {
-	if pr.first.HasField(fname) {
-		return pr.first.Int(fname)
-	}
-
-	return pr.second.Int(fname)
-}
-
-// String implements Scan.
-func (pr Product) String(fname string) (string, error) {
-	if pr.first.HasField(fname) {
-		return pr.first.String(fname)
-	}
-
-	return pr.second.String(fname)
-}
-
 // Val implements Scan.
 func (pr Product) Val(fname string) (types.Value, error) {
 	if pr.first.HasField(fname) {

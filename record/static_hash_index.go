@@ -79,33 +79,38 @@ func (idx *StaticHashIndex) Next() error {
 }
 
 func (idx *StaticHashIndex) DataRID() (RID, error) {
-	block, err := idx.scan.Int("block")
+	block, err := idx.scan.Val("block")
 	if err != nil {
 		return RID{}, err
 	}
 
-	id, err := idx.scan.Int("id")
+	id, err := idx.scan.Val("id")
 	if err != nil {
 		return RID{}, err
 	}
 
-	return NewRID(block, id), nil
+	return NewRID(
+		types.ValueAsInteger[types.Long](block),
+		types.ValueAsInteger[types.SmallInt](id),
+	), nil
 }
 
 func (idx *StaticHashIndex) Insert(v types.Value, rid RID) error {
 	idx.BeforeFirst(v)
-	size := types.IntSize * 2
-	size += v.Size()
+	var size types.Offset = types.Offset(types.SizeOfInt * 2)
+
+	t := idx.scan.layout.schema.ftype("dataval")
+	size += v.Size(t)
 
 	if err := idx.scan.Insert(size); err != nil {
 		return fmt.Errorf("error inserting into tablescan: %w", err)
 	}
 
-	if err := idx.scan.SetInt("block", rid.Blocknum); err != nil {
+	if err := idx.scan.SetVal("block", types.ValueFromInteger[types.Long](types.SizeOfLong, rid.Blocknum)); err != nil {
 		return fmt.Errorf("error setting block into tablescan: %w", err)
 	}
 
-	if err := idx.scan.SetInt("id", rid.Slot); err != nil {
+	if err := idx.scan.SetVal("id", types.ValueFromInteger[types.SmallInt](types.SizeOfSmallInt, rid.Slot)); err != nil {
 		return fmt.Errorf("error setting id into tablescan: %w", err)
 	}
 

@@ -8,6 +8,7 @@ import (
 
 type mockLayout struct {
 	indexes map[string]int
+	sizes   map[string]types.Size
 }
 
 func (m mockLayout) FieldIndex(fname string) int {
@@ -16,6 +17,10 @@ func (m mockLayout) FieldIndex(fname string) int {
 
 func (m mockLayout) FieldsCount() int {
 	return len(m.indexes)
+}
+
+func (m mockLayout) FieldSize(fname string) types.Size {
+	return m.sizes[fname]
 }
 
 var _ Layout = mockLayout{}
@@ -68,8 +73,8 @@ func TestSlottedRecordPageAppendRecordSlot(t *testing.T) {
 	})
 
 	t.Run("successfully appends records", func(t *testing.T) {
-		recordsSize := 0
-		for i, v := range []int{255, 1024, 512, 323, 8} {
+		var recordsSize types.Offset
+		for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
 			recordsSize += v
 
 			if err := header.appendRecordSlot(v); err != nil {
@@ -104,8 +109,8 @@ func TestSlottedRecordPageWriteHeader(t *testing.T) {
 	}
 
 	t.Run("successfully appends records", func(t *testing.T) {
-		recordsSize := 0
-		for i, v := range []int{255, 1024, 512, 323, 8} {
+		var recordsSize types.Offset
+		for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
 			recordsSize += v
 
 			header, err := page.readHeader()
@@ -146,23 +151,27 @@ func TestSlottedRecordPageReadHeader(t *testing.T) {
 	tx := newMockTx()
 
 	const (
-		blockNumber  = 1
-		freeSpaceEnd = 1024
+		blockNumber  types.Long = 1
+		freeSpaceEnd            = 1024
 	)
 
 	entries := []slottedRecordPageHeaderEntry{
-		slottedRecordPageHeaderEntry(0).setOffset(0).setLength(256).setFlag(flagInUseRecord),
-		slottedRecordPageHeaderEntry(0).setOffset(512).setLength(512).setFlag(flagEmptyRecord),
-		slottedRecordPageHeaderEntry(0).setOffset(1024).setLength(1024).setFlag(flagInUseRecord),
+		slottedRecordPageHeaderEntry{}.setOffset(0).setLength(256).setFlag(flagInUseRecord),
+		slottedRecordPageHeaderEntry{}.setOffset(512).setLength(512).setFlag(flagEmptyRecord),
+		slottedRecordPageHeaderEntry{}.setOffset(1024).setLength(1024).setFlag(flagInUseRecord),
 	}
 
 	page := NewSlottedRecordPage(tx, types.Block{}, nil)
 
-	tx.SetInt(page.block, blockNumberOffset, blockNumber, false)
-	tx.SetInt(page.block, numSlotsOffset, len(entries), false)
-	tx.SetInt(page.block, freeSpaceEndOffset, freeSpaceEnd, false)
-	for i, entry := range entries {
-		tx.SetInt(page.block, entriesOffset+i*headerEntrySize, int(entry), false)
+	header := slottedRecordPageHeader{
+		blockNumber:  blockNumber,
+		numSlots:     types.SmallInt(len(entries)),
+		freeSpaceEnd: freeSpaceEnd,
+		entries:      entries,
+	}
+
+	if err := page.writeHeader(header); err != nil {
+		t.Fatalf("error writing header: %v", err)
 	}
 
 	header, err := page.readHeader()
@@ -174,7 +183,7 @@ func TestSlottedRecordPageReadHeader(t *testing.T) {
 		t.Errorf("expected block number %d, got %d", blockNumber, got)
 	}
 
-	if got := header.numSlots; got != len(entries) {
+	if got := header.numSlots; got != types.SmallInt(len(entries)) {
 		t.Errorf("expected numSlots %d, got %d", len(entries), got)
 	}
 
@@ -193,6 +202,7 @@ func TestSlottedRecordPageSearchAfter(t *testing.T) {
 	tx := newMockTx()
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]types.Size{"field1": types.SizeOfInt},
 	}
 
 	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
@@ -201,29 +211,20 @@ func TestSlottedRecordPageSearchAfter(t *testing.T) {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
-	header, err := page.readHeader()
-	if err != nil {
-		t.Fatalf("error reading header: %v", err)
-	}
-
 	t.Run("page is empty, no free slot available amongst the existing ones", func(t *testing.T) {
-		if _, err := page.searchAfter(0, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
+		if _, err := page.searchFrom(0, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
 		}
 	})
 
-	for _, v := range []int{255, 1024, 512, 323, 8} {
-		if err := header.appendRecordSlot(v); err != nil {
+	for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
+		if _, err := page.InsertFrom(types.SmallInt(i), v, false); err != nil {
 			t.Fatalf("error appending record slot: %v", err)
 		}
 	}
 
-	if err := page.writeHeader(header); err != nil {
-		t.Fatalf("error writing header: %v", err)
-	}
-
 	t.Run("no free slot available amongst the existing ones", func(t *testing.T) {
-		if _, err := page.searchAfter(0, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
+		if _, err := page.searchFrom(0, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
 		}
 	})
@@ -248,20 +249,20 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 	}
 
 	t.Run("successfully inserts records one after another", func(t *testing.T) {
-		for i, v := range []int{255, 1024, 512, 323, 8} {
-			slot, err := page.InsertAfter(i-1, v, false)
+		for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
+			slot, err := page.InsertFrom(0, v, false)
 			if err != nil {
 				t.Errorf("error inserting after -1: %v", err)
 			}
 
-			if slot != i {
+			if slot != types.SmallInt(i) {
 				t.Errorf("expexted slot to be %d, got %d", i, slot)
 			}
 		}
 	})
 
 	t.Run("no space is availale for inserting records", func(t *testing.T) {
-		_, err := page.InsertAfter(-1, defaultFreeSpaceEnd+1, false)
+		_, err := page.InsertFrom(0, defaultFreeSpaceEnd+1, false)
 		if err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
 		}
@@ -277,6 +278,12 @@ func TestSlottedRecordPageSet(t *testing.T) {
 			"field2": 1,
 			"field3": 2,
 			"field4": 3,
+		},
+		sizes: map[string]types.Size{
+			"field1": types.SizeOfTinyInt,
+			"field2": 0,
+			"field3": types.SizeOfInt,
+			"field4": 0,
 		},
 	}
 
@@ -295,76 +302,95 @@ func TestSlottedRecordPageSet(t *testing.T) {
 	*
 	 */
 	record := []interface{}{
-		12, "This is a variable string", 4567890, "This is another string",
+		types.TinyInt(12), "This is a variable string", types.Int(4567890), "This is another string",
 	}
 
-	recordLength := 0
-	for _, v := range record {
+	catalog := []string{"field1", "field2", "field3", "field4"}
+
+	var recordLength types.Offset
+	for i, v := range record {
+		column := catalog[i]
+
 		switch val := v.(type) {
-		case int:
-			recordLength += types.IntSize
+		case types.TinyInt, types.Int:
+			recordLength += types.Offset(layout.indexes[column])
 		case string:
-			l := types.StrLength(len(val))
-			recordLength += l
+			recordLength += types.Offset(types.UnsafeSizeOfStringAsVarlen(val))
 		default:
 			t.Fatal("unsupported type")
 		}
 	}
 
-	slot, err := page.InsertAfter(-1, recordLength, false)
+	slot, err := page.InsertFrom(0, recordLength, false)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if err := page.SetInt(slot, "field1", record[0].(int)); err != nil {
+	if err := page.SetFixedLen(
+		slot,
+		"field1",
+		types.UnsafeIntegerToFixed(layout.sizes["field1"], record[0].(types.TinyInt)),
+	); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := page.SetString(slot, "field2", record[1].(string)); err != nil {
+	if err := page.SetVarLen(
+		slot,
+		"field2",
+		types.UnsafeNewVarlenFromGoString(record[1].(string)),
+	); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := page.SetInt(slot, "field3", record[2].(int)); err != nil {
+	if err := page.SetFixedLen(
+		slot,
+		"field3",
+		types.UnsafeIntegerToFixed(layout.sizes["field3"], record[2].(types.Int)),
+	); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := page.SetString(slot, "field4", record[3].(string)); err != nil {
+	if err := page.SetVarLen(
+		slot,
+		"field4",
+		types.UnsafeNewVarlenFromGoString(record[3].(string)),
+	); err != nil {
 		t.Fatal(err)
 	}
 
-	gotInt, err := page.Int(slot, "field1")
+	gotFixed, err := page.FixedLen(slot, "field1")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if gotInt != record[0].(int) {
-		t.Errorf("expected field1 value to be %d, got %d", record[0], gotInt)
+	if v := types.UnsafeFixedToInteger[types.TinyInt](gotFixed); v != record[0].(types.TinyInt) {
+		t.Errorf("expected field1 value to be %d, got %d", record[0], v)
 	}
 
-	gotStr, err := page.String(slot, "field2")
+	gotVarlen, err := page.VarLen(slot, "field2")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if gotStr != record[1].(string) {
-		t.Errorf("expected field2 value to be %s, got %s", record[1], gotStr)
+	if v := types.UnsafeVarlenToGoString(gotVarlen); v != record[1].(string) {
+		t.Errorf("expected field2 value to be %s, got %s", record[1], v)
 	}
 
-	gotInt, err = page.Int(slot, "field3")
+	gotFixed, err = page.FixedLen(slot, "field3")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if gotInt != record[2].(int) {
-		t.Errorf("expected field3 value to be %d, got %d", record[2], gotInt)
+	if v := types.UnsafeFixedToInteger[types.Int](gotFixed); v != record[2].(types.Int) {
+		t.Errorf("expected field3 value to be %d, got %d", record[2], v)
 	}
 
-	gotStr, err = page.String(slot, "field4")
+	gotVarlen, err = page.VarLen(slot, "field4")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if gotStr != record[3].(string) {
-		t.Errorf("expected field4 value to be %s, got %s", record[3], gotStr)
+	if v := types.UnsafeVarlenToGoString(gotVarlen); v != record[3].(string) {
+		t.Errorf("expected field4 value to be %s, got %s", record[3], v)
 	}
 }

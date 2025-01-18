@@ -17,7 +17,6 @@ func TestMain(m *testing.M) {
 }
 
 func TestLockTable(t *testing.T) {
-
 	block := types.NewBlock("test", 1)
 
 	// test that no wait happens when all clients request Slocks
@@ -69,17 +68,17 @@ func TestLockTable(t *testing.T) {
 	if err := lockTable.XLock(block); err != nil {
 		t.Fatal("expected xlock to be successfully acquired after unlocks")
 	}
-
 }
 
 func TestAcquireXLock(t *testing.T) {
-
 	const fname = "tesblock"
 	const howMany = 1000
 
 	blocks := make([]types.Block, howMany)
 
-	for i := 0; i < howMany; i++ {
+	var i types.Long
+	for i = 0; i < howMany; i++ {
+
 		block := types.NewBlock(fname, i)
 		if e := lockTable.XLock(block); e != nil {
 			t.Fatalf("expected x lock to be acquired on block %d. Got error %s", i, e.Error())

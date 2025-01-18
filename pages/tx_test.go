@@ -15,7 +15,7 @@ type mockTx struct {
 
 	storage mockTxStorage
 
-	id int
+	id types.TxID
 
 	isPinned   bool
 	isCommit   bool
@@ -33,46 +33,46 @@ type mockTx struct {
 }
 
 type mockTxStorage interface {
-	setInt(blockID types.Block, offset int, val int, shouldLog bool) error
-	setString(blockID types.Block, offset int, val string, shouldLog bool) error
+	setFixedLen(blockID types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error
+	setVarLen(blockID types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error
 
-	getInt(blockID types.Block, offset int) (int, error)
-	getString(blockID types.Block, offset int) (string, error)
+	getFixedLen(blockID types.Block, offset types.Offset, size types.Size) (types.FixedLen, error)
+	getVarLen(blockID types.Block, offset types.Offset) (types.Varlen, error)
 }
 
-type defaultMockTxStorage map[types.Block]map[int]interface{}
+type defaultMockTxStorage map[types.Block]map[types.Offset]interface{}
 
-func (s defaultMockTxStorage) getInt(blockID types.Block, offset int) (int, error) {
+func (s defaultMockTxStorage) getFixedLen(blockID types.Block, offset types.Offset, size types.Size) (types.FixedLen, error) {
 	om, ok := s[blockID]
 	if !ok {
-		return 0, nil
+		return nil, nil
 	}
 
-	if v, ok := om[offset].(int); ok {
+	if v, ok := om[offset].(types.FixedLen); ok {
 		return v, nil
 	}
 
-	return 0, nil
+	return nil, nil
 }
 
-func (s defaultMockTxStorage) getString(blockID types.Block, offset int) (string, error) {
+func (s defaultMockTxStorage) getVarLen(blockID types.Block, offset types.Offset) (types.Varlen, error) {
 	om, ok := s[blockID]
 	if !ok {
-		return "", nil
+		return types.Varlen{}, nil
 	}
 
-	if v, ok := om[offset].(string); ok {
+	if v, ok := om[offset].(types.Varlen); ok {
 		return v, nil
 	}
 
-	return "", nil
+	return types.Varlen{}, nil
 }
 
-func (s defaultMockTxStorage) setInt(blockID types.Block, offset int, val int, shouldLog bool) error {
+func (s defaultMockTxStorage) setFixedLen(blockID types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error {
 	om, ok := s[blockID]
 
 	if !ok {
-		om = make(map[int]interface{})
+		om = make(map[types.Offset]interface{})
 		s[blockID] = om
 	}
 
@@ -81,11 +81,11 @@ func (s defaultMockTxStorage) setInt(blockID types.Block, offset int, val int, s
 	return nil
 }
 
-func (s defaultMockTxStorage) setString(blockID types.Block, offset int, val string, shouldLog bool) error {
+func (s defaultMockTxStorage) setVarLen(blockID types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error {
 	om, ok := s[blockID]
 
 	if !ok {
-		om = make(map[int]interface{})
+		om = make(map[types.Offset]interface{})
 		s[blockID] = om
 	}
 
@@ -95,19 +95,19 @@ func (s defaultMockTxStorage) setString(blockID types.Block, offset int, val str
 
 func newMockTx() *mockTx {
 	return &mockTx{
-		id:      rand.Int(),
+		id:      types.TxID(rand.Uint32()),
 		storage: defaultMockTxStorage{},
 	}
 }
 
-func newMockTxWithId(id int) *mockTx {
+func newMockTxWithId(id types.TxID) *mockTx {
 	mtx := newMockTx()
 	mtx.id = id
 
 	return mtx
 }
 
-func (t *mockTx) Id() int {
+func (t *mockTx) Id() types.TxID {
 	return t.id
 }
 
@@ -121,7 +121,7 @@ func (t *mockTx) Append(fname string) (types.Block, error) {
 }
 
 // BlockSize implements tx.Transaction.
-func (t *mockTx) BlockSize() int {
+func (t *mockTx) BlockSize() types.Offset {
 	return types.PageSize
 }
 
@@ -156,43 +156,43 @@ func (t *mockTx) Rollback() {
 }
 
 // Int implements tx.Transaction.
-func (t *mockTx) Int(blockID types.Block, offset int) (int, error) {
+func (t *mockTx) FixedLen(blockID types.Block, offset types.Offset, size types.Size) (types.FixedLen, error) {
 	t.Lock()
 	defer t.Unlock()
 
 	t.getIntCalls++
-	return t.storage.getInt(blockID, offset)
+	return t.storage.getFixedLen(blockID, offset, size)
 }
 
 // SetInt implements tx.Transaction.
-func (t *mockTx) SetInt(blockID types.Block, offset int, val int, shouldLog bool) error {
+func (t *mockTx) SetFixedLen(blockID types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error {
 	t.Lock()
 	defer t.Unlock()
 
 	t.setIntCalls++
-	return t.storage.setInt(blockID, offset, val, shouldLog)
+	return t.storage.setFixedLen(blockID, offset, size, val, shouldLog)
 }
 
 // String implements tx.Transaction.
-func (t *mockTx) String(blockID types.Block, offset int) (string, error) {
+func (t *mockTx) VarLen(blockID types.Block, offset types.Offset) (types.Varlen, error) {
 	t.Lock()
 	defer t.Unlock()
 
 	t.getStringCalls++
-	return t.storage.getString(blockID, offset)
+	return t.storage.getVarLen(blockID, offset)
 }
 
 // SetString implements tx.Transaction.
-func (t *mockTx) SetString(blockID types.Block, offset int, val string, shouldLog bool) error {
+func (t *mockTx) SetVarLen(blockID types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error {
 	t.Lock()
 	defer t.Unlock()
 
 	t.setStringCalls++
-	return t.storage.setString(blockID, offset, val, shouldLog)
+	return t.storage.setVarLen(blockID, offset, val, shouldLog)
 }
 
 // Size implements tx.Transaction.
-func (t *mockTx) Size(fname string) (int, error) {
+func (t *mockTx) Size(fname string) (types.Long, error) {
 	panic("unimplemented")
 }
 

@@ -4,6 +4,7 @@ import (
 	"io"
 
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 const (
@@ -42,11 +43,11 @@ func (vm viewManager) createView(vname string, vdef string, trans tx.Transaction
 	ts := newTableScan(trans, "viewcat", layout)
 	defer ts.Close()
 
-	if err := ts.SetString("viewname", vname); err != nil {
+	if err := ts.SetVal("viewname", types.ValueFromGoString(vname)); err != nil {
 		return err
 	}
 
-	if err := ts.SetString("viewdef", vdef); err != nil {
+	if err := ts.SetVal("viewdef", types.ValueFromGoString(vdef)); err != nil {
 		return err
 	}
 
@@ -74,17 +75,17 @@ func (vm viewManager) viewDefinition(vname string, trans tx.Transaction) (string
 			return "", err
 		}
 
-		s, err := ts.String("viewname")
+		s, err := ts.Varlen("viewname")
 		if err != nil {
 			return "", err
 		}
 
-		if s == vname {
-			res, err := ts.String("viewdef")
+		if types.UnsafeVarlenToGoString(s) == vname {
+			res, err := ts.Varlen("viewdef")
 			if err != nil {
 				return "", err
 			}
-			return res, nil
+			return types.UnsafeVarlenToGoString(res), nil
 		}
 	}
 

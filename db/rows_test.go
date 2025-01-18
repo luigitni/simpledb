@@ -7,7 +7,6 @@ import (
 )
 
 func TestRowsString(t *testing.T) {
-
 	t.Run("expect no result", func(t *testing.T) {
 		rows := Rows{
 			cols: []string{
@@ -40,16 +39,16 @@ func TestRowsString(t *testing.T) {
 			rows: []Row{
 				{
 					vals: []types.Value{
-						types.ValueFromInt(123),
-						types.ValueFromString("abc"),
-						types.ValueFromString("This is a much longer value"),
+						types.ValueFromInteger[types.Int](types.SizeOfInt, 123),
+						types.ValueFromGoString("abc"),
+						types.ValueFromGoString("This is a much longer value"),
 					},
 				},
 				{
 					vals: []types.Value{
-						types.ValueFromInt(0),
-						types.ValueFromString("This is a much longer value"),
-						types.ValueFromString("short"),
+						types.ValueFromInteger[types.Int](types.SizeOfInt, 0),
+						types.ValueFromGoString("This is a much longer value"),
+						types.ValueFromGoString("short"),
 					},
 				},
 			},
@@ -59,5 +58,4 @@ func TestRowsString(t *testing.T) {
 			t.Fatalf("expected %q, got %q", expected, s)
 		}
 	})
-
 }

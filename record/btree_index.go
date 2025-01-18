@@ -39,7 +39,7 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 		node := newBTreePage(x, block, leafLayout)
 		defer node.Close()
 
-		if err := node.format(block, -1); err != nil {
+		if err := node.format(block, flagUnset); err != nil {
 			return nil, err
 		}
 	}
@@ -75,9 +75,9 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 		var minVal types.Value
 		switch fldType {
 		case types.INTEGER:
-			minVal = types.ValueFromInt(math.MinInt)
+			minVal = types.ValueFromInteger[types.Long](types.SizeOfLong, 0)
 		case types.STRING:
-			minVal = types.ValueFromString("")
+			minVal = types.ValueFromGoString("")
 		}
 
 		if err := node.insertDirectoryRecord(0, minVal, 0); err != nil {
@@ -150,7 +150,7 @@ func (idx *BTreeIndex) Insert(v types.Value, rid RID) error {
 		return err
 	}
 
-	if e == emptyDirEntry {
+	if e.value == nil {
 		return nil
 	}
 

@@ -90,7 +90,7 @@ func (man *BufferManager) Available() int {
 
 // FlushAll iterates over the assigned blocks and flush them to disk
 // if and only if they belong to the current transaction
-func (man *BufferManager) FlushAll(txnum int) {
+func (man *BufferManager) FlushAll(txnum types.TxID) {
 	man.blockMap.Range(func(key, value any) bool {
 		buf := value.(*Buffer)
 		if buf.modifyingTxNumber() == txnum {

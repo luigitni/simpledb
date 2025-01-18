@@ -46,26 +46,6 @@ func (project Project) Close() {
 	project.scan.Close()
 }
 
-// Int checks if the specified fieldname is in the list.
-// If it is, it calls the underlying scan, if not, it returns an
-// ErrNoField error
-func (project Project) Int(fname string) (int, error) {
-	if !project.HasField(fname) {
-		return 0, ErrNoField
-	}
-	return project.scan.Int(fname)
-}
-
-// String checks if the specified fieldname is in the list.
-// If it is, it calls the underlying scan, if not, it returns an
-// ErrNoField error
-func (project Project) String(fname string) (string, error) {
-	if !project.HasField(fname) {
-		return "", ErrNoField
-	}
-	return project.scan.String(fname)
-}
-
 // Val checks if the specified fieldname is in the list.
 // If it is, it calls the underlying scan, if not, it returns an
 // ErrNoField error

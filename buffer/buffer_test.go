@@ -22,7 +22,7 @@ func (fm *mockFileManager) Read(block types.Block, page *types.Page) {
 	fm.readCalls++
 }
 
-func (fm *mockFileManager) BlockSize() int {
+func (fm *mockFileManager) BlockSize() types.Offset {
 	return 512
 }
 
@@ -84,7 +84,8 @@ func TestBufferManager(t *testing.T) {
 		const size = 10
 
 		bufMan := NewBufferManager(fm, lm, size)
-		for i := 0; i < size-1; i++ {
+
+		for i := range types.Long(size - 1) {
 			block := types.NewBlock("test", i)
 			bufMan.Pin(block)
 		}
@@ -100,7 +101,7 @@ func TestBufferManager(t *testing.T) {
 		const size = 10
 
 		bufMan := NewBufferManager(fm, lm, size)
-		for i := 0; i < size; i++ {
+		for i := range types.Long(size) {
 			block := types.NewBlock("test", i)
 			bufMan.Pin(block)
 		}
@@ -131,7 +132,7 @@ func TestBufferManager(t *testing.T) {
 		const size = 10
 
 		bufMan := NewBufferManager(fm, lm, size)
-		for i := 0; i < size; i++ {
+		for i := range types.Long(size) {
 			block := types.NewBlock("test", i)
 			buf, err := bufMan.Pin(block)
 			if err != nil {
@@ -141,7 +142,7 @@ func TestBufferManager(t *testing.T) {
 		}
 
 		toBeEvicted := types.NewBlock("test", 3).ID()
-		for i := 0; i < size; i++ {
+		for i := range types.Long(size) {
 			block := types.NewBlock("test", i)
 			if block.ID() == toBeEvicted {
 				continue

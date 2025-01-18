@@ -62,7 +62,7 @@ func TestConstant(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if s := c.AsStringVal(); s != v.exp {
+		if s := c.AsGoString(); s != v.exp {
 			t.Fatalf("expected %q, got %s", v.exp, s)
 		}
 	}
@@ -131,7 +131,7 @@ func TestUpdateCommandPredicate(t *testing.T) {
 		t.Fatalf("expected field to be %q, got %s", "col", field.Field)
 	}
 
-	if v := field.NewValue.AsConstant().AsIntVal(); v != 5 {
+	if v := field.NewValue.AsConstant(); types.ValueAsInteger[types.Int](v) != 5 {
 		t.Fatalf("expected newValue to be %d, got %d", 5, v)
 	}
 
@@ -182,11 +182,11 @@ func TestUpdateCommandMultipleFields(t *testing.T) {
 
 		switch val := e.Value.(type) {
 		case int:
-			if v := v.AsIntVal(); v != val {
+			if types.ValueAsInteger[types.Int](v) != types.Int(val) {
 				t.Fatalf("expected newValue to be %d, got %d", val, v)
 			}
 		case string:
-			if v := v.AsStringVal(); v != val {
+			if v := v.AsGoString(); v != val {
 				t.Fatalf("expected newValue to be %q, got %s", val, v)
 			}
 		}
@@ -240,11 +240,11 @@ func TestInsertCommand(t *testing.T) {
 		}
 	}
 
-	if v := ins.Values[0].AsStringVal(); v != "aval" {
+	if v := ins.Values[0].AsGoString(); v != "aval" {
 		t.Fatalf("expected value to be %q, got %q", "aval", v)
 	}
 
-	if v := ins.Values[1].AsIntVal(); v != 5 {
+	if v := ins.Values[1]; types.ValueAsInteger[types.Int](v) != 5 {
 		t.Fatalf("expected value to be %d, got %d", 5, v)
 	}
 }

@@ -9,36 +9,39 @@ import (
 )
 
 func TestFile(t *testing.T) {
-
 	conf := test.DefaultConfig(t)
 	fman := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 
 	block := types.NewBlock(conf.BlockFile, 2)
 	page := types.NewPage()
 
-	pos := 88
+	var offset types.Offset = 88
 
 	const val = "abcdefghilmno"
 	const intv = 352
-	page.SetString(pos, val)
 
-	pos2 := pos + types.StrLength(len(val))
+	varlen := types.UnsafeNewVarlenFromGoString(val)
 
-	page.SetInt(pos2, intv)
+	page.UnsafeSetVarlen(offset, varlen)
 
+	offset2 := offset + types.Offset(varlen.Size())
+
+	page.UnsafeSetFixedLen(offset2, types.SizeOfInt, types.UnsafeIntegerToFixed(types.SizeOfInt, types.Int(intv)))
+
+	// write the page to the block
 	fman.Write(block, page)
 
+	// create a new page and read it back from the block
 	p2 := types.NewPage()
 	fman.Read(block, p2)
 
-	if got := p2.Int(pos2); got != intv {
-		t.Fatalf("expected %d at offset %d. Got %d", intv, pos2, got)
-	}
-	t.Logf("offset %d contains %d", pos2, p2.Int(pos2))
-
-	if got := p2.String(pos); got != val {
-		t.Fatalf("expected %q at offset %d. Got %q", val, pos, got)
+	got := p2.UnsafeGetFixedLen(offset2, types.SizeOfInt)
+	if got := types.UnsafeFixedToInteger[types.Int](got); got != intv {
+		t.Fatalf("expected %d at offset %d. Got %d", intv, offset2, got)
 	}
 
-	t.Logf("offset %d contains %s", pos, p2.String(pos))
+	sgot := p2.UnsafeGetVarlen(offset)
+	if got := types.UnsafeVarlenToGoString(sgot); got != val {
+		t.Fatalf("expected %q at offset %d. Got %q", val, offset, got)
+	}
 }

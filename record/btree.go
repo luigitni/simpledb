@@ -2,6 +2,7 @@ package record
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/luigitni/simpledb/tx"
 	"github.com/luigitni/simpledb/types"
@@ -9,15 +10,17 @@ import (
 
 const (
 	// bTreePageFlagOffset is the byte offset of the page flag.
-	// The flag is a value of type INT
-	bTreePageFlagOffset = 0
+	// The flag is a value of type types.TinyInt
+	bTreePageFlagOffset types.Offset = 0
 	// bTreePageNumRecordsOffset is the byte offset of the records number.
-	// The number of records is a value of type INT.
-	bTreePageNumRecordsOffset = types.IntSize
+	// The number of records is a value of type types.Int.
+	bTreePageNumRecordsOffset types.Offset = types.Offset(types.SizeOfLong)
 	// bTreePageContentOffset is the byte offset from the left of the page
 	// where records start
-	bTreePageContentOffset = bTreePageNumRecordsOffset + types.IntSize
+	bTreePageContentOffset types.Offset = bTreePageNumRecordsOffset + types.Offset(types.SizeOfLong)
 )
+
+const flagUnset = types.Long(math.MaxUint64)
 
 // bTreePage represents a page used by B-Tree blocks.
 // Differently from logs and record pages, bTreePage must support the following:
@@ -48,43 +51,67 @@ func newBTreePage(x tx.Transaction, currentBlock types.Block, layout Layout) bTr
 	}
 }
 
-func (page bTreePage) slotPosition(slot int) int {
+func (page bTreePage) slotPosition(slot int) types.Offset {
 	size := page.layout.slotsize
-	return bTreePageContentOffset + slot*size
+	return bTreePageContentOffset + types.Offset(slot*size)
 }
 
 // fieldPosition returns the position of the field in the page.
-func (page bTreePage) fieldPosition(slot int, fieldName string) int {
-	offset := page.layout.Offset(fieldName)
+func (page bTreePage) fieldPosition(slot int, fieldName string) types.Offset {
+	offset := types.Offset(page.layout.Offset(fieldName))
 	return page.slotPosition(slot) + offset
 }
 
-func (page bTreePage) int(slot int, fieldName string) (int, error) {
+func (page bTreePage) int(slot int, fieldName string) (types.Long, error) {
 	pos := page.fieldPosition(slot, fieldName)
-	return page.x.Int(page.blockID, pos)
-}
+	v, err := page.x.FixedLen(page.blockID, pos, types.SizeOfLong)
+	if err != nil {
+		return 0, err
+	}
 
-func (page bTreePage) setInt(slot int, fieldName string, val int) error {
-	pos := page.fieldPosition(slot, fieldName)
-	return page.x.SetInt(page.blockID, pos, val, true)
-}
-
-func (page bTreePage) setString(slot int, fieldName string, val string) error {
-	pos := page.fieldPosition(slot, fieldName)
-	return page.x.SetString(page.blockID, pos, val, true)
+	return types.UnsafeFixedToInteger[types.Long](v), nil
 }
 
 func (page bTreePage) string(slot int, fieldName string) (string, error) {
 	pos := page.fieldPosition(slot, fieldName)
-	return page.x.String(page.blockID, pos)
+	v, err := page.x.VarLen(page.blockID, pos)
+	if err != nil {
+		return "", err
+	}
+
+	return types.UnsafeVarlenToGoString(v), nil
+}
+
+func (page bTreePage) setInt(slot int, fieldName string, val types.Long) error {
+	pos := page.fieldPosition(slot, fieldName)
+
+	return page.x.SetFixedLen(
+		page.blockID,
+		pos,
+		types.SizeOfLong,
+		types.UnsafeIntegerToFixed[types.Long](types.SizeOfLong, val),
+		true,
+	)
+}
+
+func (page bTreePage) setString(slot int, fieldName string, val string) error {
+	pos := page.fieldPosition(slot, fieldName)
+
+	return page.x.SetVarLen(
+		page.blockID,
+		pos,
+		types.UnsafeNewVarlenFromGoString(val),
+		true,
+	)
 }
 
 func (page bTreePage) setVal(slot int, fieldName string, val types.Value) error {
+	// todo: here the type should be a long
 	if t := page.layout.schema.ftype(fieldName); t == types.INTEGER {
-		return page.setInt(slot, fieldName, val.AsIntVal())
+		return page.setInt(slot, fieldName, types.ValueAsInteger[types.Long](val))
 	}
 
-	return page.setString(slot, fieldName, val.AsStringVal())
+	return page.setString(slot, fieldName, val.AsGoString())
 }
 
 func (page bTreePage) mustGetVal(slot int, fieldName string) types.Value {
@@ -100,11 +127,12 @@ func (page bTreePage) val(slot int, fieldName string) (types.Value, error) {
 	t := page.layout.schema.ftype(fieldName)
 	if t == types.INTEGER {
 		v, err := page.int(slot, fieldName)
-		return types.ValueFromInt(v), err
+
+		return types.ValueFromInteger[types.Long](types.SizeOfLong, v), err
 	}
 
 	v, err := page.string(slot, fieldName)
-	return types.ValueFromString(v), err
+	return types.ValueFromGoString(v), err
 }
 
 func (page bTreePage) mustGetDataVal(slot int) types.Value {
@@ -140,10 +168,16 @@ func (page bTreePage) getDataRID(slot int) (RID, error) {
 		return RID{}, err
 	}
 
-	return NewRID(block, id), nil
+	// todo: block is currently a long, but btree page is returning an Int.
+	// We will update the btree page to support general fixed length types
+	// but first we want the system to compile.
+	return NewRID(
+		block,
+		types.SmallInt(id),
+	), nil
 }
 
-func (page bTreePage) mustGetFlag() int {
+func (page bTreePage) mustGetFlag() types.Long {
 	f, err := page.getFlag()
 	if err != nil {
 		panic(err)
@@ -152,18 +186,29 @@ func (page bTreePage) mustGetFlag() int {
 	return f
 }
 
-func (page bTreePage) getFlag() (int, error) {
-	return page.x.Int(page.blockID, 0)
+func (page bTreePage) getFlag() (types.Long, error) {
+	v, err := page.x.FixedLen(page.blockID, bTreePageFlagOffset, types.SizeOfLong)
+	if err != nil {
+		return 0, err
+	}
+
+	return types.UnsafeFixedToInteger[types.Long](v), nil
 }
 
-func (page bTreePage) mustSetFlag(v int) {
+func (page bTreePage) mustSetFlag(v types.Long) {
 	if err := page.setFlag(v); err != nil {
 		panic(err)
 	}
 }
 
-func (page bTreePage) setFlag(v int) error {
-	return page.x.SetInt(page.blockID, bTreePageFlagOffset, v, true)
+func (page bTreePage) setFlag(v types.Long) error {
+	return page.x.SetFixedLen(
+		page.blockID,
+		bTreePageFlagOffset,
+		types.SizeOfLong,
+		types.UnsafeIntegerToFixed[types.Long](types.SizeOfLong, v),
+		true,
+	)
 }
 
 func (page bTreePage) mustGetNumRecords() int {
@@ -176,11 +221,22 @@ func (page bTreePage) mustGetNumRecords() int {
 }
 
 func (page bTreePage) getNumRecords() (int, error) {
-	return page.x.Int(page.blockID, bTreePageNumRecordsOffset)
+	v, err := page.x.FixedLen(page.blockID, bTreePageNumRecordsOffset, types.SizeOfLong)
+	if err != nil {
+		return 0, err
+	}
+
+	return int(types.UnsafeFixedToInteger[types.Int](v)), nil
 }
 
 func (page bTreePage) setNumRecords(n int) error {
-	return page.x.SetInt(page.blockID, bTreePageNumRecordsOffset, n, true)
+	return page.x.SetFixedLen(
+		page.blockID,
+		bTreePageNumRecordsOffset,
+		types.SizeOfLong,
+		types.UnsafeIntegerToFixed[types.Long](types.SizeOfLong, types.Long(n)),
+		true,
+	)
 }
 
 func (page bTreePage) Close() {
@@ -189,7 +245,7 @@ func (page bTreePage) Close() {
 
 // appendNew creates a new block and appends at the end of the file.
 // The block is then formatted as a bTreePage.
-func (page bTreePage) appendNew(flag int) (types.Block, error) {
+func (page bTreePage) appendNew(flag types.Long) (types.Block, error) {
 	block, err := page.x.Append(page.blockID.FileName())
 	if err != nil {
 		return types.Block{}, fmt.Errorf("error appending at blockID: %w", err)
@@ -203,18 +259,30 @@ func (page bTreePage) appendNew(flag int) (types.Block, error) {
 // format formats the page and initialises it with the flag and the number or records.
 // The operations that occurs when the page is being formatted are NOT logged to
 // the WAL.
-func (page bTreePage) format(block types.Block, flag int) error {
-	if err := page.x.SetInt(block, 0, flag, false); err != nil {
+func (page bTreePage) format(block types.Block, flag types.Long) error {
+	if err := page.x.SetFixedLen(
+		block,
+		bTreePageFlagOffset,
+		types.SizeOfLong,
+		types.UnsafeIntegerToFixed[types.Long](types.SizeOfLong, flag),
+		false,
+	); err != nil {
 		return err
 	}
 
-	if err := page.x.SetInt(block, types.IntSize, 0, false); err != nil {
+	if err := page.x.SetFixedLen(
+		block,
+		bTreePageNumRecordsOffset,
+		types.SizeOfLong,
+		types.UnsafeIntegerToFixed[types.Long](types.SizeOfLong, 0),
+		false,
+	); err != nil {
 		return err
 	}
 
 	recordSize := page.layout.slotsize
 
-	for pos := bTreePageContentOffset; pos+recordSize <= page.x.BlockSize(); pos += recordSize {
+	for pos := int(bTreePageContentOffset); pos+recordSize <= int(page.x.BlockSize()); pos += recordSize {
 		page.makeDefaultRecord(block, pos)
 	}
 
@@ -225,11 +293,22 @@ func (page bTreePage) makeDefaultRecord(block types.Block, pos int) error {
 	for _, f := range page.layout.schema.fields {
 		offset := page.layout.Offset(f)
 		if page.layout.schema.ftype(f) == types.INTEGER {
-			if err := page.x.SetInt(block, pos+offset, 0, false); err != nil {
+			if err := page.x.SetFixedLen(
+				block,
+				types.Offset(pos+offset),
+				types.SizeOfLong,
+				types.UnsafeIntegerToFixed[types.Long](types.SizeOfLong, 0),
+				false,
+			); err != nil {
 				return fmt.Errorf("error creating default int record: %w", err)
 			}
 		} else if page.layout.schema.ftype(f) == types.STRING {
-			if err := page.x.SetString(block, pos+offset, "", false); err != nil {
+			if err := page.x.SetVarLen(
+				block,
+				types.Offset(pos+offset),
+				types.UnsafeNewVarlenFromGoString(""),
+				false,
+			); err != nil {
 				return fmt.Errorf("error creating default string record: %w", err)
 			}
 		}
@@ -267,15 +346,14 @@ func (page bTreePage) isFull() (bool, error) {
 		return false, err
 	}
 
-	return page.slotPosition(totalRecords+1) > page.x.BlockSize(), nil
+	return page.slotPosition(totalRecords+1) > types.Offset(page.x.BlockSize()), nil
 }
 
 // split splits the block into two.
 // It appends a new bTreePage to the underlying index file and copies there the records
 // starting from splitpos position.
 // Once records have been moved, it sets the flag to the new page and closes it.
-func (page bTreePage) split(splitpos int, flag int) (types.Block, error) {
-
+func (page bTreePage) split(splitpos int, flag types.Long) (types.Block, error) {
 	block, err := page.appendNew(flag)
 	if err != nil {
 		return types.Block{}, fmt.Errorf("error in split when appending new block: %w", err)
@@ -412,12 +490,12 @@ func (page bTreePage) transferRecords(slot int, dst bTreePage) error {
 	return nil
 }
 
-func (page bTreePage) getChildNum(slot int) (int, error) {
+func (page bTreePage) getChildNum(slot int) (types.Long, error) {
 	return page.int(slot, "block")
 }
 
 // insertDirectory insert a directory value into the page
-func (page bTreePage) insertDirectoryRecord(slot int, val types.Value, blockNumber int) error {
+func (page bTreePage) insertDirectoryRecord(slot int, val types.Value, blockNumber types.Long) error {
 	if err := page.insert(slot); err != nil {
 		return err
 	}
@@ -443,11 +521,12 @@ func (page bTreePage) insertLeafRecord(slot int, val types.Value, rid RID) error
 		return err
 	}
 
+	// todo: blocknum must be a long
 	if err := page.setInt(slot, "block", rid.Blocknum); err != nil {
 		return err
 	}
 
-	if err := page.setInt(slot, "id", rid.Slot); err != nil {
+	if err := page.setInt(slot, "id", types.Long(rid.Slot)); err != nil {
 		return err
 	}
 
@@ -538,7 +617,7 @@ func (leaf *bTreeLeaf) tryOverflow() (bool, error) {
 
 	leaf.Close()
 
-	nextBlock := types.NewBlock(leaf.fileName, flag)
+	nextBlock := types.NewBlock(leaf.fileName, leaf.contents.blockID.Number()+1)
 	leaf.contents = newBTreePage(leaf.x, nextBlock, leaf.layout)
 	leaf.currentSlot = 0
 
@@ -577,10 +656,8 @@ func (leaf *bTreeLeaf) delete(rid RID) error {
 
 type dirEntry struct {
 	value    types.Value
-	blockNum int
+	blockNum types.Long
 }
-
-var emptyDirEntry = dirEntry{}
 
 // insert inserts a new record into the bTreeLeaf.
 // It assumes that findSlotBefore has already been called, and positions
@@ -614,7 +691,7 @@ func (leaf *bTreeLeaf) insert(rid RID) (entry dirEntry, err error) {
 		}
 
 		leaf.currentSlot = 0
-		leaf.contents.setFlag(-1)
+		leaf.contents.setFlag(flagUnset)
 
 		if err := leaf.contents.insertLeafRecord(leaf.currentSlot, leaf.key, rid); err != nil {
 			return dirEntry{}, err
@@ -681,7 +758,7 @@ func (leaf *bTreeLeaf) insert(rid RID) (entry dirEntry, err error) {
 	}
 
 	// finally, split the block.
-	nb, err := leaf.contents.split(splitPos, -1)
+	nb, err := leaf.contents.split(splitPos, flagUnset)
 	if err != nil {
 		return dirEntry{}, err
 	}
@@ -742,7 +819,7 @@ func (dir *bTreeDir) makeNewRoot(entry dirEntry) error {
 // The method starts at the root of the tree and moves down the B+ tree levels.
 // Once the level 0 is found, it searches that page and returns the block number
 // of the leaf containing the search key.
-func (dir *bTreeDir) search(key types.Value) (int, error) {
+func (dir *bTreeDir) search(key types.Value) (types.Long, error) {
 	child, err := dir.findChildBlock(key)
 	if err != nil {
 		return 0, err
@@ -786,7 +863,7 @@ func (dir *bTreeDir) findChildBlock(key types.Value) (types.Block, error) {
 		return types.Block{}, err
 	}
 
-	return types.NewBlock(dir.fileName, blockNum), nil
+	return types.NewBlock(dir.fileName, types.Long(blockNum)), nil
 }
 
 // insert recursively traverses the tree, starting from the root, and
@@ -815,7 +892,7 @@ func (dir *bTreeDir) insert(entry dirEntry) (dirEntry, error) {
 
 	child.Close()
 
-	if ce == emptyDirEntry {
+	if ce.value == nil {
 		return dirEntry{}, nil
 	}
 

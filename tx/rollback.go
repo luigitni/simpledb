@@ -2,15 +2,19 @@ package tx
 
 import (
 	"fmt"
+
+	"github.com/luigitni/simpledb/types"
 )
 
 type rollbackLogRecord struct {
-	txnum int
+	txnum types.TxID
 }
 
 func newRollbackRecord(record recordBuffer) rollbackLogRecord {
+	_ = record.readFixedLen(types.SizeOfTinyInt)
+
 	return rollbackLogRecord{
-		txnum: record.readInt(),
+		txnum: types.UnsafeFixedToInteger[types.TxID](record.readFixedLen(types.SizeOfTxID)),
 	}
 }
 
@@ -18,7 +22,7 @@ func (record rollbackLogRecord) Op() txType {
 	return ROLLBACK
 }
 
-func (record rollbackLogRecord) TxNumber() int {
+func (record rollbackLogRecord) TxNumber() types.TxID {
 	return record.txnum
 }
 
@@ -30,15 +34,23 @@ func (record rollbackLogRecord) String() string {
 	return fmt.Sprintf("<ROLLBACK %d>", record.txnum)
 }
 
-func logRollback(lm logManager, txnum int) int {
+func logRollback(lm logManager, txnum types.TxID) int {
 	p := logPools.small2ints.Get().(*[]byte)
 	defer logPools.small2ints.Put(p)
+
 	writeRollback(p, txnum)
+
 	return lm.Append(*p)
 }
 
-func writeRollback(dst *[]byte, txnum int) {
+func writeRollback(dst *[]byte, txnum types.TxID) {
 	rbuf := recordBuffer{bytes: *dst}
-	rbuf.writeInt(int(ROLLBACK))
-	rbuf.writeInt(txnum)
+	rbuf.writeFixedLen(
+		types.SizeOfTinyInt,
+		types.UnsafeIntegerToFixed[types.TinyInt](types.SizeOfTinyInt, types.TinyInt(ROLLBACK)),
+	)
+	rbuf.writeFixedLen(
+		types.SizeOfTxID,
+		types.UnsafeIntegerToFixed[types.TxID](types.SizeOfTxID, txnum),
+	)
 }

@@ -26,6 +26,8 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 		return 0, err
 	}
 
+	schema := plan.Schema()
+
 	scan, err := plan.Open()
 	if err != nil {
 		return 0, err
@@ -34,9 +36,13 @@ func (planner *IndexUpdatePlanner) executeInsert(data sql.InsertCommand, x tx.Tr
 	us := scan.(UpdateScan)
 	defer us.Close()
 
-	size := 0
-	for _, v := range data.Values {
-		size += v.Size()
+	var size types.Offset = 0
+	for i, v := range data.Values {
+		// todo: check if the value of type varlena needs to be toasted.
+		f := data.Fields[i]
+
+		t := schema.ftype(f)
+		size += v.Size(t)
 	}
 
 	if err := us.Insert(size); err != nil {
@@ -113,7 +119,7 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 			return updatedRows, err
 		}
 
-		size := 0
+		var size types.Offset = 0
 
 		for _, fieldName := range schema.fields {
 			val, err := updateScan.Val(fieldName)
@@ -124,7 +130,9 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 			idx := schema.info[fieldName].Index
 			entryFields[idx] = fieldValue{fieldName, val}
 
-			size += val.Size()
+			t := schema.ftype(fieldName)
+
+			size += val.Size(t)
 		}
 
 		for _, f := range data.Fields {
@@ -136,10 +144,12 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 			idx := schema.info[f.Field].Index
 
 			old := entryFields[idx]
-			size -= old.value.Size()
+
+			t := schema.ftype(f.Field)
+			size -= old.value.Size(t)
 
 			entryFields[idx] = fieldValue{f.Field, val}
-			size += val.Size()
+			size += val.Size(t)
 		}
 
 		oldRid := updateScan.GetRID()

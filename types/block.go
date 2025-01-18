@@ -1,18 +1,21 @@
 package types
 
-import "fmt"
+import (
+	"fmt"
+	"math"
+)
 
-const EOF = -1
+const EOF = Long(math.MaxUint64)
 
 type BlockID string
 
 type Block struct {
 	id       BlockID
 	filename string
-	number   int
+	number   Long
 }
 
-func NewBlock(filename string, number int) Block {
+func NewBlock(filename string, number Long) Block {
 	return Block{
 		filename: filename,
 		number:   number,
@@ -28,7 +31,7 @@ func (bid Block) FileName() string {
 	return bid.filename
 }
 
-func (bid Block) Number() int {
+func (bid Block) Number() Long {
 	return bid.number
 }
 

@@ -1,6 +1,7 @@
 package record
 
 import (
+	"errors"
 	"io"
 
 	"github.com/luigitni/simpledb/pages"
@@ -27,7 +28,7 @@ type tableScan struct {
 	layout      Layout
 	recordPage  *pages.SlottedRecordPage
 	fileName    string
-	currentSlot int
+	currentSlot types.SmallInt
 }
 
 func newTableScan(tx tx.Transaction, tablename string, layout Layout) *tableScan {
@@ -71,7 +72,7 @@ func (ts *tableScan) Close() {
 // It then continues until either a next record is found or the end of the file is encountered, in which case returns false
 func (ts *tableScan) Next() error {
 	for {
-		slot, err := ts.recordPage.NextAfter(ts.currentSlot)
+		slot, err := ts.recordPage.NextFrom(ts.currentSlot + 1)
 		if err == nil {
 			ts.currentSlot = slot
 			break
@@ -98,28 +99,28 @@ func (ts *tableScan) Next() error {
 	return nil
 }
 
-func (ts *tableScan) Int(fieldname string) (int, error) {
-	return ts.recordPage.Int(ts.currentSlot, fieldname)
+func (ts *tableScan) FixedLen(fieldname string) (types.FixedLen, error) {
+	return ts.recordPage.FixedLen(ts.currentSlot, fieldname)
 }
 
-func (ts *tableScan) String(fieldname string) (string, error) {
-	return ts.recordPage.String(ts.currentSlot, fieldname)
+func (ts *tableScan) Varlen(fieldname string) (types.Varlen, error) {
+	return ts.recordPage.VarLen(ts.currentSlot, fieldname)
 }
 
 func (ts *tableScan) Val(fieldname string) (types.Value, error) {
 	switch ts.layout.schema.ftype(fieldname) {
 	case types.INTEGER:
-		v, err := ts.Int(fieldname)
+		v, err := ts.FixedLen(fieldname)
 		if err != nil {
 			return types.Value{}, err
 		}
-		return types.ValueFromInt(v), nil
+		return types.ValueFromFixedLen(v), nil
 	case types.STRING:
-		v, err := ts.String(fieldname)
+		v, err := ts.Varlen(fieldname)
 		if err != nil {
 			return types.Value{}, err
 		}
-		return types.ValueFromString(v), nil
+		return types.ValueFromVarlen(v), nil
 	}
 
 	pm := "invalid type for field " + fieldname
@@ -130,33 +131,22 @@ func (ts *tableScan) HasField(fieldname string) bool {
 	return ts.layout.schema.HasField(fieldname)
 }
 
-// write methods
-
-func (ts *tableScan) SetInt(fieldname string, val int) error {
-	return ts.recordPage.SetInt(ts.currentSlot, fieldname, val)
-}
-
-func (ts *tableScan) SetString(fieldname string, val string) error {
-	return ts.recordPage.SetString(ts.currentSlot, fieldname, val)
-}
-
 func (ts *tableScan) SetVal(fieldname string, val types.Value) error {
 	switch ts.layout.schema.ftype(fieldname) {
 	case types.INTEGER:
-		return ts.SetInt(fieldname, val.AsIntVal())
+		return ts.recordPage.SetFixedLen(ts.currentSlot, fieldname, val.AsFixedLen())
 	case types.STRING:
-		return ts.SetString(fieldname, val.AsStringVal())
+		return ts.recordPage.SetVarLen(ts.currentSlot, fieldname, val.AsVarlen())
 	}
 
-	pm := "invalid type for field " + fieldname
-	panic(pm)
+	return errors.New("invalid type for field " + fieldname)
 }
 
 // Insert looks for an empty slot to flag as used.
 // It starts scanning the current block until such a slot is found.
 // If the current block does not contain free slots, it attempts to move to the next block
 // If the next block is at the end of the file, appends a new block and starts scanning from there.
-func (ts *tableScan) Insert(recordSize int) error {
+func (ts *tableScan) Insert(recordSize types.Offset) error {
 	rid, err := ts.insert(recordSize, false)
 	if err != nil {
 		return err
@@ -167,9 +157,9 @@ func (ts *tableScan) Insert(recordSize int) error {
 	return nil
 }
 
-func (ts *tableScan) insert(recordSize int, update bool) (RID, error) {
+func (ts *tableScan) insert(recordSize types.Offset, update bool) (RID, error) {
 	for {
-		slot, err := ts.recordPage.InsertAfter(ts.currentSlot, recordSize, update)
+		slot, err := ts.recordPage.InsertFrom(ts.currentSlot+1, recordSize, update)
 		if err == nil {
 			return NewRID(ts.recordPage.Block().Number(), slot), nil
 		}
@@ -193,7 +183,7 @@ func (ts *tableScan) insert(recordSize int, update bool) (RID, error) {
 	}
 }
 
-func (ts *tableScan) Update(recordSize int) error {
+func (ts *tableScan) Update(recordSize types.Offset) error {
 	if err := ts.Delete(); err != nil {
 		return err
 	}
@@ -225,11 +215,11 @@ func (ts *tableScan) GetRID() RID {
 
 // moveToBlock closes the current page record page and opens a new one for the specified block.
 // After the page has been changed, the TableScan positions itself before the first slot of the new block
-func (ts *tableScan) moveToBlock(block int) {
+func (ts *tableScan) moveToBlock(block types.Long) {
 	ts.Close()
 	b := types.NewBlock(ts.fileName, block)
 	ts.recordPage = pages.NewSlottedRecordPage(ts.x, b, ts.layout)
-	ts.currentSlot = -1
+	ts.currentSlot = 0
 }
 
 // moveToNewBlock attempts to append a new block to the file
@@ -243,7 +233,7 @@ func (ts *tableScan) moveToNewBlock() error {
 	}
 	ts.recordPage = pages.NewSlottedRecordPage(ts.x, block, ts.layout)
 	ts.recordPage.Format()
-	ts.currentSlot = -1
+	ts.currentSlot = 0
 	return nil
 }
 
@@ -257,5 +247,5 @@ func (ts *tableScan) isAtLastBlock() (bool, error) {
 		return false, err
 	}
 
-	return ts.recordPage.Block().Number() == size-1, nil
+	return ts.recordPage.Block().Number() == types.Long(size-1), nil
 }

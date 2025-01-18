@@ -5,10 +5,11 @@ import (
 	"sync"
 
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/types"
 )
 
 type statInfo struct {
-	blocks  int
+	blocks  types.Long
 	records int
 }
 
@@ -85,7 +86,6 @@ func (sm *statManager) statInfo(tname string, layout Layout, trans tx.Transactio
 // refreshStatistics is invoked by statInfo. It reads the table catalogue and
 // re-computes the statInfo object for each table.
 func (sm *statManager) refreshStatistics(x tx.Transaction) error {
-
 	sm.calls = 0
 	stats := map[string]statInfo{}
 
@@ -106,22 +106,24 @@ func (sm *statManager) refreshStatistics(x tx.Transaction) error {
 			return err
 		}
 
-		tname, err := ts.String(catFieldTableName)
+		tname, err := ts.Val(catFieldTableName)
 		if err != nil {
 			return err
 		}
 
-		layout, err := sm.layout(tname, x)
+		n := tname.AsGoString()
+
+		layout, err := sm.layout(n, x)
 		if err != nil {
 			return err
 		}
 
-		si, err := sm.calcTableStats(tname, layout, x)
+		si, err := sm.calcTableStats(n, layout, x)
 		if err != nil {
 			return err
 		}
 
-		stats[tname] = si
+		stats[n] = si
 	}
 
 	sm.tableStats = stats
@@ -132,7 +134,8 @@ func (sm *statManager) refreshStatistics(x tx.Transaction) error {
 // calcTableStats scans the whole provided table to count records and blocks and refresh the statInfo
 // for the provided table
 func (sm *statManager) calcTableStats(tname string, layout Layout, trans tx.Transaction) (statInfo, error) {
-	var recs, blocks int
+	var recs int
+	var blocks types.Long
 	ts := newTableScan(trans, tname, layout)
 	defer ts.Close()
 

@@ -11,13 +11,14 @@ import (
 )
 
 const (
-	tableCatalogTableName = "tblcat"
-	catFieldTableName     = "tblname"
+	tableCatalogTableName = "tables"
+	catFieldTableName     = "name"
 
-	fieldsCatalogTableName = "fldcat"
-	catFieldFieldName      = "fldname"
+	fieldsCatalogTableName = "fields"
+	catFieldFieldName      = "name"
 	catFieldType           = "type"
-	catFieldIndex          = "fldidx"
+	catFieldIndex          = "index"
+	catFieldSize           = "size"
 
 	// NameMaxLen is the maximum len of a field or table name
 	NameMaxLen = 16
@@ -94,12 +95,12 @@ func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 			panic(err)
 		}
 
-		v, err := sel.String(catFieldTableName)
+		v, err := sel.Val(catFieldTableName)
 		if err != nil {
 			panic(err)
 		}
 
-		if v == tblname {
+		if v.AsGoString() == tblname {
 			return true
 		}
 	}
@@ -118,12 +119,12 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 	defer tcat.Close()
 
 	// add the new table into the table catalog
-	size := types.StrLength(len(tblname))
-	if err := tcat.Insert(size); err != nil {
+	size := types.UnsafeSizeOfStringAsVarlen(tblname)
+	if err := tcat.Insert(types.Offset(size)); err != nil {
 		return err
 	}
 
-	if err := tcat.SetString(catFieldTableName, tblname); err != nil {
+	if err := tcat.SetVal(catFieldTableName, types.ValueFromGoString(tblname)); err != nil {
 		return err
 	}
 
@@ -132,30 +133,36 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 	defer fcat.Close()
 
 	for _, fname := range sch.fields {
-		size := 0
-		size += types.StrLength(len(tblname))
-		size += types.StrLength(len(fname))
-		size += types.IntSize // fieldType
-		size += types.IntSize // fieldIndex
+		var size types.Offset
+		size += types.Offset(types.UnsafeSizeOfStringAsVarlen(tblname))
+		size += types.Offset(types.UnsafeSizeOfStringAsVarlen(fname))
+		size += types.Offset(types.SizeOfInt) // fieldType
+		size += types.Offset(types.SizeOfInt) // fieldIndex
 
 		// scan up to the first available slot and add the field data to the field catalog
 		if err := fcat.Insert(size); err != nil {
 			return err
 		}
 
-		if err := fcat.SetString(catFieldTableName, tblname); err != nil {
+		if err := fcat.SetVal(catFieldTableName, types.ValueFromGoString(tblname)); err != nil {
 			return err
 		}
 
-		if err := fcat.SetString(catFieldFieldName, fname); err != nil {
+		if err := fcat.SetVal(catFieldFieldName, types.ValueFromGoString(fname)); err != nil {
 			return err
 		}
 
-		if err := fcat.SetInt(catFieldType, int(sch.ftype(fname))); err != nil {
+		if err := fcat.SetVal(
+			catFieldType,
+			types.ValueFromInteger[types.SmallInt](types.SizeOfSmallInt, types.SmallInt(sch.ftype(fname))),
+		); err != nil {
 			return err
 		}
 
-		if err := fcat.SetInt(catFieldIndex, layout.FieldIndex(fname)); err != nil {
+		if err := fcat.SetVal(
+			catFieldIndex,
+			types.ValueFromInteger[types.SmallInt](types.SizeOfSmallInt, types.SmallInt(layout.FieldIndex(fname))),
+		); err != nil {
 			return err
 		}
 	}
@@ -180,12 +187,12 @@ func (tm tableManager) layout(tblname string, x tx.Transaction) (Layout, error) 
 			return empty, err
 		}
 
-		tname, err := tcat.String(catFieldTableName)
+		tname, err := tcat.Val(catFieldTableName)
 		if err != nil {
 			return empty, err
 		}
 
-		if tname == tblname {
+		if tname.AsGoString() == tblname {
 			break
 		}
 	}
@@ -207,28 +214,32 @@ func (tm tableManager) layout(tblname string, x tx.Transaction) (Layout, error) 
 			return empty, err
 		}
 
-		tname, err := fcat.String(catFieldTableName)
+		tname, err := fcat.Val(catFieldTableName)
 		if err != nil {
 			return empty, err
 		}
 
-		if tname == tblname {
-			fldname, err := fcat.String(catFieldFieldName)
+		if tname.AsGoString() == tblname {
+			fldname, err := fcat.Val(catFieldFieldName)
 			if err != nil {
 				return empty, err
 			}
 
-			fldtype, err := fcat.Int(catFieldType)
+			fldtype, err := fcat.Val(catFieldType)
 			if err != nil {
 				return empty, err
 			}
 
-			fldidx, err := fcat.Int(catFieldIndex)
+			fldidx, err := fcat.Val(catFieldIndex)
 			if err != nil {
 				return empty, err
 			}
 
-			schema.setFieldAtIndex(fldname, types.FieldType(fldtype), fldidx)
+			schema.setFieldAtIndex(
+				fldname.AsGoString(),
+				types.FieldType(types.ValueAsInteger[types.SmallInt](fldtype)),
+				int(types.ValueAsInteger[types.SmallInt](fldidx)),
+			)
 		}
 	}
 

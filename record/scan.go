@@ -15,10 +15,6 @@ type Scan interface {
 
 	Next() error
 
-	Int(fname string) (int, error)
-
-	String(fname string) (string, error)
-
 	Val(fname string) (types.Value, error)
 
 	HasField(fname string) bool
@@ -47,15 +43,11 @@ func hasNextOrError(scan Scan) (bool, error) {
 type UpdateScan interface {
 	Scan
 
-	SetInt(fname string, v int) error
-
-	SetString(fname string, v string) error
-
 	SetVal(fname string, v types.Value) error
 
-	Insert(recordSize int) error
+	Insert(recordSize types.Offset) error
 
-	Update(recordSize int) error
+	Update(recordSize types.Offset) error
 
 	Delete() error
 

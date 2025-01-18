@@ -41,7 +41,7 @@ func NewLogManager(fm *file.FileManager, logfile string) *WalWriter {
 	return man
 }
 
-// flush writes the contents of the logpage into the currentBlock
+// flush writes the contents of the WAL page into the currentBlock
 // and updates the lastSavedLSN id
 func (man *WalWriter) flush() {
 	man.fm.Write(man.currentBlock, man.logpage)
@@ -87,27 +87,35 @@ func (man *WalWriter) Append(records []byte) int {
 	defer man.Unlock()
 
 	// boundary contains the offset of the most recently added record
-	spaceLeft := man.logpage.Int(0)
+	spaceLeft := man.logpage.UnsafeGetFixedLen(0, types.SizeOfOffset).UnsafeAsOffset()
 
-	recsize := len(records)
+	recsize := types.Offset(len(records))
 
-	bytesneeded := recsize + types.IntSize
+	bytesneeded := recsize + types.Offset(types.SizeOfInt)
 
 	// if the bytes needed to insert the record, PLUS the page header, are larger than the space left
 	// the record won't fit.
 	// In this case, flush the current page and move to the next block
-	if bytesneeded+types.IntSize > spaceLeft {
+	if bytesneeded+types.Offset(types.SizeOfOffset) > spaceLeft {
 		man.flush()
 		man.currentBlock = man.appendNewBlock()
-		spaceLeft = man.logpage.Int(0)
+		spaceLeft = man.logpage.UnsafeGetFixedLen(0, types.SizeOfOffset).UnsafeAsOffset()
 	}
 
 	// compute the leading byte from where the record will start
 	recpos := spaceLeft - bytesneeded
 	// note that the page is writing data starting from the end of the buffer
 	// moving towards the head
-	man.logpage.SetBytes(recpos, records)
-	man.logpage.SetInt(0, recpos) // the new boundary
+	man.logpage.UnsafeWriteRawVarlen(recpos, records)
+
+	// update the header with the new position of the record
+	man.logpage.UnsafeSetFixedLen(0,
+		types.SizeOfOffset,
+		types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, recpos),
+	)
+
+	// todo: write the LSN into the record
+	// do this when reworking the WAL
 	man.latestLSN++
 	return man.latestLSN
 }
@@ -117,7 +125,13 @@ func (man *WalWriter) Append(records []byte) int {
 // We will use the header to keep track of where we are when prepending data to the page.
 func (man *WalWriter) appendNewBlock() types.Block {
 	block := man.fm.Append(man.logfile)
-	man.logpage.SetInt(0, man.fm.BlockSize())
+
+	// write the size of the block into the page header
+	man.logpage.UnsafeSetFixedLen(
+		0,
+		types.SizeOfOffset,
+		types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, man.fm.BlockSize()),
+	)
 
 	// write the logpage into the newly created block
 	man.fm.Write(block, man.logpage)

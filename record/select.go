@@ -57,16 +57,6 @@ func (sel *Select) Close() {
 	sel.scan.Close()
 }
 
-// Int implements Scan.
-func (sel *Select) Int(fname string) (int, error) {
-	return sel.scan.Int(fname)
-}
-
-// String implements Scan.
-func (sel *Select) String(fname string) (string, error) {
-	return sel.scan.String(fname)
-}
-
 // Val implements Scan.
 func (sel *Select) Val(fname string) (types.Value, error) {
 	return sel.scan.Val(fname)
@@ -134,7 +124,7 @@ func (sel *Select) MoveToRID(rid RID) {
 }
 
 // Insert implements UpdateScan.
-func (sel *Select) Insert(size int) error {
+func (sel *Select) Insert(size types.Offset) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot insert over anon update scan")
@@ -142,32 +132,12 @@ func (sel *Select) Insert(size int) error {
 	return u.Insert(size)
 }
 
-func (sel *Select) Update(size int) error {
+func (sel *Select) Update(size types.Offset) error {
 	u, ok := sel.scan.(UpdateScan)
 	if !ok {
 		return errors.New("cannot update over anon update scan")
 	}
 	return u.Update(size)
-}
-
-// SetInt implements UpdateScan.
-func (sel *Select) SetInt(fname string, v int) error {
-	u, ok := sel.scan.(UpdateScan)
-	if !ok {
-		return errors.New("cannot update over anon update scan")
-	}
-
-	return u.SetInt(fname, v)
-}
-
-// SetString implements UpdateScan.
-func (sel *Select) SetString(fname string, v string) error {
-	u, ok := sel.scan.(UpdateScan)
-	if !ok {
-		return errors.New("cannot update over anon update scan")
-	}
-
-	return u.SetString(fname, v)
 }
 
 // SetVal implements UpdateScan.

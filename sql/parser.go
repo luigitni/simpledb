@@ -39,7 +39,6 @@ func NewParser(src string) Parser {
 }
 
 func (p Parser) Parse() (Command, error) {
-
 	if ok, cmd := p.isTCL(); ok {
 		return cmd, nil
 	}
@@ -66,14 +65,15 @@ func (p Parser) constant() (types.Value, error) {
 			return types.Value{}, err
 		}
 		// remove quotes from the parsed raw string
-		return types.ValueFromString(s[1 : len(s)-1]), nil
+		return types.ValueFromGoString(s[1 : len(s)-1]), nil
 	}
 
 	v, err := p.eatIntValue()
 	if err != nil {
 		return types.Value{}, err
 	}
-	return types.ValueFromInt(v), nil
+
+	return types.ValueFromInteger[types.Int](types.SizeOfInt, types.Int(v)), nil
 }
 
 func (p Parser) expression() (Expression, error) {

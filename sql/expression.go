@@ -36,7 +36,7 @@ func (exp Expression) AsFieldName() string {
 }
 
 func (exp Expression) Evaluate(scan Scan) (types.Value, error) {
-	if empty := (types.Value{}); exp.val != empty {
+	if exp.val != nil {
 		return exp.val, nil
 	}
 
@@ -44,7 +44,7 @@ func (exp Expression) Evaluate(scan Scan) (types.Value, error) {
 }
 
 func (exp Expression) AppliesTo(schema Schema) bool {
-	if empty := (types.Value{}); exp.val != empty {
+	if exp.val != nil {
 		return true
 	}
 
@@ -52,7 +52,7 @@ func (exp Expression) AppliesTo(schema Schema) bool {
 }
 
 func (exp Expression) String() string {
-	if empty := (types.Value{}); exp.val != empty {
+	if exp.val != nil {
 		return exp.val.String()
 	}
 

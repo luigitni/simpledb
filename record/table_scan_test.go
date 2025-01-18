@@ -32,17 +32,20 @@ func TestTableScan(t *testing.T) {
 	record := map[RID]struct{}{}
 
 	for i := 0; i < 50; i++ {
-		v := rand.Intn(50)
+		v := types.Int(rand.Intn(50))
 		strVal := fmt.Sprintf("rec%d", v)
 
-		size := types.IntSize + types.StrLength(len(strVal))
+		var size types.Offset
+		size += types.Offset(types.SizeOfInt) +
+			types.Offset(types.UnsafeSizeOfStringAsVarlen(strVal))
+
 		scan.Insert(size)
-		if err := scan.SetInt("A", v); err != nil {
+		if err := scan.SetVal("A", types.ValueFromInteger[types.Int](types.SizeOfInt, v)); err != nil {
 			t.Fatal(err)
 		}
 
 		s := fmt.Sprintf("rec%d", v)
-		if err := scan.SetString("B", s); err != nil {
+		if err := scan.SetVal("B", types.ValueFromGoString(s)); err != nil {
 			t.Fatal(err)
 		}
 
@@ -67,10 +70,12 @@ func TestTableScan(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		a, err := scan.Int("A")
+		av, err := scan.Val("A")
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		a := types.ValueAsInteger[types.Int](av)
 
 		if a < 25 {
 			rid := scan.GetRID()
@@ -78,12 +83,12 @@ func TestTableScan(t *testing.T) {
 				t.Fatalf("Unexpected deletion of record %q", rid)
 			}
 
-			b, err := scan.String("B")
+			b, err := scan.Val("B")
 			if err != nil {
 				t.Fatal(err)
 			}
 
-			t.Logf("Deleting record %s {%d, %q}", rid, a, b)
+			t.Logf("Deleting record %s {%d, %q}", rid, a, b.AsGoString())
 
 			if err := scan.Delete(); err != nil {
 				t.Fatal(err)
@@ -107,15 +112,19 @@ func TestTableScan(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		a, err := scan.Int("A")
+		av, err := scan.Val("A")
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		b, err := scan.String("B")
+		a := types.ValueAsInteger[types.Int](av)
+
+		bv, err := scan.Val("B")
 		if err != nil {
 			t.Fatal(err)
 		}
+
+		b := bv.AsGoString()
 
 		rid := scan.GetRID()
 		if _, ok := record[rid]; !ok {

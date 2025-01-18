@@ -24,7 +24,7 @@ const (
 // This ensures that each call to read, write or apped will incour exactly one disk access
 type FileManager struct {
 	folder    string
-	blockSize int
+	blockSize types.Long
 	isNew     bool
 	// maps a file name to an open file.
 	// files are opened in RWS mode
@@ -32,7 +32,7 @@ type FileManager struct {
 	sync.Mutex
 }
 
-func NewFileManager(path string, blockSize int) *FileManager {
+func NewFileManager(path string, blockSize types.Long) *FileManager {
 	_, err := os.Stat(path)
 
 	isNew := os.IsNotExist(err)
@@ -87,7 +87,7 @@ func (manager *FileManager) IsNew() bool {
 	return manager.isNew
 }
 
-func (manager *FileManager) BlockSize() int {
+func (manager *FileManager) BlockSize() types.Offset {
 	return types.PageSize
 }
 
@@ -116,20 +116,20 @@ func (manager *FileManager) Write(blk types.Block, p *types.Page) {
 }
 
 // Size returns the size, in blocks, of the given file
-func (manager *FileManager) Size(filename string) int {
+func (manager *FileManager) Size(filename string) types.Long {
 	f := manager.getFile(filename)
 	finfo, err := f.Stat()
 	if err != nil {
 		panic(err)
 	}
-	return int(finfo.Size() / int64(manager.blockSize))
+	return types.Long(finfo.Size()) / manager.blockSize
 }
 
 // Append seeks to the end of the file and writes an empty array of bytes to the file
 // todo: this might not be needed in go
 func (manager *FileManager) Append(fname string) types.Block {
 	newBlkNum := manager.Size(fname)
-	block := types.NewBlock(fname, newBlkNum)
+	block := types.NewBlock(fname, types.Long(newBlkNum))
 	buf := make([]byte, manager.blockSize)
 
 	f := manager.getFile(fname)

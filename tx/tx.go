@@ -8,11 +8,11 @@ import (
 	"github.com/luigitni/simpledb/types"
 )
 
-var nextTxNum int64
+var nextTxNum uint32 = uint32(types.TxIDStart)
 
 type Transaction interface {
 	// Id returns the transaction id
-	Id() int
+	Id() types.TxID
 
 	// Commit commits the current transaction
 	// Flushes all the modified buffers and their log records
@@ -44,30 +44,30 @@ type Transaction interface {
 	// Int returns the integer value stored at the specified offset of the specified block.
 	// It first attempts to obtrain an Slock on the block and then it calls the buffer to retrieve the value.
 	// Returns ErrLockAcquisitionTimeout if the Slock can't be acquired
-	Int(blockID types.Block, offset int) (int, error)
+	FixedLen(blockID types.Block, offset types.Offset, size types.Size) (types.FixedLen, error)
 
 	// String returns the string value stored at offset of the given block.
 	// It first attempts to obtain an S lock on the block, and then retrieves the value from the underlying buffers
 	// Returns ErrLockAcquisitionTimeout if the Slock can't be acquired
-	String(blockID types.Block, offset int) (string, error)
+	VarLen(blockID types.Block, offset types.Offset) (types.Varlen, error)
 
 	// SetInt stores an integer at the specified offset of the given block.
 	// It first obtains an X lock on the block, then creates a SETINT log record.
 	// Finally, it writes the value to the underlying buffer, passing in the log sequence number
 	// Returns ErrLockAcquisitionTimeout if the Xlock can't be acquired
-	SetInt(blockID types.Block, offset int, val int, shouldLog bool) error
+	SetFixedLen(blockID types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error
 
 	// SetString stores a string at the specified offset of the given block.
 	// It first attempts to obtain an X lock on the block, then creates a SETSTRING log record.
 	// Finally, it writes the value to the underlying buffer, passing in the log sequence number.
 	// Returns ErrLockAcquisitionTimeout if the Xlock can't be acquired
-	SetString(blockID types.Block, offset int, val string, shouldLog bool) error
+	SetVarLen(blockID types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error
 
 	// Size returns the number of blocks in the specified file.
 	// It first obtains an Slock on the "end of file" block
 	// before asking the file manager to return the file size, to avoid phantoms
 	// Returns ErrLockAcquisitionTimeout if the Slock can't be acquired
-	Size(fname string) (int, error)
+	Size(fname string) (types.Long, error)
 
 	// Append attempts to append a new block to the end of the specific file and returns a reference to it
 	// It first attempts to obtain an X lock on the "end of file" block.
@@ -75,13 +75,15 @@ type Transaction interface {
 	Append(fname string) (types.Block, error)
 
 	// BlockSize returns the size of a block
-	BlockSize() int
+	BlockSize() types.Offset
 }
 
 // incrTxNum generates transaction ids
-func incrTxNum() int {
-	return int(atomic.AddInt64(&nextTxNum, 1))
+func incrTxNum() types.TxID {
+	return types.TxID(atomic.AddUint32(&nextTxNum, 1))
 }
+
+var _ Transaction = transactionImpl{}
 
 type transactionImpl struct {
 	bufMan     *buffer.BufferManager
@@ -89,7 +91,7 @@ type transactionImpl struct {
 	recoverMan recoveryManager
 	concMan    ConcurrencyManager
 	buffers    bufferList
-	num        int
+	num        types.TxID
 }
 
 func NewTx(fm *file.FileManager, lm logManager, bm *buffer.BufferManager) Transaction {
@@ -108,7 +110,7 @@ func NewTx(fm *file.FileManager, lm logManager, bm *buffer.BufferManager) Transa
 	return tx
 }
 
-func (tx transactionImpl) Id() int {
+func (tx transactionImpl) Id() types.TxID {
 	return tx.num
 }
 
@@ -138,27 +140,27 @@ func (tx transactionImpl) Unpin(block types.Block) {
 	tx.buffers.unpin(block)
 }
 
-func (tx transactionImpl) Int(block types.Block, offset int) (int, error) {
+func (tx transactionImpl) FixedLen(block types.Block, offset types.Offset, size types.Size) (types.FixedLen, error) {
 	if err := tx.concMan.SLock(block); err != nil {
-		return 0, err
+		return nil, err
 	}
 
 	buf := tx.buffers.buffer(block)
-	v := buf.Contents().Int(offset)
+	v := buf.Contents().UnsafeGetFixedLen(offset, size)
 	return v, nil
 }
 
-func (tx transactionImpl) String(block types.Block, offset int) (string, error) {
+func (tx transactionImpl) VarLen(block types.Block, offset types.Offset) (types.Varlen, error) {
 	if err := tx.concMan.SLock(block); err != nil {
-		return "", err
+		return types.Varlen{}, err
 	}
 
 	buf := tx.buffers.buffer(block)
-	v := buf.Contents().String(offset)
+	v := buf.Contents().UnsafeGetVarlen(offset)
 	return v, nil
 }
 
-func (tx transactionImpl) SetInt(block types.Block, offset int, val int, shouldLog bool) error {
+func (tx transactionImpl) SetFixedLen(block types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error {
 	if err := tx.concMan.XLock(block); err != nil {
 		return err
 	}
@@ -166,16 +168,16 @@ func (tx transactionImpl) SetInt(block types.Block, offset int, val int, shouldL
 	buf := tx.buffers.buffer(block)
 	lsn := -1
 	if shouldLog {
-		lsn = tx.recoverMan.setInt(buf, offset, val)
+		lsn = tx.recoverMan.setFixedLen(buf, offset, size, val)
 	}
 	p := buf.Contents()
-	p.SetInt(offset, val)
+	p.UnsafeSetFixedLen(offset, size, val)
 	// flag the underlying buffer as dirty to signal that a flush might be needed
 	buf.SetModified(tx.num, lsn)
 	return nil
 }
 
-func (tx transactionImpl) SetString(block types.Block, offset int, val string, shouldLog bool) error {
+func (tx transactionImpl) SetVarLen(block types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error {
 	if err := tx.concMan.XLock(block); err != nil {
 		return err
 	}
@@ -183,18 +185,18 @@ func (tx transactionImpl) SetString(block types.Block, offset int, val string, s
 	buf := tx.buffers.buffer(block)
 	lsn := -1
 	if shouldLog {
-		lsn = tx.recoverMan.setString(buf, offset, val)
+		lsn = tx.recoverMan.setVarLen(buf, offset, val)
 	}
 	p := buf.Contents()
-	p.SetString(offset, val)
+	p.UnsafeSetVarlen(offset, val)
 	buf.SetModified(tx.num, lsn)
 	return nil
 }
 
-func (tx transactionImpl) Size(fname string) (int, error) {
+func (tx transactionImpl) Size(fname string) (types.Long, error) {
 	dummy := types.NewBlock(fname, types.EOF)
 	if err := tx.concMan.SLock(dummy); err != nil {
-		return -1, err
+		return 0, err
 	}
 
 	return tx.fileMan.Size(fname), nil
@@ -213,6 +215,6 @@ func (tx transactionImpl) availableBuffers() int {
 	return tx.bufMan.Available()
 }
 
-func (tx transactionImpl) BlockSize() int {
+func (tx transactionImpl) BlockSize() types.Offset {
 	return tx.fileMan.BlockSize()
 }

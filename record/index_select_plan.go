@@ -89,14 +89,6 @@ func (scan *indexSelectScan) Next() error {
 	return err
 }
 
-func (scan *indexSelectScan) Int(fname string) (int, error) {
-	return scan.tableScan.Int(fname)
-}
-
-func (scan *indexSelectScan) String(fname string) (string, error) {
-	return scan.tableScan.String(fname)
-}
-
 func (scan *indexSelectScan) Val(fname string) (types.Value, error) {
 	return scan.tableScan.Val(fname)
 }

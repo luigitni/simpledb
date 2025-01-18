@@ -32,7 +32,7 @@ func (t Term) IsSatisfied(s Scan) (bool, error) {
 		return false, err
 	}
 
-	return lc == rc, nil
+	return lc.Equals(rc), nil
 }
 
 func (t Term) ReductionFactor(p Plan) int {
@@ -53,7 +53,9 @@ func (t Term) ReductionFactor(p Plan) int {
 		return p.DistinctValues(t.rhs.AsFieldName())
 	}
 
-	if t.lhs.AsConstant() == t.rhs.AsConstant() {
+	lc := t.lhs.AsConstant()
+	rc := t.rhs.AsConstant()
+	if lc.Equals(rc) {
 		return 1
 	}
 

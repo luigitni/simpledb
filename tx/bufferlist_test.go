@@ -47,7 +47,8 @@ func TestBufferlistUnpinAll(t *testing.T) {
 
 	buflist := makeBufferList(bm)
 
-	for i := 0; i < 3; i++ {
+	var i types.Long
+	for i = 0; i < 3; i++ {
 		block := types.NewBlock(conf.BlockFile, i)
 		buflist.pin(block)
 	}

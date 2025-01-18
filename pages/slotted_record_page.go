@@ -21,90 +21,87 @@ const (
 	flagDeletedRecord
 )
 
-const headerEntrySize = types.IntSize
+const headerEntrySize = types.SizeOfLong
 
 // slottedRecordPageHeaderEntry represents an entry in the page header.
+// Each entry is an 8-byte value
 // It is bitmasked to store:
 // - the first 2 bytes store the offset of the record within the page
 // - the next 2 bytes store the length of the record within the page
-// - byte 5 and 6 store record flags (whether empty/deleted etc)
-// - byte 7 and 8th byte are reserved
-type slottedRecordPageHeaderEntry int
+// - byte 5 to 8 store record flags (whether empty/deleted etc)
+type slottedRecordPageHeaderEntry [8]byte
 
-func (e slottedRecordPageHeaderEntry) recordOffset() int {
-	bytes := types.IntToBytes(int(e))
+const sizeOfRecordPageHeaderEntry = types.Size(len(slottedRecordPageHeaderEntry{}))
 
-	return types.BytesToInt(bytes[:2])
+func (e slottedRecordPageHeaderEntry) recordOffset() types.Offset {
+	return types.UnsafeFixedToInteger[types.Offset](e[:2])
 }
 
-func (e slottedRecordPageHeaderEntry) recordLength() int {
-	bytes := types.IntToBytes(int(e))
-	return types.BytesToInt(bytes[2:4])
+func (e slottedRecordPageHeaderEntry) recordLength() types.Offset {
+	return types.UnsafeFixedToInteger[types.Offset](e[2:4])
 }
 
 func (e slottedRecordPageHeaderEntry) flags() flag {
-	bytes := types.IntToBytes(int(e))
-	return flag(types.BytesToInt(bytes[4:6]))
+	return flag(types.UnsafeFixedToInteger[types.Int](e[4:6]))
 }
 
-func (e slottedRecordPageHeaderEntry) setOffset(offset int) slottedRecordPageHeaderEntry {
-	bytes := types.IntToBytes(int(e))
-	ob := types.IntToBytes(int(offset))
-	copy(bytes[:2], ob[:2])
-	return slottedRecordPageHeaderEntry(types.BytesToInt(bytes))
+func (e slottedRecordPageHeaderEntry) setOffset(offset types.Offset) slottedRecordPageHeaderEntry {
+	fixed := types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, offset)
+	copy(e[:2], fixed)
+	return e
 }
 
-func (e slottedRecordPageHeaderEntry) setLength(length int) slottedRecordPageHeaderEntry {
-	bytes := types.IntToBytes(int(e))
-	lb := types.IntToBytes(int(length))
-	copy(bytes[2:4], lb[:2])
-	return slottedRecordPageHeaderEntry(types.BytesToInt(bytes))
+func (e slottedRecordPageHeaderEntry) setLength(length types.Offset) slottedRecordPageHeaderEntry {
+	fixed := types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, length)
+	copy(e[2:4], fixed)
+	return e
 }
 
 func (e slottedRecordPageHeaderEntry) setFlag(f flag) slottedRecordPageHeaderEntry {
-	bytes := types.IntToBytes(int(e))
-	fb := types.IntToBytes(int(f))
-	copy(bytes[4:6], fb[:2])
-	return slottedRecordPageHeaderEntry(types.BytesToInt(bytes))
+	fixed := types.UnsafeIntegerToFixed[types.Int](types.SizeOfInt, types.Int(f))
+	copy(e[4:], fixed)
+	return e
 }
 
 // slottedRecordPageHeader represents the header of a slotted record page
 // It holds the metadata about the page and the slot array for the records.
 type slottedRecordPageHeader struct {
-	blockNumber  int
-	numSlots     int
-	freeSpaceEnd int
+	blockNumber  types.Long
+	numSlots     types.SmallInt
+	freeSpaceEnd types.Offset
 	entries      []slottedRecordPageHeaderEntry
 }
 
 const defaultFreeSpaceEnd = types.PageSize
 
 const (
-	blockNumberOffset  = 0
-	numSlotsOffset     = blockNumberOffset + types.IntSize
-	freeSpaceEndOffset = numSlotsOffset + types.IntSize
-	entriesOffset      = freeSpaceEndOffset + types.IntSize
+	blockNumberOffset  types.Offset = 0
+	numSlotsOffset     types.Offset = blockNumberOffset + types.Offset(types.SizeOfLong)
+	freeSpaceEndOffset types.Offset = numSlotsOffset + types.Offset(types.SizeOfSmallInt)
+	entriesOffset      types.Offset = freeSpaceEndOffset + types.Offset(types.SizeOfOffset)
 )
 
-func (h slottedRecordPageHeader) freeSpaceStart() int {
-	return h.lastSlotOffset() + headerEntrySize
+func (h slottedRecordPageHeader) freeSpaceStart() types.Offset {
+	return h.lastSlotOffset() + types.Offset(headerEntrySize)
 }
 
-func (h slottedRecordPageHeader) lastSlotOffset() int {
-	return entriesOffset + h.numSlots*headerEntrySize
+func (h slottedRecordPageHeader) lastSlotOffset() types.Offset {
+	return entriesOffset + types.Offset(h.numSlots)*types.Offset(headerEntrySize)
 }
 
-func (h slottedRecordPageHeader) freeSpaceAvailable() int {
+func (h slottedRecordPageHeader) freeSpaceAvailable() types.Offset {
 	return h.freeSpaceEnd - h.freeSpaceStart()
 }
 
-func (header *slottedRecordPageHeader) appendRecordSlot(actualRecordSize int) error {
+// appendRecordSlot appends a new record slot to the page header
+// It takes in the actual size of the record to be inserted
+func (header *slottedRecordPageHeader) appendRecordSlot(actualRecordSize types.Offset) error {
 	if actualRecordSize > header.freeSpaceAvailable() {
 		return errNoFreeSpaceAvailable
 	}
 
 	header.freeSpaceEnd -= actualRecordSize
-	entry := slottedRecordPageHeaderEntry(0).
+	entry := slottedRecordPageHeaderEntry{}.
 		setOffset(header.freeSpaceEnd).
 		setLength(actualRecordSize).
 		setFlag(flagInUseRecord)
@@ -166,23 +163,23 @@ type SlottedRecordPage struct {
 // and possibly speed up access, once support for smaller ints is added
 type recordHeader struct {
 	// ends stores the offsets of the ends of each field in the record
-	ends []int
+	ends []types.Offset
 
 	txinfo recordHeaderTxInfo
 }
 
 type recordHeaderTxInfo struct {
 	// xmin stores the transaction id that created the record
-	xmin int
+	xmin types.TxID
 	// xmax stores the transaction id that deleted the record
-	xmax int
+	xmax types.TxID
 	// txop stores the operation number of the transaction that created or deleted the record
-	txop int
+	txop types.SmallInt
 	// flags stores additional flags for the record
 	flags recordHeaderFlag
 }
 
-type recordHeaderFlag int
+type recordHeaderFlag types.SmallInt
 
 const (
 	flagUpdated recordHeaderFlag = 1 << iota
@@ -197,7 +194,8 @@ func (h recordHeader) hasFlag(flag recordHeaderFlag) bool {
 	return h.txinfo.flags&flag != 0
 }
 
-const recordHeaderTxInfoSize = 4 * types.IntSize
+// recordHeaderTxInfoSize is the size of the recordHeaderTxInfo struct
+const recordHeaderTxInfoSize types.Size = 2*types.SizeOfTxID + 2*types.SizeOfSmallInt
 
 // NewSlottedRecordPage creates a new SlottedRecordPage struct
 func NewSlottedRecordPage(tx tx.Transaction, block types.Block, layout Layout) *SlottedRecordPage {
@@ -218,101 +216,167 @@ func (p *SlottedRecordPage) Block() types.Block {
 	return p.block
 }
 
-func (p *SlottedRecordPage) recordHeaderSize() int {
-	return recordHeaderTxInfoSize + p.layout.FieldsCount()*types.IntSize
+// recordHeaderSize returns the size of the record header
+// which includes the transaction info and the ends of the fields
+func (p *SlottedRecordPage) recordHeaderSize() types.Offset {
+	return types.Offset(recordHeaderTxInfoSize) +
+		types.Offset(p.layout.FieldsCount())*types.Offset(types.SizeOfSmallInt)
 }
 
 // recordSizeIncludingRecordHeader calculates the size of a record on disk including header
-func (p *SlottedRecordPage) recordSizeIncludingRecordHeader(originalSize int) int {
-	return p.recordHeaderSize() + originalSize
+func (p *SlottedRecordPage) recordSizeIncludingRecordHeader(recordSize types.Offset) types.Offset {
+	return p.recordHeaderSize() + recordSize
 }
 
 func (p *SlottedRecordPage) writeHeader(header slottedRecordPageHeader) error {
-	if err := p.tx.SetInt(p.block, blockNumberOffset, header.blockNumber, false); err != nil {
+	if err := p.tx.SetFixedLen(
+		p.block,
+		blockNumberOffset,
+		types.SizeOfLong,
+		types.UnsafeIntegerToFixed[types.Long](types.SizeOfLong, header.blockNumber),
+		true,
+	); err != nil {
 		return err
 	}
 
-	if err := p.tx.SetInt(p.block, numSlotsOffset, len(header.entries), false); err != nil {
+	if err := p.tx.SetFixedLen(
+		p.block,
+		numSlotsOffset,
+		types.SizeOfSmallInt,
+		types.UnsafeIntegerToFixed[types.SmallInt](types.SizeOfSmallInt, types.SmallInt(len(header.entries))),
+		true,
+	); err != nil {
 		return err
 	}
 
-	if err := p.tx.SetInt(p.block, freeSpaceEndOffset, header.freeSpaceEnd, false); err != nil {
+	if err := p.tx.SetFixedLen(
+		p.block,
+		freeSpaceEndOffset,
+		types.SizeOfOffset,
+		types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, header.freeSpaceEnd),
+		true,
+	); err != nil {
 		return err
 	}
 
-	for i, entry := range header.entries {
-		offset := entriesOffset + headerEntrySize*i
-		if err := p.tx.SetInt(p.block, offset, int(entry), false); err != nil {
+	offset := entriesOffset
+
+	for _, entry := range header.entries {
+
+		if err := p.tx.SetFixedLen(
+			p.block,
+			offset,
+			sizeOfRecordPageHeaderEntry,
+			types.FixedLen(entry[:]),
+			true,
+		); err != nil {
 			return err
 		}
+
+		offset += types.Offset(sizeOfRecordPageHeaderEntry)
 	}
 
 	return nil
 }
 
 func (p *SlottedRecordPage) readHeader() (slottedRecordPageHeader, error) {
-	blockNum, err := p.tx.Int(p.block, blockNumberOffset)
+	blockNum, err := p.tx.FixedLen(p.block, blockNumberOffset, types.SizeOfLong)
 	if err != nil {
 		return slottedRecordPageHeader{}, err
 	}
 
-	numSlots, err := p.tx.Int(p.block, numSlotsOffset)
+	numSlots, err := p.tx.FixedLen(p.block, numSlotsOffset, types.SizeOfSmallInt)
 	if err != nil {
 		return slottedRecordPageHeader{}, err
 	}
 
-	freeSpaceEnd, err := p.tx.Int(p.block, freeSpaceEndOffset)
+	freeSpaceEnd, err := p.tx.FixedLen(p.block, freeSpaceEndOffset, types.SizeOfOffset)
 	if err != nil {
 		return slottedRecordPageHeader{}, err
 	}
 
-	entries := make([]slottedRecordPageHeaderEntry, numSlots)
-	for i := 0; i < numSlots; i++ {
-		offset := entriesOffset + headerEntrySize*i
+	numSlotsVal := types.UnsafeFixedToInteger[types.SmallInt](numSlots)
+	entries := make([]slottedRecordPageHeaderEntry, numSlotsVal)
 
-		v, err := p.tx.Int(p.block, offset)
+	offset := entriesOffset
+	for i := range len(entries) {
+		slot, err := p.tx.FixedLen(p.block, offset, sizeOfRecordPageHeaderEntry)
 		if err != nil {
 			return slottedRecordPageHeader{}, err
 		}
 
-		entries[i] = slottedRecordPageHeaderEntry(v)
+		copy(entries[i][:], slot)
+
+		offset += types.Offset(sizeOfRecordPageHeaderEntry)
 	}
 
 	return slottedRecordPageHeader{
-		blockNumber:  blockNum,
-		numSlots:     numSlots,
-		freeSpaceEnd: freeSpaceEnd,
+		blockNumber:  types.UnsafeFixedToInteger[types.Long](blockNum),
+		numSlots:     types.UnsafeFixedToInteger[types.SmallInt](numSlots),
+		freeSpaceEnd: types.UnsafeFixedToInteger[types.Offset](freeSpaceEnd),
 		entries:      entries,
 	}, nil
 }
 
-func (p *SlottedRecordPage) writeRecordHeader(offset int, recordHeader recordHeader) error {
-	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.xmin, false); err != nil {
+func (p *SlottedRecordPage) writeRecordHeader(offset types.Offset, recordHeader recordHeader) error {
+	if err := p.tx.SetFixedLen(
+		p.block,
+		offset,
+		types.SizeOfTxID,
+		types.UnsafeIntegerToFixed[types.TxID](types.SizeOfTxID, recordHeader.txinfo.xmin),
+		true,
+	); err != nil {
 		return err
 	}
 
-	offset += types.IntSize
+	offset += types.Offset(types.SizeOfTxID)
 
-	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.xmax, false); err != nil {
+	if err := p.tx.SetFixedLen(
+		p.block,
+		offset,
+		types.SizeOfTxID,
+		types.UnsafeIntegerToFixed[types.TxID](types.SizeOfTxID, recordHeader.txinfo.xmax),
+		true,
+	); err != nil {
 		return err
 	}
 
-	offset += types.IntSize
+	offset += types.Offset(types.SizeOfTxID)
 
-	if err := p.tx.SetInt(p.block, offset, recordHeader.txinfo.txop, false); err != nil {
+	if err := p.tx.SetFixedLen(
+		p.block,
+		offset,
+		types.SizeOfInt,
+		types.UnsafeIntegerToFixed[types.SmallInt](types.SizeOfSmallInt, recordHeader.txinfo.txop),
+		true,
+	); err != nil {
 		return err
 	}
 
-	offset += types.IntSize
+	offset += types.Offset(types.SizeOfSmallInt)
 
-	if err := p.tx.SetInt(p.block, offset, int(recordHeader.txinfo.flags), false); err != nil {
+	if err := p.tx.SetFixedLen(
+		p.block,
+		offset,
+		types.SizeOfSmallInt,
+		types.UnsafeIntegerToFixed[types.SmallInt](types.SizeOfSmallInt, types.SmallInt(recordHeader.txinfo.flags)),
+		true,
+	); err != nil {
 		return err
 	}
 
-	offset += types.IntSize
+	offset += types.Offset(types.SizeOfSmallInt)
 
-	for i, end := range recordHeader.ends {
-		if err := p.tx.SetInt(p.block, offset+i*types.IntSize, end, false); err != nil {
+	for _, field := range recordHeader.ends {
+		offset += types.Offset(types.SizeOfOffset)
+
+		if err := p.tx.SetFixedLen(
+			p.block,
+			offset,
+			types.SizeOfOffset,
+			types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, field),
+			true,
+		); err != nil {
 			return err
 		}
 	}
@@ -320,81 +384,86 @@ func (p *SlottedRecordPage) writeRecordHeader(offset int, recordHeader recordHea
 	return nil
 }
 
-func (p *SlottedRecordPage) readRecordHeader(offset int) (recordHeader, error) {
-	xmin, err := p.tx.Int(p.block, offset)
+func (p *SlottedRecordPage) readRecordHeader(offset types.Offset) (recordHeader, error) {
+	xmin, err := p.tx.FixedLen(p.block, offset, types.SizeOfTxID)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	offset += types.IntSize
+	offset += types.Offset(types.SizeOfTxID)
 
-	xmax, err := p.tx.Int(p.block, offset)
+	xmax, err := p.tx.FixedLen(p.block, offset, types.SizeOfTxID)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	offset += types.IntSize
+	offset += types.Offset(types.SizeOfTxID)
 
-	txop, err := p.tx.Int(p.block, offset)
+	txop, err := p.tx.FixedLen(p.block, offset, types.SizeOfSmallInt)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	offset += types.IntSize
+	offset += types.Offset(types.SizeOfSmallInt)
 
-	flags, err := p.tx.Int(p.block, offset)
+	flags, err := p.tx.FixedLen(p.block, offset, types.SizeOfSmallInt)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	ends := make([]int, 0, p.layout.FieldsCount())
+	offset += types.Offset(types.SizeOfSmallInt)
 
-	for i := 0; i < p.layout.FieldsCount(); i++ {
-		offset += types.IntSize
-		end, err := p.tx.Int(p.block, offset)
+	ends := make([]types.Offset, 0, p.layout.FieldsCount())
+
+	for range p.layout.FieldsCount() {
+		offset += types.Offset(types.SizeOfOffset)
+
+		end, err := p.tx.FixedLen(p.block, offset, types.SizeOfOffset)
 		if err != nil {
 			return recordHeader{}, err
 		}
 
-		ends = append(ends, end)
+		v := types.UnsafeFixedToInteger[types.Offset](end)
+
+		ends = append(ends, v)
 	}
 
 	return recordHeader{
 		ends: ends,
 		txinfo: recordHeaderTxInfo{
-			xmin:  xmin,
-			xmax:  xmax,
-			txop:  txop,
-			flags: recordHeaderFlag(flags),
+			xmin:  types.UnsafeFixedToInteger[types.TxID](xmin),
+			xmax:  types.UnsafeFixedToInteger[types.TxID](xmax),
+			txop:  types.UnsafeFixedToInteger[types.SmallInt](txop),
+			flags: recordHeaderFlag(types.UnsafeFixedToInteger[types.SmallInt](flags)),
 		},
 	}, nil
 }
 
 // entry returns the entry of the record pointed to by the given slot
-func (p *SlottedRecordPage) entry(slot int) (slottedRecordPageHeaderEntry, error) {
-	offset := entriesOffset + headerEntrySize*slot
-	v, err := p.tx.Int(p.block, offset)
+func (p *SlottedRecordPage) entry(slot types.SmallInt) (slottedRecordPageHeaderEntry, error) {
+	offset := entriesOffset + types.Offset(headerEntrySize)*types.Offset(slot)
+	v, err := p.tx.FixedLen(p.block, offset, headerEntrySize)
 	if err != nil {
-		return 0, err
+		return slottedRecordPageHeaderEntry{}, err
 	}
 
 	return slottedRecordPageHeaderEntry(v), nil
 }
 
-func (p *SlottedRecordPage) setFlag(slot int, flag flag) error {
+func (p *SlottedRecordPage) setFlag(slot types.SmallInt, flag flag) error {
 	entry, err := p.entry(slot)
 	if err != nil {
 		return err
 	}
-	entryOffset := entriesOffset + headerEntrySize*slot
 
-	entry = entry.setFlag(flag)
+	entry.setFlag(flag)
 
-	return p.tx.SetInt(p.block, entryOffset, int(entry), false)
+	return nil
 }
 
 // fieldOffset returns the offset of the field for the record pointed by the given slot
-func (p *SlottedRecordPage) fieldOffset(slot int, fieldname string) (int, error) {
+// the value is stored in the record header, in the ends array of offsets
+func (p *SlottedRecordPage) fieldOffset(slot types.SmallInt, fieldname string) (types.Offset, error) {
 	entry, err := p.entry(slot)
 	if err != nil {
 		return 0, err
@@ -416,32 +485,41 @@ func (p *SlottedRecordPage) fieldOffset(slot int, fieldname string) (int, error)
 
 	prevIndex := fieldIndex - 1
 	// read the end of the previous field to find the start of this one
-	fieldOffset := recordOffset + recordHeaderTxInfoSize + prevIndex*types.IntSize
+	fieldOffset := recordOffset +
+		types.Offset(recordHeaderTxInfoSize) +
+		types.Offset(prevIndex)*types.Offset(types.SizeOfSmallInt)
 
-	return p.tx.Int(p.block, fieldOffset)
-}
-
-// Int returns the value of an integer field for the record pointed by the given slot
-func (p *SlottedRecordPage) Int(slot int, fieldname string) (int, error) {
-	offset, err := p.fieldOffset(slot, fieldname)
+	fo, err := p.tx.FixedLen(p.block, fieldOffset, types.SizeOfOffset)
 	if err != nil {
 		return 0, err
 	}
 
-	return p.tx.Int(p.block, offset)
+	return types.UnsafeFixedToInteger[types.Offset](fo), nil
+}
+
+// Int returns the value of an integer field for the record pointed by the given slot
+func (p *SlottedRecordPage) FixedLen(slot types.SmallInt, fieldname string) (types.FixedLen, error) {
+	offset, err := p.fieldOffset(slot, fieldname)
+	if err != nil {
+		return nil, err
+	}
+
+	size := p.layout.FieldSize(fieldname)
+
+	return p.tx.FixedLen(p.block, offset, size)
 }
 
 // String returns the value of a string field for the record pointed by the given slot
-func (p *SlottedRecordPage) String(slot int, fieldname string) (string, error) {
+func (p *SlottedRecordPage) VarLen(slot types.SmallInt, fieldname string) (types.Varlen, error) {
 	offset, err := p.fieldOffset(slot, fieldname)
 	if err != nil {
-		return "", err
+		return types.Varlen{}, err
 	}
 
-	return p.tx.String(p.block, offset)
+	return p.tx.VarLen(p.block, offset)
 }
 
-func (p *SlottedRecordPage) updateFieldEnd(slot int, fieldname string, fieldEnd int) error {
+func (p *SlottedRecordPage) updateFieldEnd(slot types.SmallInt, fieldname string, fieldEnd types.Offset) error {
 	fieldIndex := p.layout.FieldIndex(fieldname)
 	if fieldIndex == -1 {
 		return fmt.Errorf("invalid field %s for record", fieldname)
@@ -452,48 +530,59 @@ func (p *SlottedRecordPage) updateFieldEnd(slot int, fieldname string, fieldEnd 
 		return err
 	}
 
-	fieldOffsetEntry := recordHeaderTxInfoSize + entry.recordOffset() + fieldIndex*types.IntSize
+	fieldOffsetEntry := types.Offset(recordHeaderTxInfoSize) +
+		entry.recordOffset() +
+		types.Offset(fieldIndex)*types.Offset(types.SizeOfOffset)
 
-	return p.tx.SetInt(p.block, fieldOffsetEntry, fieldEnd, false)
+	return p.tx.SetFixedLen(
+		p.block,
+		fieldOffsetEntry,
+		types.SizeOfSmallInt,
+		types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, fieldEnd),
+		true,
+	)
 }
 
-// SetInt sets the value of an integer field for the record pointed by the given slot
-func (p *SlottedRecordPage) SetInt(slot int, fieldname string, val int) error {
-	// get the offest of the field
+// SetFixedLen sets the value of an integer field for the record pointed by the given slot
+func (p *SlottedRecordPage) SetFixedLen(slot types.SmallInt, fieldname string, val types.FixedLen) error {
+	// get the offset of the field for the record at slot
 	offset, err := p.fieldOffset(slot, fieldname)
 	if err != nil {
 		return err
 	}
 
-	// write the actual value at the offset
-	if err := p.tx.SetInt(p.block, offset, val, true); err != nil {
+	// get the size of the field from the layout schema in catalog
+	size := p.layout.FieldSize(fieldname)
+
+	// write the new field value to the page
+	if err := p.tx.SetFixedLen(p.block, offset, size, val, true); err != nil {
 		return err
 	}
 
 	// update the end of this field in the record header
-	fieldEnd := offset + types.IntSize
+	fieldEnd := offset + types.Offset(size)
 
 	return p.updateFieldEnd(slot, fieldname, fieldEnd)
 }
 
 // SetString sets the value of a string field for the record pointed by the given slot
-func (p *SlottedRecordPage) SetString(slot int, fieldname string, val string) error {
+func (p *SlottedRecordPage) SetVarLen(slot types.SmallInt, fieldname string, val types.Varlen) error {
 	offset, err := p.fieldOffset(slot, fieldname)
 	if err != nil {
 		return err
 	}
 
-	if err := p.tx.SetString(p.block, offset, val, true); err != nil {
+	if err := p.tx.SetVarLen(p.block, offset, val, true); err != nil {
 		return err
 	}
 
-	fieldEnd := offset + types.StrLength(len(val))
+	fieldEnd := offset + types.Offset(val.Size())
 
 	return p.updateFieldEnd(slot, fieldname, fieldEnd)
 }
 
 // Delete flags the record's slot as empty by setting its flag
-func (p *SlottedRecordPage) Delete(slot int) error {
+func (p *SlottedRecordPage) Delete(slot types.SmallInt) error {
 	if err := p.setFlag(slot, flagDeletedRecord); err != nil {
 		return err
 	}
@@ -520,7 +609,7 @@ func (p *SlottedRecordPage) Delete(slot int) error {
 // Format formats the page by writing a default header
 func (p *SlottedRecordPage) Format() error {
 	header := slottedRecordPageHeader{
-		blockNumber:  p.block.Number(),
+		blockNumber:  types.Long(p.block.Number()),
 		numSlots:     0,
 		freeSpaceEnd: defaultFreeSpaceEnd,
 	}
@@ -528,21 +617,21 @@ func (p *SlottedRecordPage) Format() error {
 	return p.writeHeader(header)
 }
 
-// NextAfter returns the next used slot after the given one
+// NextFrom returns the next used slot after the given one
 // Returns ErrNoFreeSlot if such slot cannot be found within the transaction's block
-func (p *SlottedRecordPage) NextAfter(slot int) (int, error) {
-	return p.searchAfter(slot, flagInUseRecord, 0)
+func (p *SlottedRecordPage) NextFrom(slot types.SmallInt) (types.SmallInt, error) {
+	return p.searchFrom(slot, flagInUseRecord, 0)
 }
 
-// InsertAfter returns the next empty slot after the given one such that
+// InsertFrom returns the next empty slot starting at the given one such that
 // it can hold the provided record size.
-func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int, update bool) (int, error) {
-	nextSlot, err := p.searchAfter(slot, flagEmptyRecord, recordSize)
+func (p *SlottedRecordPage) InsertFrom(slot types.SmallInt, recordSize types.Offset, update bool) (types.SmallInt, error) {
+	nextSlot, err := p.searchFrom(slot, flagEmptyRecord, recordSize)
 	// no empty slot found, try to append to the end
 	if err == ErrNoFreeSlot {
 		header, err := p.readHeader()
 		if err != nil {
-			return -1, err
+			return 0, err
 		}
 
 		// calculate the actual size of the record including the record header
@@ -550,19 +639,19 @@ func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int, update bool) (
 
 		// append a new slot to the page header for the record
 		if err := header.appendRecordSlot(actualRecordSize); err == errNoFreeSpaceAvailable {
-			return -1, ErrNoFreeSlot
+			return 0, ErrNoFreeSlot
 		}
 
 		if err := p.writeHeader(header); err != nil {
-			return -1, err
+			return 0, err
 		}
 
 		recordHeader := recordHeader{
-			ends: make([]int, p.layout.FieldsCount()),
+			ends: make([]types.Offset, p.layout.FieldsCount()),
 			txinfo: recordHeaderTxInfo{
 				xmin: p.tx.Id(),
 				xmax: 0,
-				txop: p.tx.Id(),
+				txop: 0,
 			},
 		}
 
@@ -572,39 +661,39 @@ func (p *SlottedRecordPage) InsertAfter(slot int, recordSize int, update bool) (
 
 		// write the record header at the end of the free space
 		if err := p.writeRecordHeader(header.freeSpaceEnd, recordHeader); err != nil {
-			return -1, err
+			return 0, err
 		}
 
 		return header.numSlots - 1, nil
 	}
 
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
 	return nextSlot, nil
 }
 
-// searchAfter searches for the next empty slot after the given one with the provided flag such that the record fits
+// searchFrom searches for the next empty slot starting from the given one with the provided flag such that the record fits
 // If such a slot cannot be found within the block, it returns an ErrNoFreeSlot error.
 // Otherwise it returns the slot index
 // todo: we can optimise this by looking for the best slot available for the record of size, for example by picking
 // the smallest empty slot that can fit the record rather than just the first one
-func (p *SlottedRecordPage) searchAfter(slot int, flag flag, recordSize int) (int, error) {
+func (p *SlottedRecordPage) searchFrom(slot types.SmallInt, flag flag, recordSize types.Offset) (types.SmallInt, error) {
 	header, err := p.readHeader()
 	if err != nil {
-		return -1, err
+		return 0, err
 	}
 
-	for i := slot + 1; i < header.numSlots; i++ {
+	for i := slot; i < header.numSlots; i++ {
 		entry, err := p.entry(i)
 		if err != nil {
-			return -1, err
+			return 0, err
 		}
 
 		recordHeader, err := p.readRecordHeader(entry.recordOffset())
 		if err != nil {
-			return -1, err
+			return 0, err
 		}
 
 		if recordHeader.txinfo.xmin == p.tx.Id() && recordHeader.hasFlag(flagUpdated) {
@@ -616,5 +705,5 @@ func (p *SlottedRecordPage) searchAfter(slot int, flag flag, recordSize int) (in
 		}
 	}
 
-	return -1, ErrNoFreeSlot
+	return 0, ErrNoFreeSlot
 }

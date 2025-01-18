@@ -57,7 +57,8 @@ func (p tablePlan) Open() (Scan, error) {
 }
 
 func (p tablePlan) BlocksAccessed() int {
-	return p.info.blocks
+	// todo: check this
+	return int(p.info.blocks)
 }
 
 func (p tablePlan) RecordsOutput() int {

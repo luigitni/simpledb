@@ -5,6 +5,7 @@ import (
 
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/log"
+	"github.com/luigitni/simpledb/types"
 )
 
 type logManager interface {
@@ -25,11 +26,11 @@ type recoveryManager struct {
 	lm    logManager
 	bm    *buffer.BufferManager
 	tx    Transaction
-	txnum int
+	txnum types.TxID
 }
 
 // RecoveryManagerForTx returns a recovery manager for the given transaction and txnum
-func newRecoveryManagerForTx(tx Transaction, txnum int, lm logManager, bm *buffer.BufferManager) recoveryManager {
+func newRecoveryManagerForTx(tx Transaction, txnum types.TxID, lm logManager, bm *buffer.BufferManager) recoveryManager {
 	man := recoveryManager{
 		lm:    lm,
 		bm:    bm,
@@ -40,26 +41,26 @@ func newRecoveryManagerForTx(tx Transaction, txnum int, lm logManager, bm *buffe
 	return man
 }
 
-// setInt writes a SETINT record to the log and returns its lsn.
+// setFixedLen writes a SETFIXED record to the log and returns its lsn.
 // buff is the buffer containing the page
 // offset is the offset of the value within the page
 // val is the value to be written
 // todo: why is the actual implementation passing the oldval?
-func (man recoveryManager) setInt(buff *buffer.Buffer, offset int, val int) int {
-	oldval := buff.Contents().Int(offset)
+func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset types.Offset, size types.Size, val types.FixedLen) int {
+	oldval := buff.Contents().UnsafeGetFixedLen(offset, size)
 	block := buff.Block()
-	return logSetInt(man.lm, man.txnum, block, offset, oldval)
+	return logSetFixedLen(man.lm, man.txnum, block, offset, size, oldval)
 }
 
-// setString writes a SETSTRING record to the log and return its lsn.
+// setVarLen writes a SETVARLEN record to the log and return its lsn.
 // buff is the buffer containing the page,
 // offset is the offset of the value within the page
 // newval is the value to be written.
 // WHY IS IT PASSING OLDVAL??
-func (man recoveryManager) setString(buff *buffer.Buffer, offset int, val string) int {
-	oldval := buff.Contents().String(offset)
+func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset types.Offset, val types.Varlen) int {
+	oldval := buff.Contents().UnsafeGetVarlen(offset)
 	block := buff.Block()
-	return logSetString(man.lm, man.txnum, block, offset, oldval)
+	return logSetVarlen(man.lm, man.txnum, block, offset, oldval)
 }
 
 // Write a commit record to the log and flushes it to disk
@@ -109,7 +110,7 @@ func (man recoveryManager) recover() {
 	man.lm.Flush(lsn)
 
 	// set the next tx number to the max transaction number
-	atomic.StoreInt64(&nextTxNum, int64(maxTx))
+	atomic.StoreUint32(&nextTxNum, uint32(maxTx))
 }
 
 // doRecover does a complete database recovery.
@@ -117,12 +118,12 @@ func (man recoveryManager) recover() {
 // Whenever it finds a log record for an unfinished transaction,
 // it calls undo() on that record.
 // The method stops when it encounters a CHECKPOINT record or the end of the log file
-func (man recoveryManager) doRecover() int {
-	finishedTxs := map[int]struct{}{}
+func (man recoveryManager) doRecover() types.TxID {
+	finishedTxs := map[types.TxID]struct{}{}
 	reader := man.lm.Iterator()
 	defer reader.Close()
 
-	maxTxNum := 0
+	var maxTxNum types.TxID
 
 	for {
 		if !reader.HasNext() {

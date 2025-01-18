@@ -46,7 +46,7 @@ func (mp *materializePlan) Open() (Scan, error) {
 			return nil, err
 		}
 
-		size := 0
+		var size types.Offset
 		vals := make(map[string]types.Value)
 		for _, fname := range schema.fields {
 			v, err := src.Val(fname)
@@ -54,7 +54,12 @@ func (mp *materializePlan) Open() (Scan, error) {
 				return nil, err
 			}
 			vals[fname] = v
-			size += v.Size()
+
+			// the schema holds the type of the field
+			// this is retrieved from the catalog
+			t := schema.ftype(fname)
+
+			size += v.Size(t)
 		}
 
 		if err := dst.Insert(size); err != nil {

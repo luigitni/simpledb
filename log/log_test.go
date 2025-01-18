@@ -1,94 +1,143 @@
-package log_test
+package log
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
-	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/types"
 )
 
-func TestLog(t *testing.T) {
-	conf := test.DefaultConfig(t)
-	dbFolder := conf.DbFolder
-	logfile := conf.LogFile
-	blockSize := conf.BlockSize
+func TestAppend(t *testing.T) {
+	dbFolder := t.TempDir()
+	logfile := "wal_test"
+	blockSize := types.PageSize
 
-	fman := file.NewFileManager(dbFolder, blockSize)
+	fman := file.NewFileManager(dbFolder, types.Long(blockSize))
+	lm := NewLogManager(fman, logfile)
 
-	lm := log.NewLogManager(fman, logfile)
+	t.Run("increments the latestLSN", func(t *testing.T) {
+		for i := range 10 {
+			lm.Append([]byte(fmt.Sprintf("record_%d", i)))
+		}
 
-	populateLogManager(t, lm, 1, 35)
-	testLogIteration(t, lm, 35)
-	populateLogManager(t, lm, 36, 70)
+		if lm.latestLSN != 10 {
+			t.Fatalf("expected 10, got %d", lm.latestLSN)
+		}
+	})
 
-	lm.Flush(65)
-	testLogIteration(t, lm, 70)
+	t.Run("returns the correct LSN", func(t *testing.T) {
+		lsn := lm.Append([]byte("record"))
+		if lsn != 11 {
+			t.Fatalf("expected 11, got %d", lsn)
+		}
+	})
+
+	t.Run("returns the correct LSN after a flush", func(t *testing.T) {
+		lm.Flush(11)
+		lsn := lm.Append([]byte("record"))
+		if lsn != 12 {
+			t.Fatalf("expected 12, got %d", lsn)
+		}
+	})
+
+	t.Run("adds a block if the current one is full", func(t *testing.T) {
+		if lm.currentBlock.Number() != 0 {
+			t.Fatalf("expected 0, got %d", lm.currentBlock.Number())
+		}
+
+		for i := 0; i <= types.PageSize+1024; {
+			record := []byte(fmt.Sprintf("record_%d", i))
+			lm.Append(record)
+
+			i += len(record) + int(types.SizeOfOffset)
+		}
+
+		if lm.currentBlock.Number() != 1 {
+			t.Fatalf("expected 2, got %d", lm.currentBlock.Number())
+		}
+	})
 }
 
-func makeLogKey(idx int) string {
+func TestIterator(t *testing.T) {
+	dbFolder := t.TempDir()
+	logfile := "wal_test"
+	blockSize := types.PageSize
+
+	fman := file.NewFileManager(dbFolder, types.Long(blockSize))
+	lm := NewLogManager(fman, logfile)
+
+	t.Run("returns an empty iterator if the log is empty", func(t *testing.T) {
+		iter := lm.Iterator()
+
+		if iter.Next() != nil {
+			t.Fatal("expected nil")
+		}
+	})
+
+	t.Run("returns one record", func(t *testing.T) {
+		record := []byte("record")
+
+		lm.Append(record)
+
+		iter := lm.Iterator()
+		got := iter.Next()
+
+		if !bytes.Equal(got, record) {
+			t.Fatalf("expected %s, got %s", string(record), string(got))
+		}
+	})
+
+	t.Run("returns the correct records", func(t *testing.T) {
+		populateLogManager(t, lm, 1, 10)
+		iter := lm.Iterator()
+
+		for i := 10; i > 0; i-- {
+			record := iter.Next()
+
+			if !bytes.Equal(record, []byte(makeLogEntry(t, i))) {
+				t.Fatalf("expected %s, got %s", fmt.Sprintf("record_%d", i), string(record))
+			}
+		}
+	})
+
+	t.Run("returns the correct records after a flush", func(t *testing.T) {
+		populateLogManager(t, lm, 11, 20)
+		lm.Flush(15)
+
+		iter := lm.Iterator()
+
+		for i := 20; i > 10; i-- {
+			record := iter.Next()
+
+			if !bytes.Equal(record, []byte(makeLogEntry(t, i))) {
+				t.Fatalf("expected %s, got %s", fmt.Sprintf("record_%d", i), string(record))
+			}
+		}
+	})
+}
+
+func makeLogEntry(t *testing.T, idx int) string {
+	t.Helper()
 	return fmt.Sprintf("record_%d", idx)
 }
 
-func makeLogVal(idx int) int {
-	return idx + 100
-}
-
 // testLogIteration verifies that logs are returned in a LIFO manner
-func testLogIteration(t *testing.T, lm *log.WalWriter, from int) {
-	t.Log("The log file has now these records:")
-	iter := lm.Iterator()
-	f := from
-	page := types.NewPage()
-	for {
-		if !iter.HasNext() {
-			break
-		}
-
-		sexp := makeLogKey(f)
-		vexp := makeLogVal(f)
-		f--
-
-		record := iter.Next()
-		page.UnsafeCopyRaw(0, record)
-
-		s := page.String(0)
-		if s != sexp {
-			t.Fatalf("expected key %q, got %q", vexp, s)
-		}
-
-		npos := types.StrLength(len(s))
-		v := page.Int(npos)
-
-		if v != vexp {
-			t.Fatalf("expected value %d, got %d", vexp, v)
-		}
-
-		t.Logf("[%s, val: %d]", s, v)
-	}
-	t.Log("\n")
-}
-
 // populateLogManager appends logs of format K -> V to the logfile
-func populateLogManager(t *testing.T, lm *log.WalWriter, start, end int) {
+func populateLogManager(t *testing.T, lm *WalWriter, start, end int) {
+	t.Helper()
+
 	t.Log("Creating log records:")
-	page := types.NewPage()
+
+	var builder bytes.Buffer
 	for i := start; i <= end; i++ {
-		record := createLogRecord(page, makeLogKey(i), makeLogVal(i))
-		lsn := lm.Append(record)
+
+		builder.Reset()
+		builder.WriteString(makeLogEntry(t, i))
+
+		lsn := lm.Append(builder.Bytes())
 		t.Logf("%d", lsn)
 	}
 	t.Log("Records created.")
-}
-
-func createLogRecord(page *types.Page, s string, val int) []byte {
-	npos := types.StrLength(len(s))
-	b := make([]byte, npos+types.IntSize)
-	page.SetString(0, s)
-	page.SetInt(npos, val)
-
-	copy(b, page.Slice(0, npos+types.IntSize))
-	return b
 }
