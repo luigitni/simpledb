@@ -5,7 +5,7 @@ import (
 
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/log"
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 type logManager interface {
@@ -26,11 +26,11 @@ type recoveryManager struct {
 	lm    logManager
 	bm    *buffer.BufferManager
 	tx    Transaction
-	txnum types.TxID
+	txnum storage.TxID
 }
 
 // RecoveryManagerForTx returns a recovery manager for the given transaction and txnum
-func newRecoveryManagerForTx(tx Transaction, txnum types.TxID, lm logManager, bm *buffer.BufferManager) recoveryManager {
+func newRecoveryManagerForTx(tx Transaction, txnum storage.TxID, lm logManager, bm *buffer.BufferManager) recoveryManager {
 	man := recoveryManager{
 		lm:    lm,
 		bm:    bm,
@@ -46,7 +46,7 @@ func newRecoveryManagerForTx(tx Transaction, txnum types.TxID, lm logManager, bm
 // offset is the offset of the value within the page
 // val is the value to be written
 // todo: why is the actual implementation passing the oldval?
-func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset types.Offset, size types.Size, val types.FixedLen) int {
+func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offset, size storage.Size, val storage.FixedLen) int {
 	oldval := buff.Contents().UnsafeGetFixedLen(offset, size)
 	block := buff.Block()
 	return logSetFixedLen(man.lm, man.txnum, block, offset, size, oldval)
@@ -57,7 +57,7 @@ func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset types.Offset,
 // offset is the offset of the value within the page
 // newval is the value to be written.
 // WHY IS IT PASSING OLDVAL??
-func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset types.Offset, val types.Varlen) int {
+func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset storage.Offset, val storage.Varlen) int {
 	oldval := buff.Contents().UnsafeGetVarlen(offset)
 	block := buff.Block()
 	return logSetVarlen(man.lm, man.txnum, block, offset, oldval)
@@ -118,12 +118,12 @@ func (man recoveryManager) recover() {
 // Whenever it finds a log record for an unfinished transaction,
 // it calls undo() on that record.
 // The method stops when it encounters a CHECKPOINT record or the end of the log file
-func (man recoveryManager) doRecover() types.TxID {
-	finishedTxs := map[types.TxID]struct{}{}
+func (man recoveryManager) doRecover() storage.TxID {
+	finishedTxs := map[storage.TxID]struct{}{}
 	reader := man.lm.Iterator()
 	defer reader.Close()
 
-	var maxTxNum types.TxID
+	var maxTxNum storage.TxID
 
 	for {
 		if !reader.HasNext() {

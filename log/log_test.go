@@ -6,15 +6,15 @@ import (
 	"testing"
 
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 func TestAppend(t *testing.T) {
 	dbFolder := t.TempDir()
 	logfile := "wal_test"
-	blockSize := types.PageSize
+	blockSize := storage.PageSize
 
-	fman := file.NewFileManager(dbFolder, types.Long(blockSize))
+	fman := file.NewFileManager(dbFolder, storage.Long(blockSize))
 	lm := NewLogManager(fman, logfile)
 
 	t.Run("increments the latestLSN", func(t *testing.T) {
@@ -47,11 +47,11 @@ func TestAppend(t *testing.T) {
 			t.Fatalf("expected 0, got %d", lm.currentBlock.Number())
 		}
 
-		for i := 0; i <= types.PageSize+1024; {
+		for i := 0; i <= storage.PageSize+1024; {
 			record := []byte(fmt.Sprintf("record_%d", i))
 			lm.Append(record)
 
-			i += len(record) + int(types.SizeOfOffset)
+			i += len(record) + int(storage.SizeOfOffset)
 		}
 
 		if lm.currentBlock.Number() != 1 {
@@ -63,9 +63,9 @@ func TestAppend(t *testing.T) {
 func TestIterator(t *testing.T) {
 	dbFolder := t.TempDir()
 	logfile := "wal_test"
-	blockSize := types.PageSize
+	blockSize := storage.PageSize
 
-	fman := file.NewFileManager(dbFolder, types.Long(blockSize))
+	fman := file.NewFileManager(dbFolder, storage.Long(blockSize))
 	lm := NewLogManager(fman, logfile)
 
 	t.Run("returns an empty iterator if the log is empty", func(t *testing.T) {

@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/luigitni/simpledb/types"
+import "github.com/luigitni/simpledb/storage"
 
 // Entire grammar for the SQL subset supported by SimpleDB
 // <Field> := TokenIdentifier
@@ -58,22 +58,22 @@ func (p Parser) field() (string, error) {
 	return p.eatIdentifier()
 }
 
-func (p Parser) constant() (types.Value, error) {
+func (p Parser) constant() (storage.Value, error) {
 	if p.matchStringValue() {
 		s, err := p.eatStringValue()
 		if err != nil {
-			return types.Value{}, err
+			return storage.Value{}, err
 		}
 		// remove quotes from the parsed raw string
-		return types.ValueFromGoString(s[1 : len(s)-1]), nil
+		return storage.ValueFromGoString(s[1 : len(s)-1]), nil
 	}
 
 	v, err := p.eatIntValue()
 	if err != nil {
-		return types.Value{}, err
+		return storage.Value{}, err
 	}
 
-	return types.ValueFromInteger[types.Int](types.SizeOfInt, types.Int(v)), nil
+	return storage.ValueFromInteger[storage.Int](storage.SizeOfInt, storage.Int(v)), nil
 }
 
 func (p Parser) expression() (Expression, error) {

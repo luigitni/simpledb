@@ -3,7 +3,7 @@ package sql
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 func TestParseField(t *testing.T) {
@@ -131,7 +131,7 @@ func TestUpdateCommandPredicate(t *testing.T) {
 		t.Fatalf("expected field to be %q, got %s", "col", field.Field)
 	}
 
-	if v := field.NewValue.AsConstant(); types.ValueAsInteger[types.Int](v) != 5 {
+	if v := field.NewValue.AsConstant(); storage.ValueAsInteger[storage.Int](v) != 5 {
 		t.Fatalf("expected newValue to be %d, got %d", 5, v)
 	}
 
@@ -182,7 +182,7 @@ func TestUpdateCommandMultipleFields(t *testing.T) {
 
 		switch val := e.Value.(type) {
 		case int:
-			if types.ValueAsInteger[types.Int](v) != types.Int(val) {
+			if storage.ValueAsInteger[storage.Int](v) != storage.Int(val) {
 				t.Fatalf("expected newValue to be %d, got %d", val, v)
 			}
 		case string:
@@ -244,7 +244,7 @@ func TestInsertCommand(t *testing.T) {
 		t.Fatalf("expected value to be %q, got %q", "aval", v)
 	}
 
-	if v := ins.Values[1]; types.ValueAsInteger[types.Int](v) != 5 {
+	if v := ins.Values[1]; storage.ValueAsInteger[storage.Int](v) != 5 {
 		t.Fatalf("expected value to be %d, got %d", 5, v)
 	}
 }
@@ -271,12 +271,12 @@ func TestCreateTableCommand(t *testing.T) {
 	expF := []FieldDef{
 		{
 			Name: "name",
-			Type: types.STRING,
+			Type: storage.STRING,
 			Len:  0,
 		},
 		{
 			Name: "age",
-			Type: types.INTEGER,
+			Type: storage.INTEGER,
 			Len:  0,
 		},
 	}

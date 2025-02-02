@@ -3,7 +3,7 @@ package tx
 import (
 	"fmt"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 // setFixedLenRecord represents an update record of the WAL
@@ -11,26 +11,26 @@ import (
 // The record can be represented as
 // <SETFIXED:size, txnum, filename, blockId, blockOffset, value>
 type setFixedLenRecord struct {
-	txnum  types.TxID
-	offset types.Offset
-	size   types.Size
-	block  types.Block
-	val    types.FixedLen
+	txnum  storage.TxID
+	offset storage.Offset
+	size   storage.Size
+	block  storage.Block
+	val    storage.FixedLen
 }
 
 func newSetFixedLenRecord(record recordBuffer) setFixedLenRecord {
 	rec := setFixedLenRecord{}
 
 	// skip the first byte, which is the record type
-	_ = record.readFixedLen(types.SizeOfTinyInt)
+	_ = record.readFixedLen(storage.SizeOfTinyInt)
 	// read the transaction number
-	rec.txnum = types.UnsafeFixedToInteger[types.TxID](record.readFixedLen(types.SizeOfTxID))
+	rec.txnum = storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
 	// read the block name
 	rec.block = record.readBlock()
 	// read the block offset
-	rec.offset = types.Offset(types.UnsafeFixedToInteger[types.Offset](record.readFixedLen(types.SizeOfOffset)))
+	rec.offset = storage.Offset(storage.UnsafeFixedToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset)))
 	// read the size of the value
-	rec.size = types.Size(types.UnsafeFixedToInteger[types.Size](record.readFixedLen(types.SizeOfSize)))
+	rec.size = storage.Size(storage.UnsafeFixedToInteger[storage.Size](record.readFixedLen(storage.SizeOfSize)))
 	// read the value
 	rec.val = record.readFixedLen(rec.size)
 
@@ -45,7 +45,7 @@ func (si setFixedLenRecord) Op() txType {
 	return SETFIXED
 }
 
-func (si setFixedLenRecord) TxNumber() types.TxID {
+func (si setFixedLenRecord) TxNumber() storage.TxID {
 	return si.txnum
 }
 
@@ -58,7 +58,7 @@ func (si setFixedLenRecord) Undo(tx Transaction) {
 // logSetFixedLen appends a string records to the log file, by calling log.Manager.Append
 // An int log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func logSetFixedLen(lm logManager, txnum types.TxID, block types.Block, offset types.Offset, size types.Size, val types.FixedLen) int {
+func logSetFixedLen(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen) int {
 	p := logPools.setInt.Get().(*[]byte)
 	defer logPools.setInt.Put(p)
 	writeFixedLen(p, txnum, block, offset, size, val)
@@ -66,13 +66,13 @@ func logSetFixedLen(lm logManager, txnum types.TxID, block types.Block, offset t
 	return lm.Append(*p)
 }
 
-func writeFixedLen(dst *[]byte, txnum types.TxID, block types.Block, offset types.Offset, size types.Size, val types.FixedLen) {
+func writeFixedLen(dst *[]byte, txnum storage.TxID, block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen) {
 	rbuf := recordBuffer{bytes: *dst}
 
-	rbuf.writeFixedLen(types.SizeOfTinyInt, types.UnsafeIntegerToFixed[types.TinyInt](types.SizeOfTinyInt, types.TinyInt(SETFIXED)))
-	rbuf.writeFixedLen(types.SizeOfTxID, types.UnsafeIntegerToFixed[types.TxID](types.SizeOfTxID, txnum))
+	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETFIXED)))
+	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTxID, txnum))
 	rbuf.writeBlock(block)
-	rbuf.writeFixedLen(types.SizeOfOffset, types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, offset))
-	rbuf.writeFixedLen(types.SizeOfSize, types.UnsafeIntegerToFixed[types.Size](types.SizeOfSize, types.Size(size)))
+	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixed[storage.Offset](storage.SizeOfOffset, offset))
+	rbuf.writeFixedLen(storage.SizeOfSize, storage.UnsafeIntegerToFixed[storage.Size](storage.SizeOfSize, storage.Size(size)))
 	rbuf.writeFixedLen(size, val)
 }

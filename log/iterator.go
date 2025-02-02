@@ -2,7 +2,7 @@ package log
 
 import (
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 // WalIterator iterates over WAL file blocks.
@@ -10,13 +10,13 @@ import (
 // records from right to left within each block.
 type WalIterator struct {
 	fm         *file.FileManager
-	block      types.Block
-	page       *types.Page
-	currentPos types.Offset
-	boundary   types.Offset
+	block      storage.Block
+	page       *storage.Page
+	currentPos storage.Offset
+	boundary   storage.Offset
 }
 
-func newWalIterator(page *types.Page, fm *file.FileManager, start types.Block) *WalIterator {
+func newWalIterator(page *storage.Page, fm *file.FileManager, start storage.Block) *WalIterator {
 	it := &WalIterator{
 		fm:    fm,
 		block: start,
@@ -37,34 +37,34 @@ func (it *WalIterator) Next() []byte {
 	if it.currentPos == it.fm.BlockSize() {
 		// we are at the end of the block, read the previous one
 		prev := it.block.Number() - 1
-		if prev == types.EOF {
+		if prev == storage.EOF {
 			return nil
 		}
 
-		block := types.NewBlock(it.block.FileName(), prev)
+		block := storage.NewBlock(it.block.FileName(), prev)
 		it.moveToBlock(block)
 	}
 
 	// each WAL record is prepended by its size
 	record := it.page.UnsafeGetVarlen(it.currentPos)
 	// move the iterator pointer to the next record
-	it.currentPos += types.Offset(record.Size())
+	it.currentPos += storage.Offset(record.Size())
 	return record.Data()
 }
 
 func (it *WalIterator) Close() {
 	it.fm = nil
-	it.block = types.Block{}
+	it.block = storage.Block{}
 
 	iteratorPool.Put(it.page)
 	it.page = nil
 }
 
-func (it *WalIterator) moveToBlock(block types.Block) {
+func (it *WalIterator) moveToBlock(block storage.Block) {
 	it.fm.Read(block, it.page)
 	// boundary contains the offset of the most recently added record
 	// read the boundary from the page
-	it.boundary = it.page.UnsafeGetFixedLen(0, types.SizeOfOffset).UnsafeAsOffset()
+	it.boundary = it.page.UnsafeGetFixedLen(0, storage.SizeOfOffset).UnsafeAsOffset()
 	// position the iterator after the boundary offset
 	it.currentPos = it.boundary
 	it.block = block

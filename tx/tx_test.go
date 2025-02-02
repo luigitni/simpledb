@@ -3,9 +3,9 @@ package tx_test
 import (
 	"testing"
 
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/tx"
-	"github.com/luigitni/simpledb/types"
 )
 
 func TestSerialTx(t *testing.T) {
@@ -15,7 +15,7 @@ func TestSerialTx(t *testing.T) {
 
 	tx1 := tx.NewTx(fm, lm, bm)
 
-	block := types.NewBlock(blockname, 1)
+	block := storage.NewBlock(blockname, 1)
 	tx1.Pin(block)
 
 	const (
@@ -23,11 +23,11 @@ func TestSerialTx(t *testing.T) {
 		expStr1 = "one"
 	)
 
-	intVal1 := types.UnsafeIntegerToFixed[types.Int](types.SizeOfInt, expInt1)
-	strVal1 := types.UnsafeNewVarlenFromGoString(expStr1)
+	intVal1 := storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, expInt1)
+	strVal1 := storage.UnsafeNewVarlenFromGoString(expStr1)
 	// the block initially contains unknown bytes
 	// so do not log the values yet
-	if err := tx1.SetFixedLen(block, 80, types.SizeOfInt, intVal1, false); err != nil {
+	if err := tx1.SetFixedLen(block, 80, storage.SizeOfInt, intVal1, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -41,12 +41,12 @@ func TestSerialTx(t *testing.T) {
 	tx2 := tx.NewTx(fm, lm, bm)
 	tx2.Pin(block)
 
-	ival, err := tx2.FixedLen(block, 80, types.SizeOfInt)
+	ival, err := tx2.FixedLen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if v := types.UnsafeFixedToInteger[types.Int](ival); v != expInt1 {
+	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt1 {
 		t.Fatalf("expected intval to be %d, got %d", expInt1, v)
 	}
 
@@ -55,7 +55,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := types.UnsafeVarlenToGoString(sval); v != expStr1 {
+	if v := storage.UnsafeVarlenToGoString(sval); v != expStr1 {
 		t.Fatalf("expected strval to be %s, got %s", expStr1, v)
 	}
 
@@ -64,10 +64,10 @@ func TestSerialTx(t *testing.T) {
 		expInt2 = 45
 		expStr2 = "two"
 	)
-	intVal2 := types.UnsafeIntegerToFixed[types.Int](types.SizeOfInt, expInt2)
-	strVal2 := types.UnsafeNewVarlenFromGoString(expStr2)
+	intVal2 := storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, expInt2)
+	strVal2 := storage.UnsafeNewVarlenFromGoString(expStr2)
 
-	if err := tx2.SetFixedLen(block, 80, types.SizeOfInt, intVal2, true); err != nil {
+	if err := tx2.SetFixedLen(block, 80, storage.SizeOfInt, intVal2, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -81,12 +81,12 @@ func TestSerialTx(t *testing.T) {
 	tx3 := tx.NewTx(fm, lm, bm)
 	tx3.Pin(block)
 
-	ival, err = tx3.FixedLen(block, 80, types.SizeOfInt)
+	ival, err = tx3.FixedLen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if v := types.UnsafeFixedToInteger[types.Int](ival); v != expInt2 {
+	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt2 {
 		t.Fatalf("expected intval to be %d, got %d", expInt2, v)
 	}
 
@@ -95,7 +95,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if s := types.UnsafeVarlenToGoString(sval); s != expStr2 {
+	if s := storage.UnsafeVarlenToGoString(sval); s != expStr2 {
 		t.Fatalf("expected strval to be %s, got %s", expStr2, s)
 	}
 
@@ -103,16 +103,16 @@ func TestSerialTx(t *testing.T) {
 
 	const expInt3 = 9999
 
-	intVal3 := types.UnsafeIntegerToFixed[types.Int](types.SizeOfInt, expInt3)
-	tx3.SetFixedLen(block, 80, types.SizeOfInt, intVal3, true)
+	intVal3 := storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, expInt3)
+	tx3.SetFixedLen(block, 80, storage.SizeOfInt, intVal3, true)
 
-	ival, err = tx3.FixedLen(block, 80, types.SizeOfInt)
+	ival, err = tx3.FixedLen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// expect pre-rollback value to be exactly like the value that has been written by tx3
-	if v := types.UnsafeFixedToInteger[types.Int](ival); v != expInt3 {
+	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt3 {
 		t.Fatalf("expected intval to be %d, got %d", expInt3, v)
 	}
 
@@ -121,13 +121,13 @@ func TestSerialTx(t *testing.T) {
 	tx4 := tx.NewTx(fm, lm, bm)
 	tx4.Pin(block)
 
-	ival, err = tx4.FixedLen(block, 80, types.SizeOfInt)
+	ival, err = tx4.FixedLen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// test that after rollback of tx3, intval has the value set by tx2
-	if v := types.UnsafeFixedToInteger[types.Int](ival); v != expInt2 {
+	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt2 {
 		t.Fatalf("expected intval to be %d, got %d", expInt2, v)
 	}
 

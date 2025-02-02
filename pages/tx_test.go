@@ -4,8 +4,8 @@ import (
 	"math/rand"
 	"sync"
 
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/tx"
-	"github.com/luigitni/simpledb/types"
 )
 
 var _ tx.Transaction = &mockTx{}
@@ -15,7 +15,7 @@ type mockTx struct {
 
 	storage mockTxStorage
 
-	id types.TxID
+	id storage.TxID
 
 	isPinned   bool
 	isCommit   bool
@@ -33,46 +33,46 @@ type mockTx struct {
 }
 
 type mockTxStorage interface {
-	setFixedLen(blockID types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error
-	setVarLen(blockID types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error
+	setFixedLen(blockID storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen, shouldLog bool) error
+	setVarLen(blockID storage.Block, offset storage.Offset, val storage.Varlen, shouldLog bool) error
 
-	getFixedLen(blockID types.Block, offset types.Offset, size types.Size) (types.FixedLen, error)
-	getVarLen(blockID types.Block, offset types.Offset) (types.Varlen, error)
+	getFixedLen(blockID storage.Block, offset storage.Offset, size storage.Size) (storage.FixedLen, error)
+	getVarLen(blockID storage.Block, offset storage.Offset) (storage.Varlen, error)
 }
 
-type defaultMockTxStorage map[types.Block]map[types.Offset]interface{}
+type defaultMockTxStorage map[storage.Block]map[storage.Offset]interface{}
 
-func (s defaultMockTxStorage) getFixedLen(blockID types.Block, offset types.Offset, size types.Size) (types.FixedLen, error) {
+func (s defaultMockTxStorage) getFixedLen(blockID storage.Block, offset storage.Offset, size storage.Size) (storage.FixedLen, error) {
 	om, ok := s[blockID]
 	if !ok {
 		return nil, nil
 	}
 
-	if v, ok := om[offset].(types.FixedLen); ok {
+	if v, ok := om[offset].(storage.FixedLen); ok {
 		return v, nil
 	}
 
 	return nil, nil
 }
 
-func (s defaultMockTxStorage) getVarLen(blockID types.Block, offset types.Offset) (types.Varlen, error) {
+func (s defaultMockTxStorage) getVarLen(blockID storage.Block, offset storage.Offset) (storage.Varlen, error) {
 	om, ok := s[blockID]
 	if !ok {
-		return types.Varlen{}, nil
+		return storage.Varlen{}, nil
 	}
 
-	if v, ok := om[offset].(types.Varlen); ok {
+	if v, ok := om[offset].(storage.Varlen); ok {
 		return v, nil
 	}
 
-	return types.Varlen{}, nil
+	return storage.Varlen{}, nil
 }
 
-func (s defaultMockTxStorage) setFixedLen(blockID types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error {
+func (s defaultMockTxStorage) setFixedLen(blockID storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen, shouldLog bool) error {
 	om, ok := s[blockID]
 
 	if !ok {
-		om = make(map[types.Offset]interface{})
+		om = make(map[storage.Offset]interface{})
 		s[blockID] = om
 	}
 
@@ -81,11 +81,11 @@ func (s defaultMockTxStorage) setFixedLen(blockID types.Block, offset types.Offs
 	return nil
 }
 
-func (s defaultMockTxStorage) setVarLen(blockID types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error {
+func (s defaultMockTxStorage) setVarLen(blockID storage.Block, offset storage.Offset, val storage.Varlen, shouldLog bool) error {
 	om, ok := s[blockID]
 
 	if !ok {
-		om = make(map[types.Offset]interface{})
+		om = make(map[storage.Offset]interface{})
 		s[blockID] = om
 	}
 
@@ -95,34 +95,34 @@ func (s defaultMockTxStorage) setVarLen(blockID types.Block, offset types.Offset
 
 func newMockTx() *mockTx {
 	return &mockTx{
-		id:      types.TxID(rand.Uint32()),
+		id:      storage.TxID(rand.Uint32()),
 		storage: defaultMockTxStorage{},
 	}
 }
 
-func newMockTxWithId(id types.TxID) *mockTx {
+func newMockTxWithId(id storage.TxID) *mockTx {
 	mtx := newMockTx()
 	mtx.id = id
 
 	return mtx
 }
 
-func (t *mockTx) Id() types.TxID {
+func (t *mockTx) Id() storage.TxID {
 	return t.id
 }
 
 // Append implements tx.Transaction.
-func (t *mockTx) Append(fname string) (types.Block, error) {
+func (t *mockTx) Append(fname string) (storage.Block, error) {
 	t.Lock()
 	defer t.Unlock()
 	t.appendCalls++
 
-	return types.Block{}, nil
+	return storage.Block{}, nil
 }
 
 // BlockSize implements tx.Transaction.
-func (t *mockTx) BlockSize() types.Offset {
-	return types.PageSize
+func (t *mockTx) BlockSize() storage.Offset {
+	return storage.PageSize
 }
 
 // Commit implements tx.Transaction.
@@ -134,7 +134,7 @@ func (t *mockTx) Commit() {
 }
 
 // Pin implements tx.Transaction.
-func (t *mockTx) Pin(blockID types.Block) {
+func (t *mockTx) Pin(blockID storage.Block) {
 	t.Lock()
 	defer t.Unlock()
 	t.isPinned = true
@@ -156,7 +156,7 @@ func (t *mockTx) Rollback() {
 }
 
 // Int implements tx.Transaction.
-func (t *mockTx) FixedLen(blockID types.Block, offset types.Offset, size types.Size) (types.FixedLen, error) {
+func (t *mockTx) FixedLen(blockID storage.Block, offset storage.Offset, size storage.Size) (storage.FixedLen, error) {
 	t.Lock()
 	defer t.Unlock()
 
@@ -165,7 +165,7 @@ func (t *mockTx) FixedLen(blockID types.Block, offset types.Offset, size types.S
 }
 
 // SetInt implements tx.Transaction.
-func (t *mockTx) SetFixedLen(blockID types.Block, offset types.Offset, size types.Size, val types.FixedLen, shouldLog bool) error {
+func (t *mockTx) SetFixedLen(blockID storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen, shouldLog bool) error {
 	t.Lock()
 	defer t.Unlock()
 
@@ -174,7 +174,7 @@ func (t *mockTx) SetFixedLen(blockID types.Block, offset types.Offset, size type
 }
 
 // String implements tx.Transaction.
-func (t *mockTx) VarLen(blockID types.Block, offset types.Offset) (types.Varlen, error) {
+func (t *mockTx) VarLen(blockID storage.Block, offset storage.Offset) (storage.Varlen, error) {
 	t.Lock()
 	defer t.Unlock()
 
@@ -183,7 +183,7 @@ func (t *mockTx) VarLen(blockID types.Block, offset types.Offset) (types.Varlen,
 }
 
 // SetString implements tx.Transaction.
-func (t *mockTx) SetVarLen(blockID types.Block, offset types.Offset, val types.Varlen, shouldLog bool) error {
+func (t *mockTx) SetVarLen(blockID storage.Block, offset storage.Offset, val storage.Varlen, shouldLog bool) error {
 	t.Lock()
 	defer t.Unlock()
 
@@ -192,12 +192,12 @@ func (t *mockTx) SetVarLen(blockID types.Block, offset types.Offset, val types.V
 }
 
 // Size implements tx.Transaction.
-func (t *mockTx) Size(fname string) (types.Long, error) {
+func (t *mockTx) Size(fname string) (storage.Long, error) {
 	panic("unimplemented")
 }
 
 // Unpin implements tx.Transaction.
-func (t *mockTx) Unpin(blockID types.Block) {
+func (t *mockTx) Unpin(blockID storage.Block) {
 	t.Lock()
 	defer t.Unlock()
 	t.isPinned = false

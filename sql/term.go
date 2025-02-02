@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 type Plan interface {
@@ -66,7 +66,7 @@ func (t Term) AppliesTo(schema Schema) bool {
 	return t.lhs.AppliesTo(schema) && t.rhs.AppliesTo(schema)
 }
 
-func (t Term) EquatesWithConstant(fieldName string) (bool, types.Value) {
+func (t Term) EquatesWithConstant(fieldName string) (bool, storage.Value) {
 	if t.lhs.IsFieldName() && t.lhs.fname == fieldName && !t.rhs.IsFieldName() {
 		return true, t.lhs.AsConstant()
 	}
@@ -75,7 +75,7 @@ func (t Term) EquatesWithConstant(fieldName string) (bool, types.Value) {
 		return true, t.rhs.AsConstant()
 	}
 
-	return false, types.Value{}
+	return false, storage.Value{}
 }
 
 func (t Term) EquatesWithField(fieldName string) (bool, string) {

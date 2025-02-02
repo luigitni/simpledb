@@ -1,9 +1,9 @@
 package sql
 
-import "github.com/luigitni/simpledb/types"
+import "github.com/luigitni/simpledb/storage"
 
 type Scan interface {
-	Val(fieldName string) (types.Value, error)
+	Val(fieldName string) (storage.Value, error)
 }
 
 type Schema interface {
@@ -11,11 +11,11 @@ type Schema interface {
 }
 
 type Expression struct {
-	val   types.Value
+	val   storage.Value
 	fname string
 }
 
-func NewExpressionWithVal(v types.Value) Expression {
+func NewExpressionWithVal(v storage.Value) Expression {
 	return Expression{val: v}
 }
 
@@ -27,7 +27,7 @@ func (exp Expression) IsFieldName() bool {
 	return exp.fname != ""
 }
 
-func (exp Expression) AsConstant() types.Value {
+func (exp Expression) AsConstant() storage.Value {
 	return exp.val
 }
 
@@ -35,7 +35,7 @@ func (exp Expression) AsFieldName() string {
 	return exp.fname
 }
 
-func (exp Expression) Evaluate(scan Scan) (types.Value, error) {
+func (exp Expression) Evaluate(scan Scan) (storage.Value, error) {
 	if exp.val != nil {
 		return exp.val, nil
 	}

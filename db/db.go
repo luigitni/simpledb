@@ -6,18 +6,18 @@ import (
 	"io"
 
 	"github.com/luigitni/simpledb/buffer"
+	"github.com/luigitni/simpledb/engine"
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/log"
-	"github.com/luigitni/simpledb/record"
 	"github.com/luigitni/simpledb/sql"
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/tx"
-	"github.com/luigitni/simpledb/types"
 )
 
 const (
 	defaultPath      = "../data"
 	defaultLogFile   = "../data/wal"
-	blockSize        = types.PageSize
+	blockSize        = storage.PageSize
 	buffersAvaialble = 500
 )
 
@@ -25,7 +25,7 @@ type DB struct {
 	fm  *file.FileManager
 	lm  *log.WalWriter
 	bm  *buffer.BufferManager
-	mdm *record.MetadataManager
+	mdm *engine.MetadataManager
 }
 
 func NewDB() (*DB, error) {
@@ -36,7 +36,7 @@ func NewDB() (*DB, error) {
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	mdm := record.NewMetadataManager()
+	mdm := engine.NewMetadataManager()
 
 	if fm.IsNew() {
 		fmt.Println("initialising new database")
@@ -78,7 +78,7 @@ func (db *DB) Exec(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 
 func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
 	run := func() (Rows, error) {
-		planner := record.NewHeuristicsQueryPlanner(db.mdm)
+		planner := engine.NewHeuristicsQueryPlanner(db.mdm)
 
 		plan, err := planner.CreatePlan(q, x)
 		if err != nil {
@@ -138,9 +138,9 @@ func (r Result) String() string {
 }
 
 func (db *DB) ExecDDL(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
-	planner := record.NewUpdatePlanner(db.mdm)
+	planner := engine.NewUpdatePlanner(db.mdm)
 
-	res, err := record.ExecuteDDLStatement(planner, cmd, x)
+	res, err := engine.ExecuteDDLStatement(planner, cmd, x)
 	if err != nil {
 		return Result{}, err
 	}
@@ -149,9 +149,9 @@ func (db *DB) ExecDDL(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 }
 
 func (db *DB) ExecDML(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
-	planner := record.NewUpdatePlanner(db.mdm)
+	planner := engine.NewUpdatePlanner(db.mdm)
 
-	res, err := record.ExecuteDMLStatement(planner, cmd, x)
+	res, err := engine.ExecuteDMLStatement(planner, cmd, x)
 	if err != nil {
 		return Result{}, err
 	}

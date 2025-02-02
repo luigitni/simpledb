@@ -3,17 +3,17 @@ package tx
 import (
 	"fmt"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 // setVarLenLogRecord represents a log record for setting a string value
 // The record can be represented as
 // <SETVARLEN, txnum, filename, blockId, blockOffset, value>
 type setVarLenLogRecord struct {
-	txnum  types.TxID
-	offset types.Offset
-	block  types.Block
-	val    types.Varlen
+	txnum  storage.TxID
+	offset storage.Offset
+	block  storage.Block
+	val    storage.Varlen
 }
 
 // NewSetStringRecord constructs a SetStringLogRecord
@@ -23,13 +23,13 @@ func newSetVarLenRecord(record recordBuffer) setVarLenLogRecord {
 	rec := setVarLenLogRecord{}
 
 	// skip the first byte, which is the record type
-	_ = record.readFixedLen(types.SizeOfTinyInt)
+	_ = record.readFixedLen(storage.SizeOfTinyInt)
 	// read the transaction number
-	rec.txnum = types.UnsafeFixedToInteger[types.TxID](record.readFixedLen(types.SizeOfTxID))
+	rec.txnum = storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
 	// read the block name
 	rec.block = record.readBlock()
 	// read the block offset
-	rec.offset = types.Offset(types.UnsafeFixedToInteger[types.Offset](record.readFixedLen(types.SizeOfOffset)))
+	rec.offset = storage.Offset(storage.UnsafeFixedToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset)))
 	// read the value
 	rec.val = record.readVarlen()
 
@@ -40,7 +40,7 @@ func (ss setVarLenLogRecord) Op() txType {
 	return SETSTRING
 }
 
-func (ss setVarLenLogRecord) TxNumber() types.TxID {
+func (ss setVarLenLogRecord) TxNumber() storage.TxID {
 	return ss.txnum
 }
 
@@ -60,8 +60,8 @@ func (ss setVarLenLogRecord) Undo(tx Transaction) {
 // logSetVarlen appends a string records to the log file, by calling log.Manager.Append
 // A string log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
-func logSetVarlen(lm logManager, txnum types.TxID, block types.Block, offset types.Offset, val types.Varlen) int {
-	pool := logPools.poolForSize(types.Size(val.Size()))
+func logSetVarlen(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) int {
+	pool := logPools.poolForSize(storage.Size(val.Size()))
 	p := pool.Get().(*[]byte)
 	defer pool.Put(p)
 	writeVarlen(p, txnum, block, offset, val)
@@ -69,13 +69,13 @@ func logSetVarlen(lm logManager, txnum types.TxID, block types.Block, offset typ
 	return lm.Append(*p)
 }
 
-func writeVarlen(dst *[]byte, txnum types.TxID, block types.Block, offset types.Offset, val types.Varlen) {
+func writeVarlen(dst *[]byte, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) {
 	rbuf := recordBuffer{bytes: *dst}
 
-	rbuf.writeFixedLen(types.SizeOfTinyInt, types.UnsafeIntegerToFixed[types.TinyInt](types.SizeOfTinyInt, types.TinyInt(SETSTRING)))
-	rbuf.writeFixedLen(types.SizeOfTxID, types.UnsafeIntegerToFixed[types.TxID](types.SizeOfTinyInt, txnum))
+	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETSTRING)))
+	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTinyInt, txnum))
 	rbuf.writeBlock(block)
 	// write the offset as a fixed length integer
-	rbuf.writeFixedLen(types.SizeOfOffset, types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, offset))
+	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixed[storage.Offset](storage.SizeOfOffset, offset))
 	rbuf.writeVarLen(val) // write offset
 }

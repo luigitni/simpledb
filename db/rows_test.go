@@ -3,7 +3,7 @@ package db
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 func TestRowsString(t *testing.T) {
@@ -38,17 +38,17 @@ func TestRowsString(t *testing.T) {
 			},
 			rows: []Row{
 				{
-					vals: []types.Value{
-						types.ValueFromInteger[types.Int](types.SizeOfInt, 123),
-						types.ValueFromGoString("abc"),
-						types.ValueFromGoString("This is a much longer value"),
+					vals: []storage.Value{
+						storage.ValueFromInteger[storage.Int](storage.SizeOfInt, 123),
+						storage.ValueFromGoString("abc"),
+						storage.ValueFromGoString("This is a much longer value"),
 					},
 				},
 				{
-					vals: []types.Value{
-						types.ValueFromInteger[types.Int](types.SizeOfInt, 0),
-						types.ValueFromGoString("This is a much longer value"),
-						types.ValueFromGoString("short"),
+					vals: []storage.Value{
+						storage.ValueFromInteger[storage.Int](storage.SizeOfInt, 0),
+						storage.ValueFromGoString("This is a much longer value"),
+						storage.ValueFromGoString("short"),
 					},
 				},
 			},

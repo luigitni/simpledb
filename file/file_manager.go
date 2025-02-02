@@ -8,7 +8,7 @@ import (
 	"strings"
 	"sync"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 const (
@@ -24,7 +24,7 @@ const (
 // This ensures that each call to read, write or apped will incour exactly one disk access
 type FileManager struct {
 	folder    string
-	blockSize types.Long
+	blockSize storage.Long
 	isNew     bool
 	// maps a file name to an open file.
 	// files are opened in RWS mode
@@ -32,7 +32,7 @@ type FileManager struct {
 	sync.Mutex
 }
 
-func NewFileManager(path string, blockSize types.Long) *FileManager {
+func NewFileManager(path string, blockSize storage.Long) *FileManager {
 	_, err := os.Stat(path)
 
 	isNew := os.IsNotExist(err)
@@ -87,14 +87,14 @@ func (manager *FileManager) IsNew() bool {
 	return manager.isNew
 }
 
-func (manager *FileManager) BlockSize() types.Offset {
-	return types.PageSize
+func (manager *FileManager) BlockSize() storage.Offset {
+	return storage.PageSize
 }
 
 // todo: code improvement: implement reader and writer interfaces
 
 // Read reads the content of block id blk into Page p
-func (manager *FileManager) Read(blk types.Block, p *types.Page) {
+func (manager *FileManager) Read(blk storage.Block, p *storage.Page) {
 	manager.Lock()
 	defer manager.Unlock()
 
@@ -107,7 +107,7 @@ func (manager *FileManager) Read(blk types.Block, p *types.Page) {
 }
 
 // Write writes Page p to BlockID block, persisted to a file
-func (manager *FileManager) Write(blk types.Block, p *types.Page) {
+func (manager *FileManager) Write(blk storage.Block, p *storage.Page) {
 	manager.Lock()
 	defer manager.Unlock()
 
@@ -116,20 +116,20 @@ func (manager *FileManager) Write(blk types.Block, p *types.Page) {
 }
 
 // Size returns the size, in blocks, of the given file
-func (manager *FileManager) Size(filename string) types.Long {
+func (manager *FileManager) Size(filename string) storage.Long {
 	f := manager.getFile(filename)
 	finfo, err := f.Stat()
 	if err != nil {
 		panic(err)
 	}
-	return types.Long(finfo.Size()) / manager.blockSize
+	return storage.Long(finfo.Size()) / manager.blockSize
 }
 
 // Append seeks to the end of the file and writes an empty array of bytes to the file
 // todo: this might not be needed in go
-func (manager *FileManager) Append(fname string) types.Block {
+func (manager *FileManager) Append(fname string) storage.Block {
 	newBlkNum := manager.Size(fname)
-	block := types.NewBlock(fname, types.Long(newBlkNum))
+	block := storage.NewBlock(fname, storage.Long(newBlkNum))
 	buf := make([]byte, manager.blockSize)
 
 	f := manager.getFile(fname)

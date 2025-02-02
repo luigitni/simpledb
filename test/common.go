@@ -8,7 +8,7 @@ import (
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/log"
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 const (
@@ -22,7 +22,7 @@ type Conf struct {
 	DbFolder         string
 	LogFile          string
 	BlockFile        string
-	BlockSize        types.Long
+	BlockSize        storage.Long
 	BuffersAvailable int
 }
 

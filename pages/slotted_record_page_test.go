@@ -3,12 +3,12 @@ package pages
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 type mockLayout struct {
 	indexes map[string]int
-	sizes   map[string]types.Size
+	sizes   map[string]storage.Size
 }
 
 func (m mockLayout) FieldIndex(fname string) int {
@@ -19,7 +19,7 @@ func (m mockLayout) FieldsCount() int {
 	return len(m.indexes)
 }
 
-func (m mockLayout) FieldSize(fname string) types.Size {
+func (m mockLayout) FieldSize(fname string) storage.Size {
 	return m.sizes[fname]
 }
 
@@ -56,7 +56,7 @@ func TestSlottedRecordPageAppendRecordSlot(t *testing.T) {
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, storage.NewBlock("file", 1), layout)
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -73,8 +73,8 @@ func TestSlottedRecordPageAppendRecordSlot(t *testing.T) {
 	})
 
 	t.Run("successfully appends records", func(t *testing.T) {
-		var recordsSize types.Offset
-		for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
+		var recordsSize storage.Offset
+		for i, v := range []storage.Offset{255, 1024, 512, 323, 8} {
 			recordsSize += v
 
 			if err := header.appendRecordSlot(v); err != nil {
@@ -103,14 +103,14 @@ func TestSlottedRecordPageWriteHeader(t *testing.T) {
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, storage.NewBlock("file", 1), layout)
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
 	t.Run("successfully appends records", func(t *testing.T) {
-		var recordsSize types.Offset
-		for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
+		var recordsSize storage.Offset
+		for i, v := range []storage.Offset{255, 1024, 512, 323, 8} {
 			recordsSize += v
 
 			header, err := page.readHeader()
@@ -151,8 +151,8 @@ func TestSlottedRecordPageReadHeader(t *testing.T) {
 	tx := newMockTx()
 
 	const (
-		blockNumber  types.Long = 1
-		freeSpaceEnd            = 1024
+		blockNumber  storage.Long = 1
+		freeSpaceEnd              = 1024
 	)
 
 	entries := []slottedRecordPageHeaderEntry{
@@ -161,11 +161,11 @@ func TestSlottedRecordPageReadHeader(t *testing.T) {
 		slottedRecordPageHeaderEntry{}.setOffset(1024).setLength(1024).setFlag(flagInUseRecord),
 	}
 
-	page := NewSlottedRecordPage(tx, types.Block{}, nil)
+	page := NewSlottedRecordPage(tx, storage.Block{}, nil)
 
 	header := slottedRecordPageHeader{
 		blockNumber:  blockNumber,
-		numSlots:     types.SmallInt(len(entries)),
+		numSlots:     storage.SmallInt(len(entries)),
 		freeSpaceEnd: freeSpaceEnd,
 		entries:      entries,
 	}
@@ -183,7 +183,7 @@ func TestSlottedRecordPageReadHeader(t *testing.T) {
 		t.Errorf("expected block number %d, got %d", blockNumber, got)
 	}
 
-	if got := header.numSlots; got != types.SmallInt(len(entries)) {
+	if got := header.numSlots; got != storage.SmallInt(len(entries)) {
 		t.Errorf("expected numSlots %d, got %d", len(entries), got)
 	}
 
@@ -202,10 +202,10 @@ func TestSlottedRecordPageSearchAfter(t *testing.T) {
 	tx := newMockTx()
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
-		sizes:   map[string]types.Size{"field1": types.SizeOfInt},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfInt},
 	}
 
-	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, storage.NewBlock("file", 1), layout)
 
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -217,8 +217,8 @@ func TestSlottedRecordPageSearchAfter(t *testing.T) {
 		}
 	})
 
-	for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
-		if _, err := page.InsertFrom(types.SmallInt(i), v, false); err != nil {
+	for i, v := range []storage.Offset{255, 1024, 512, 323, 8} {
+		if _, err := page.InsertFrom(storage.SmallInt(i), v, false); err != nil {
 			t.Fatalf("error appending record slot: %v", err)
 		}
 	}
@@ -242,20 +242,20 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, storage.NewBlock("file", 1), layout)
 
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
 	t.Run("successfully inserts records one after another", func(t *testing.T) {
-		for i, v := range []types.Offset{255, 1024, 512, 323, 8} {
+		for i, v := range []storage.Offset{255, 1024, 512, 323, 8} {
 			slot, err := page.InsertFrom(0, v, false)
 			if err != nil {
 				t.Errorf("error inserting after -1: %v", err)
 			}
 
-			if slot != types.SmallInt(i) {
+			if slot != storage.SmallInt(i) {
 				t.Errorf("expexted slot to be %d, got %d", i, slot)
 			}
 		}
@@ -279,15 +279,15 @@ func TestSlottedRecordPageSet(t *testing.T) {
 			"field3": 2,
 			"field4": 3,
 		},
-		sizes: map[string]types.Size{
-			"field1": types.SizeOfTinyInt,
+		sizes: map[string]storage.Size{
+			"field1": storage.SizeOfTinyInt,
 			"field2": 0,
-			"field3": types.SizeOfInt,
+			"field3": storage.SizeOfInt,
 			"field4": 0,
 		},
 	}
 
-	page := NewSlottedRecordPage(tx, types.NewBlock("file", 1), layout)
+	page := NewSlottedRecordPage(tx, storage.NewBlock("file", 1), layout)
 	if err := page.Format(); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -302,20 +302,20 @@ func TestSlottedRecordPageSet(t *testing.T) {
 	*
 	 */
 	record := []interface{}{
-		types.TinyInt(12), "This is a variable string", types.Int(4567890), "This is another string",
+		storage.TinyInt(12), "This is a variable string", storage.Int(4567890), "This is another string",
 	}
 
 	catalog := []string{"field1", "field2", "field3", "field4"}
 
-	var recordLength types.Offset
+	var recordLength storage.Offset
 	for i, v := range record {
 		column := catalog[i]
 
 		switch val := v.(type) {
-		case types.TinyInt, types.Int:
-			recordLength += types.Offset(layout.indexes[column])
+		case storage.TinyInt, storage.Int:
+			recordLength += storage.Offset(layout.indexes[column])
 		case string:
-			recordLength += types.Offset(types.UnsafeSizeOfStringAsVarlen(val))
+			recordLength += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(val))
 		default:
 			t.Fatal("unsupported type")
 		}
@@ -329,7 +329,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 	if err := page.SetFixedLen(
 		slot,
 		"field1",
-		types.UnsafeIntegerToFixed(layout.sizes["field1"], record[0].(types.TinyInt)),
+		storage.UnsafeIntegerToFixed(layout.sizes["field1"], record[0].(storage.TinyInt)),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -337,7 +337,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 	if err := page.SetVarLen(
 		slot,
 		"field2",
-		types.UnsafeNewVarlenFromGoString(record[1].(string)),
+		storage.UnsafeNewVarlenFromGoString(record[1].(string)),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -345,7 +345,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 	if err := page.SetFixedLen(
 		slot,
 		"field3",
-		types.UnsafeIntegerToFixed(layout.sizes["field3"], record[2].(types.Int)),
+		storage.UnsafeIntegerToFixed(layout.sizes["field3"], record[2].(storage.Int)),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -353,7 +353,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 	if err := page.SetVarLen(
 		slot,
 		"field4",
-		types.UnsafeNewVarlenFromGoString(record[3].(string)),
+		storage.UnsafeNewVarlenFromGoString(record[3].(string)),
 	); err != nil {
 		t.Fatal(err)
 	}
@@ -363,7 +363,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := types.UnsafeFixedToInteger[types.TinyInt](gotFixed); v != record[0].(types.TinyInt) {
+	if v := storage.UnsafeFixedToInteger[storage.TinyInt](gotFixed); v != record[0].(storage.TinyInt) {
 		t.Errorf("expected field1 value to be %d, got %d", record[0], v)
 	}
 
@@ -372,7 +372,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := types.UnsafeVarlenToGoString(gotVarlen); v != record[1].(string) {
+	if v := storage.UnsafeVarlenToGoString(gotVarlen); v != record[1].(string) {
 		t.Errorf("expected field2 value to be %s, got %s", record[1], v)
 	}
 
@@ -381,7 +381,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := types.UnsafeFixedToInteger[types.Int](gotFixed); v != record[2].(types.Int) {
+	if v := storage.UnsafeFixedToInteger[storage.Int](gotFixed); v != record[2].(storage.Int) {
 		t.Errorf("expected field3 value to be %d, got %d", record[2], v)
 	}
 
@@ -390,7 +390,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := types.UnsafeVarlenToGoString(gotVarlen); v != record[3].(string) {
+	if v := storage.UnsafeVarlenToGoString(gotVarlen); v != record[3].(string) {
 		t.Errorf("expected field4 value to be %s, got %s", record[3], v)
 	}
 }

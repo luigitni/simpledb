@@ -1,10 +1,10 @@
 package sql
 
-import "github.com/luigitni/simpledb/types"
+import "github.com/luigitni/simpledb/storage"
 
 type FieldDef struct {
 	Name string
-	Type types.FieldType
+	Type storage.FieldType
 	Len  int
 }
 
@@ -132,7 +132,7 @@ func (p Parser) fieldType(field string) ([]FieldDef, error) {
 		p.eatKeyword("int")
 		fields = append(fields, FieldDef{
 			Name: field,
-			Type: types.INTEGER,
+			Type: storage.INTEGER,
 		})
 		return fields, nil
 	}
@@ -141,7 +141,7 @@ func (p Parser) fieldType(field string) ([]FieldDef, error) {
 		p.eatKeyword("text")
 		fields = append(fields, FieldDef{
 			Name: field,
-			Type: types.STRING,
+			Type: storage.STRING,
 		})
 		return fields, nil
 	}
@@ -166,7 +166,7 @@ func (p Parser) fieldType(field string) ([]FieldDef, error) {
 
 	fields = append(fields, FieldDef{
 		Name: field,
-		Type: types.STRING,
+		Type: storage.STRING,
 		Len:  len,
 	})
 

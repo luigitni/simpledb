@@ -4,14 +4,14 @@ import (
 	"sync"
 
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 type WalWriter struct {
 	fm           *file.FileManager
 	logfile      string
-	logpage      *types.Page
-	currentBlock types.Block
+	logpage      *storage.Page
+	currentBlock storage.Block
 	latestLSN    int
 	lastSavedLSN int
 	sync.Mutex
@@ -20,7 +20,7 @@ type WalWriter struct {
 func NewLogManager(fm *file.FileManager, logfile string) *WalWriter {
 	logsize := fm.Size(logfile)
 
-	logpage := types.NewPage()
+	logpage := storage.NewPage()
 
 	man := &WalWriter{
 		fm:           fm,
@@ -34,7 +34,7 @@ func NewLogManager(fm *file.FileManager, logfile string) *WalWriter {
 		// empty log, create a new one
 		man.currentBlock = man.appendNewBlock()
 	} else {
-		man.currentBlock = types.NewBlock(logfile, logsize-1)
+		man.currentBlock = storage.NewBlock(logfile, logsize-1)
 		fm.Read(man.currentBlock, logpage)
 	}
 
@@ -60,7 +60,7 @@ func (man *WalWriter) Flush(lsn int) {
 
 func (man *WalWriter) Iterator() *WalIterator {
 	man.flush()
-	p := iteratorPool.Get().(*types.Page)
+	p := iteratorPool.Get().(*storage.Page)
 	return newWalIterator(p, man.fm, man.currentBlock)
 }
 
@@ -87,19 +87,19 @@ func (man *WalWriter) Append(records []byte) int {
 	defer man.Unlock()
 
 	// boundary contains the offset of the most recently added record
-	spaceLeft := man.logpage.UnsafeGetFixedLen(0, types.SizeOfOffset).UnsafeAsOffset()
+	spaceLeft := man.logpage.UnsafeGetFixedLen(0, storage.SizeOfOffset).UnsafeAsOffset()
 
-	recsize := types.Offset(len(records))
+	recsize := storage.Offset(len(records))
 
-	bytesneeded := recsize + types.Offset(types.SizeOfInt)
+	bytesneeded := recsize + storage.Offset(storage.SizeOfInt)
 
 	// if the bytes needed to insert the record, PLUS the page header, are larger than the space left
 	// the record won't fit.
 	// In this case, flush the current page and move to the next block
-	if bytesneeded+types.Offset(types.SizeOfOffset) > spaceLeft {
+	if bytesneeded+storage.Offset(storage.SizeOfOffset) > spaceLeft {
 		man.flush()
 		man.currentBlock = man.appendNewBlock()
-		spaceLeft = man.logpage.UnsafeGetFixedLen(0, types.SizeOfOffset).UnsafeAsOffset()
+		spaceLeft = man.logpage.UnsafeGetFixedLen(0, storage.SizeOfOffset).UnsafeAsOffset()
 	}
 
 	// compute the leading byte from where the record will start
@@ -110,8 +110,8 @@ func (man *WalWriter) Append(records []byte) int {
 
 	// update the header with the new position of the record
 	man.logpage.UnsafeSetFixedLen(0,
-		types.SizeOfOffset,
-		types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, recpos),
+		storage.SizeOfOffset,
+		storage.UnsafeIntegerToFixed[storage.Offset](storage.SizeOfOffset, recpos),
 	)
 
 	// todo: write the LSN into the record
@@ -123,14 +123,14 @@ func (man *WalWriter) Append(records []byte) int {
 // appendNewBlock appends a new block-sized array to the logfile via the file manager and returns it's index
 // It then writes the size of the block in the page first IntBytes (the page header?)
 // We will use the header to keep track of where we are when prepending data to the page.
-func (man *WalWriter) appendNewBlock() types.Block {
+func (man *WalWriter) appendNewBlock() storage.Block {
 	block := man.fm.Append(man.logfile)
 
 	// write the size of the block into the page header
 	man.logpage.UnsafeSetFixedLen(
 		0,
-		types.SizeOfOffset,
-		types.UnsafeIntegerToFixed[types.Offset](types.SizeOfOffset, man.fm.BlockSize()),
+		storage.SizeOfOffset,
+		storage.UnsafeIntegerToFixed[storage.Offset](storage.SizeOfOffset, man.fm.BlockSize()),
 	)
 
 	// write the logpage into the newly created block

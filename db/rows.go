@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 const printRowsNoResult = "No records found."
 
 type Row struct {
-	vals []types.Value
+	vals []storage.Value
 }
 
 type Rows struct {
@@ -19,7 +19,6 @@ type Rows struct {
 }
 
 func (r Rows) String() string {
-
 	if len(r.rows) == 0 {
 		return printRowsNoResult
 	}

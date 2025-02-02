@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 const lockReqTimeout = 3 * time.Second
@@ -26,21 +26,21 @@ var ErrLockAcquisitionTimeout = errors.New("could not grant a lock on requested 
 // Requests that fail to acquire the lock are queued again against a non buffered channel.
 // The order in which each request is then satisfied depends ultimately on the scheduler.
 type LockTable struct {
-	locks             map[types.BlockID]int
+	locks             map[storage.BlockID]int
 	lockRequestChan   chan lockRequest
 	unlockRequestChan chan unlockRequest
 	done              chan struct{}
 }
 
-type unlockRequest types.BlockID
+type unlockRequest storage.BlockID
 
-func (req unlockRequest) BlockID() types.BlockID {
-	return types.BlockID(req)
+func (req unlockRequest) BlockID() storage.BlockID {
+	return storage.BlockID(req)
 }
 
 type lockRequest struct {
 	timestamp time.Time
-	key       types.BlockID
+	key       storage.BlockID
 	lockType  string
 	res       chan error
 }
@@ -49,7 +49,7 @@ func (req lockRequest) done() <-chan error {
 	return req.res
 }
 
-func makeLockRequest(key types.BlockID, lockType string) lockRequest {
+func makeLockRequest(key storage.BlockID, lockType string) lockRequest {
 	return lockRequest{
 		timestamp: time.Now(),
 		key:       key,
@@ -58,20 +58,22 @@ func makeLockRequest(key types.BlockID, lockType string) lockRequest {
 	}
 }
 
-func makeSLockRequest(block types.Block) lockRequest {
+func makeSLockRequest(block storage.Block) lockRequest {
 	return makeLockRequest(block.ID(), Slock)
 }
 
-func makeXLockRequest(block types.Block) lockRequest {
+func makeXLockRequest(block storage.Block) lockRequest {
 	return makeLockRequest(block.ID(), Xlock)
 }
 
-func makeUnlockRequest(block types.Block) unlockRequest {
+func makeUnlockRequest(block storage.Block) unlockRequest {
 	return unlockRequest(block.ID())
 }
 
-var lockTable *LockTable
-var locktableOnce sync.Once
+var (
+	lockTable     *LockTable
+	locktableOnce sync.Once
+)
 
 func GetLockTable() *LockTable {
 	locktableOnce.Do(func() {
@@ -85,7 +87,7 @@ func GetLockTable() *LockTable {
 // to resolve lock requests coming from clients.
 func makeLockTable() *LockTable {
 	lt := &LockTable{
-		locks:             map[types.BlockID]int{},
+		locks:             map[storage.BlockID]int{},
 		lockRequestChan:   make(chan lockRequest),
 		unlockRequestChan: make(chan unlockRequest),
 		done:              make(chan struct{}),
@@ -143,23 +145,23 @@ func (lt *LockTable) Close() error {
 }
 
 // hasXlock returns true if an X lock exists for the given block
-func (lt *LockTable) hasXLock(blockKey types.BlockID) bool {
+func (lt *LockTable) hasXLock(blockKey storage.BlockID) bool {
 	return lt.getLockVal(blockKey) < 0
 }
 
 // hasOtherSlocks returns true if at least one S lock exists for the given block
-func (lt *LockTable) hasOtherSLocks(blockKey types.BlockID) bool {
+func (lt *LockTable) hasOtherSLocks(blockKey storage.BlockID) bool {
 	return lt.getLockVal(blockKey) > 1
 }
 
 // getLockVal returns -1 if the given block has an X lock associated
 // if at least one S lock has been granted for the block, it returns the number of S locks
 // returns 0 if no locks of any type have been granted to the block
-func (lt *LockTable) getLockVal(key types.BlockID) int {
+func (lt *LockTable) getLockVal(key storage.BlockID) int {
 	return lt.locks[key]
 }
 
-func (lt *LockTable) unlock(key types.BlockID) {
+func (lt *LockTable) unlock(key storage.BlockID) {
 	v := lt.getLockVal(key)
 	if v > 1 {
 		lt.locks[key]--
@@ -173,7 +175,7 @@ func (lt *LockTable) unlock(key types.BlockID) {
 // then the calling thread will be placed on a wait list until the Xlock is released.
 // If the goroutine remains on the wait list for longer than lockReqTimeout
 // an ErrLockAcquisitionTimeout error is returned
-func (lt LockTable) SLock(block types.Block) error {
+func (lt LockTable) SLock(block storage.Block) error {
 	req := makeSLockRequest(block)
 	lt.lockRequestChan <- req
 	err := <-req.done()
@@ -184,18 +186,18 @@ func (lt LockTable) SLock(block types.Block) error {
 // If a lock of any type exists when the method is called,
 // the calling client will block until either an X lock is granted
 // or the timeout is reached, in which case it returns an ErrLockAcquisitionTimeout error.
-func (lt LockTable) XLock(block types.Block) error {
+func (lt LockTable) XLock(block storage.Block) error {
 	req := makeXLockRequest(block)
 	lt.lockRequestChan <- req
 	return <-req.done()
 }
 
 // Unlock releases a lock on the specified block.
-func (lt LockTable) Unlock(block types.Block) {
+func (lt LockTable) Unlock(block storage.Block) {
 	lt.unlockRequestChan <- makeUnlockRequest(block)
 }
 
 // Unlock releases a lock on the specified block using the block string identifier (String())
-func (lt LockTable) UnlockByBlockId(id types.BlockID) {
+func (lt LockTable) UnlockByBlockId(id storage.BlockID) {
 	lt.unlockRequestChan <- unlockRequest(id)
 }

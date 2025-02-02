@@ -3,18 +3,18 @@ package tx
 import (
 	"fmt"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 type startLogRecord struct {
-	txnum types.TxID
+	txnum storage.TxID
 }
 
 func newStartLogRecord(record recordBuffer) startLogRecord {
-	_ = record.readFixedLen(types.SizeOfTinyInt)
+	_ = record.readFixedLen(storage.SizeOfTinyInt)
 
 	return startLogRecord{
-		txnum: types.UnsafeFixedToInteger[types.TxID](record.readFixedLen(types.SizeOfTxID)),
+		txnum: storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),
 	}
 }
 
@@ -22,7 +22,7 @@ func (record startLogRecord) Op() txType {
 	return START
 }
 
-func (record startLogRecord) TxNumber() types.TxID {
+func (record startLogRecord) TxNumber() storage.TxID {
 	return record.txnum
 }
 
@@ -34,7 +34,7 @@ func (record startLogRecord) String() string {
 	return fmt.Sprintf("<START %d>", record.txnum)
 }
 
-func logStart(lm logManager, txnum types.TxID) int {
+func logStart(lm logManager, txnum storage.TxID) int {
 	p := logPools.small2ints.Get().(*[]byte)
 	defer logPools.small2ints.Put(p)
 
@@ -43,14 +43,14 @@ func logStart(lm logManager, txnum types.TxID) int {
 	return lm.Append(*p)
 }
 
-func writeStart(dst *[]byte, txnum types.TxID) {
+func writeStart(dst *[]byte, txnum storage.TxID) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeFixedLen(
-		types.SizeOfTinyInt,
-		types.UnsafeIntegerToFixed[types.TinyInt](types.SizeOfTinyInt, types.TinyInt(START)),
+		storage.SizeOfTinyInt,
+		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(START)),
 	)
 	rbuf.writeFixedLen(
-		types.SizeOfTxID,
-		types.UnsafeIntegerToFixed[types.TxID](types.SizeOfTxID, txnum),
+		storage.SizeOfTxID,
+		storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTxID, txnum),
 	)
 }

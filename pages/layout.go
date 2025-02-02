@@ -1,9 +1,9 @@
 package pages
 
-import "github.com/luigitni/simpledb/types"
+import "github.com/luigitni/simpledb/storage"
 
 type Layout interface {
 	FieldIndex(fname string) int
 	FieldsCount() int
-	FieldSize(fname string) types.Size
+	FieldSize(fname string) storage.Size
 }

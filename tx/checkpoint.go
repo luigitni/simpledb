@@ -1,11 +1,11 @@
 package tx
 
-import "github.com/luigitni/simpledb/types"
+import "github.com/luigitni/simpledb/storage"
 
 type checkpointLogRecord struct{}
 
 func newCheckpointRecord(record recordBuffer) checkpointLogRecord {
-	_ = record.readFixedLen(types.SizeOfTinyInt)
+	_ = record.readFixedLen(storage.SizeOfTinyInt)
 
 	return checkpointLogRecord{}
 }
@@ -14,7 +14,7 @@ func (record checkpointLogRecord) Op() txType {
 	return CHECKPOINT
 }
 
-func (record checkpointLogRecord) TxNumber() types.TxID {
+func (record checkpointLogRecord) TxNumber() storage.TxID {
 	return 0
 }
 
@@ -36,7 +36,7 @@ func logCheckpoint(lm logManager) int {
 func writeCheckpoint(dst *[]byte) {
 	rbuf := recordBuffer{bytes: *dst}
 	rbuf.writeFixedLen(
-		types.SizeOfTinyInt,
-		types.UnsafeIntegerToFixed[types.TinyInt](types.SizeOfTinyInt, types.TinyInt(CHECKPOINT)),
+		storage.SizeOfTinyInt,
+		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(CHECKPOINT)),
 	)
 }

@@ -3,7 +3,7 @@ package tx
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 func TestWriteBlock(t *testing.T) {
@@ -13,7 +13,7 @@ func TestWriteBlock(t *testing.T) {
 	const fname = "testfile"
 	const bid = 1
 
-	block := types.NewBlock(fname, bid)
+	block := storage.NewBlock(fname, bid)
 
 	rec.writeBlock(block)
 
@@ -24,159 +24,159 @@ func TestWriteBlock(t *testing.T) {
 	}
 }
 
-func assertIntegerAtOffset[V types.Integer](t *testing.T, data []byte, pos types.Offset, size types.Size, exp V) {
+func assertIntegerAtOffset[V storage.Integer](t *testing.T, data []byte, pos storage.Offset, size storage.Size, exp V) {
 	t.Helper()
 	rec := recordBuffer{bytes: data, offset: pos}
 
-	if v := rec.readFixedLen(size); types.UnsafeFixedToInteger[V](v) != exp {
+	if v := rec.readFixedLen(size); storage.UnsafeFixedToInteger[V](v) != exp {
 		t.Fatalf("expected %v at pos %d. Got %v", exp, pos, v)
 	}
 }
 
-func assertVarlenAtPos(t *testing.T, data []byte, pos types.Offset, exp string) {
+func assertVarlenAtPos(t *testing.T, data []byte, pos storage.Offset, exp string) {
 	t.Helper()
 	rec := recordBuffer{bytes: data, offset: pos}
 
-	if v := rec.readVarlen(); types.UnsafeVarlenToGoString(v) != exp {
+	if v := rec.readVarlen(); storage.UnsafeVarlenToGoString(v) != exp {
 		t.Fatalf("expected %q at pos %d. Got %q", exp, pos, v)
 	}
 }
 
 func TestLogCheckpointRecord(t *testing.T) {
-	buf := make([]byte, types.SizeOfTinyInt)
+	buf := make([]byte, storage.SizeOfTinyInt)
 	writeCheckpoint(&buf)
 
 	// test that the first entry is CHECKPOINT
-	assertIntegerAtOffset(t, buf, 0, types.SizeOfTinyInt, types.TinyInt(CHECKPOINT))
+	assertIntegerAtOffset(t, buf, 0, storage.SizeOfTinyInt, storage.TinyInt(CHECKPOINT))
 }
 
 func TestLogStartRecord(t *testing.T) {
-	const txNum types.TxID = 123
+	const txNum storage.TxID = 123
 
 	p := make([]byte, 16)
 	writeStart(&p, txNum)
 
-	var offset types.Offset
+	var offset storage.Offset
 
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTinyInt, types.TinyInt(START))
-	offset += types.Offset(types.SizeOfTinyInt)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(START))
+	offset += storage.Offset(storage.SizeOfTinyInt)
 
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTxID, txNum)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
 }
 
 func TestLogRollbackRecord(t *testing.T) {
-	const txNum types.TxID = 123
+	const txNum storage.TxID = 123
 
 	p := make([]byte, 16)
 	writeRollback(&p, txNum)
 
 	// test that the first entry is ROLLBACK
-	var offset types.Offset
+	var offset storage.Offset
 
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTinyInt, types.TinyInt(ROLLBACK))
-	offset += types.Offset(types.SizeOfTinyInt)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(ROLLBACK))
+	offset += storage.Offset(storage.SizeOfTinyInt)
 
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTxID, txNum)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
 }
 
 func TestLogCommitRecord(t *testing.T) {
-	const txNum types.TxID = 123
+	const txNum storage.TxID = 123
 
 	p := make([]byte, 16)
 	writeCommit(&p, txNum)
 
-	var offset types.Offset
+	var offset storage.Offset
 
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTinyInt, types.TinyInt(COMMIT))
-	offset += types.Offset(types.SizeOfTinyInt)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(COMMIT))
+	offset += storage.Offset(storage.SizeOfTinyInt)
 
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTxID, txNum)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
 }
 
 func TestLogFixedLenRecord(t *testing.T) {
-	const txNum types.TxID = 123
-	const val types.Int = 476
-	const offsetVal types.Offset = 57
+	const txNum storage.TxID = 123
+	const val storage.Int = 476
+	const offsetVal storage.Offset = 57
 
 	const fname = "testblock"
-	const bid types.Long = 1
+	const bid storage.Long = 1
 
-	block := types.NewBlock(fname, bid)
+	block := storage.NewBlock(fname, bid)
 
 	p := make([]byte, logSetIntSize)
 
-	writeFixedLen(&p, txNum, block, offsetVal, types.SizeOfInt, types.UnsafeIntegerToFixed[types.Int](types.SizeOfInt, val))
+	writeFixedLen(&p, txNum, block, offsetVal, storage.SizeOfInt, storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, val))
 
-	var offset types.Offset
+	var offset storage.Offset
 	// test that the first entry is SETFIXED
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTinyInt, types.TinyInt(SETFIXED))
-	offset += types.Offset(types.SizeOfTinyInt)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETFIXED))
+	offset += storage.Offset(storage.SizeOfTinyInt)
 
 	// tx number
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTxID, txNum)
-	offset += types.Offset(types.SizeOfTxID)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
+	offset += storage.Offset(storage.SizeOfTxID)
 
 	// block name
 	assertVarlenAtPos(t, p, offset, fname)
-	offset += types.Offset(types.UnsafeSizeOfStringAsVarlen(fname))
+	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fname))
 
 	// block number
-	assertIntegerAtOffset(t, p, offset, types.SizeOfLong, bid)
-	offset += types.Offset(types.SizeOfLong)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfLong, bid)
+	offset += storage.Offset(storage.SizeOfLong)
 
 	// offset of the record
-	assertIntegerAtOffset(t, p, offset, types.SizeOfOffset, offsetVal)
-	offset += types.Offset(types.SizeOfOffset)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, offsetVal)
+	offset += storage.Offset(storage.SizeOfOffset)
 
 	// size of the record
-	assertIntegerAtOffset(t, p, offset, types.SizeOfSize, types.SizeOfInt)
-	offset += types.Offset(types.SizeOfSize)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfSize, storage.SizeOfInt)
+	offset += storage.Offset(storage.SizeOfSize)
 
 	// value of the record
-	assertIntegerAtOffset(t, p, offset, types.SizeOfInt, val)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfInt, val)
 
 	newSetFixedLenRecord(recordBuffer{bytes: p})
 }
 
 func TestLogSetStrRecord(t *testing.T) {
-	const txNum types.TxID = 123
+	const txNum storage.TxID = 123
 	const val = "testvalue"
-	const offsetVal types.Offset = 57
+	const offsetVal storage.Offset = 57
 
 	const fname = "testblock"
-	const bid types.Long = 1
+	const bid storage.Long = 1
 
-	block := types.NewBlock(fname, bid)
+	block := storage.NewBlock(fname, bid)
 
 	p := make([]byte, logSetIntSize+len(val))
 
-	writeVarlen(&p, txNum, block, offsetVal, types.UnsafeNewVarlenFromGoString(val))
+	writeVarlen(&p, txNum, block, offsetVal, storage.UnsafeNewVarlenFromGoString(val))
 
-	var offset types.Offset
+	var offset storage.Offset
 
 	// test that the first entry is SETSTRING
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTinyInt, types.TinyInt(SETSTRING))
-	offset += types.Offset(types.SizeOfTinyInt)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETSTRING))
+	offset += storage.Offset(storage.SizeOfTinyInt)
 
 	// tx number
-	assertIntegerAtOffset(t, p, offset, types.SizeOfTxID, txNum)
-	offset += types.Offset(types.SizeOfTxID)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
+	offset += storage.Offset(storage.SizeOfTxID)
 
 	// block name
 	assertVarlenAtPos(t, p, offset, fname)
-	offset += types.Offset(types.UnsafeSizeOfStringAsVarlen(fname))
+	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fname))
 
 	// block id number
-	assertIntegerAtOffset(t, p, offset, types.SizeOfLong, bid)
-	offset += types.Offset(types.SizeOfLong)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfLong, bid)
+	offset += storage.Offset(storage.SizeOfLong)
 
 	// offset of the record
-	assertIntegerAtOffset(t, p, offset, types.SizeOfOffset, offsetVal)
-	offset += types.Offset(types.SizeOfOffset)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, offsetVal)
+	offset += storage.Offset(storage.SizeOfOffset)
 
 	// value of the record
 	assertVarlenAtPos(t, p, offset, val)
-	offset += types.Offset(types.UnsafeSizeOfStringAsVarlen(val))
+	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(val))
 
 	newSetVarLenRecord(recordBuffer{bytes: p})
 }
