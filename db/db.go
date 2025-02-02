@@ -94,7 +94,14 @@ func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
 
 		var rows Rows
 
-		rows.cols = append(rows.cols, q.Fields()...)
+		schema := plan.Schema()
+
+		for _, f := range q.Fields() {
+			rows.cols = append(rows.cols, Col{
+				Name: f,
+				Type: schema.FieldInfo(f).Type,
+			})
+		}
 
 		for {
 			err := scan.Next()
@@ -112,6 +119,7 @@ func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
 				if err != nil {
 					return Rows{}, err
 				}
+
 				row.vals = append(row.vals, v)
 			}
 

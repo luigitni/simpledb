@@ -9,10 +9,10 @@ import (
 func TestRowsString(t *testing.T) {
 	t.Run("expect no result", func(t *testing.T) {
 		rows := Rows{
-			cols: []string{
-				"first col",
-				"second col which is very long",
-				"third",
+			cols: []Col{
+				{Name: "first col", Type: storage.INT},
+				{Name: "second col which is very long", Type: storage.TEXT},
+				{Name: "third", Type: storage.TEXT},
 			},
 		}
 
@@ -23,18 +23,18 @@ func TestRowsString(t *testing.T) {
 
 	t.Run("expect correct table", func(t *testing.T) {
 		const expected = "\n" +
-			"| first col | second col which is very long |             third             |\n" +
-			"|-----------|-------------------------------|-------------------------------|\n" +
-			"|    123    |             'abc'             | 'This is a much longer value' |\n" +
-			"|     0     | 'This is a much longer value' |            'short'            |\n" +
+			"| first col | second col which is very long |            third            |\n" +
+			"|-----------|-------------------------------|-----------------------------|\n" +
+			"|    123    |              abc              | This is a much longer value |\n" +
+			"|     0     |  This is a much longer value  |            short            |\n" +
 			"---\n" +
 			"2 records found."
 
 		rows := Rows{
-			cols: []string{
-				"first col",
-				"second col which is very long",
-				"third",
+			cols: []Col{
+				{Name: "first col", Type: storage.INT},
+				{Name: "second col which is very long", Type: storage.TEXT},
+				{Name: "third", Type: storage.TEXT},
 			},
 			rows: []Row{
 				{
@@ -55,7 +55,7 @@ func TestRowsString(t *testing.T) {
 		}
 
 		if s := rows.String(); s != expected {
-			t.Fatalf("expected %q, got %q", expected, s)
+			t.Fatalf("expected \n%q \n%q", expected, s)
 		}
 	})
 }

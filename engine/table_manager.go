@@ -177,7 +177,7 @@ func (tm *tableManager) createTable(tblname string, sch Schema, x tx.Transaction
 			return err
 		}
 
-		info := sch.finfo(fname)
+		info := sch.FieldInfo(fname)
 
 		if err := fcat.SetVal(
 			fieldsCatalogTypeIDField,

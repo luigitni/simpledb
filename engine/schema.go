@@ -34,7 +34,7 @@ func (s *Schema) ftype(name string) storage.FieldType {
 	return s.info[name].Type
 }
 
-func (s *Schema) finfo(name string) fieldInfo {
+func (s *Schema) FieldInfo(name string) fieldInfo {
 	return s.info[name]
 }
 

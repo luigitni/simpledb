@@ -36,7 +36,7 @@ func TestCreateTable(t *testing.T) {
 			t.Fatalf("field %q not found in derived schema", field)
 		}
 
-		df := derived.finfo(field)
+		df := derived.FieldInfo(field)
 		if df.Type != schema.ftype(field) {
 			t.Fatalf("field %q has type %q, expected %q", field, df.Type, schema.ftype(field))
 		}

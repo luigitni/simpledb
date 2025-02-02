@@ -9,12 +9,17 @@ import (
 
 const printRowsNoResult = "No records found."
 
+type Col struct {
+	Name string
+	Type storage.FieldType
+}
+
 type Row struct {
 	vals []storage.Value
 }
 
 type Rows struct {
-	cols []string
+	cols []Col
 	rows []Row
 }
 
@@ -28,12 +33,14 @@ func (r Rows) String() string {
 	max := make([]int, len(r.cols))
 
 	for i, cols := range r.cols {
-		max[i] = len(cols) + padLen
+		max[i] = len(cols.Name) + padLen
 	}
 
 	for _, row := range r.rows {
 		for i, val := range row.vals {
-			s := val.String()
+			colType := r.cols[i].Type
+
+			s := val.String(colType)
 			l := padLen + len(s)
 
 			if l > max[i] {
@@ -50,7 +57,7 @@ func (r Rows) String() string {
 	for i, col := range r.cols {
 		m := max[i]
 
-		builder.WriteString(padString(col, m))
+		builder.WriteString(padString(col.Name, m))
 		builder.WriteString("|")
 	}
 	builder.WriteString("\n|")
@@ -66,7 +73,9 @@ func (r Rows) String() string {
 		builder.WriteString("|")
 		for i, val := range rows.vals {
 			m := max[i]
-			builder.WriteString(padString(val.String(), m))
+			colType := r.cols[i].Type
+
+			builder.WriteString(padString(val.String(colType), m))
 			builder.WriteString("|")
 		}
 		builder.WriteString("\n")
