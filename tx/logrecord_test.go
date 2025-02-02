@@ -103,7 +103,7 @@ func TestLogFixedLenRecord(t *testing.T) {
 
 	block := storage.NewBlock(fname, bid)
 
-	p := make([]byte, logSetIntSize)
+	p := make([]byte, 512)
 
 	writeFixedLen(&p, txNum, block, offsetVal, storage.SizeOfInt, storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, val))
 
@@ -148,7 +148,7 @@ func TestLogSetStrRecord(t *testing.T) {
 
 	block := storage.NewBlock(fname, bid)
 
-	p := make([]byte, logSetIntSize+len(val))
+	p := make([]byte, 512+len(val))
 
 	writeVarlen(&p, txNum, block, offsetVal, storage.UnsafeNewVarlenFromGoString(val))
 

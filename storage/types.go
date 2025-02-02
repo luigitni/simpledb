@@ -2,15 +2,10 @@ package storage
 
 import (
 	"errors"
-	"math"
 	"unsafe"
 )
 
 type FieldType int16
-
-const (
-	SizeOfVarlen Size = Size(math.MaxUint16)
-)
 
 var ErrInvalidFieldType = errors.New("invalid field type")
 

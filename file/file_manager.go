@@ -14,9 +14,6 @@ import (
 const (
 	tmpTablePrefix = "__tmp_"
 	TmpTablePrefix = tmpTablePrefix + "%d"
-
-	// Max size of a logged table file name
-	MaxLoggedTableFileNameSize = 255
 )
 
 // Implements methods that read and write pages to disk blocks.

@@ -3,7 +3,6 @@ package tx
 import (
 	"sync"
 
-	"github.com/luigitni/simpledb/file"
 	"github.com/luigitni/simpledb/storage"
 )
 
@@ -16,27 +15,22 @@ type pools struct {
 	setXLString    sync.Pool
 }
 
-const (
-	logUpdateHeaderSize = storage.IntSize * 4
-	logSetIntSize       = logUpdateHeaderSize + file.MaxLoggedTableFileNameSize
-)
-
 var logPools = pools{
 	tiny1int: sync.Pool{
 		New: func() interface{} {
-			b := make([]byte, storage.IntSize)
+			b := make([]byte, storage.SizeOfTinyInt)
 			return &b
 		},
 	},
 	small2ints: sync.Pool{
 		New: func() interface{} {
-			s := make([]byte, 2*storage.IntSize)
+			s := make([]byte, 2*storage.SizeOfSmallInt)
 			return &s
 		},
 	},
 	setInt: sync.Pool{
 		New: func() interface{} {
-			s := make([]byte, logSetIntSize)
+			s := make([]byte, storage.SizeOfInt)
 			return &s
 		},
 	},

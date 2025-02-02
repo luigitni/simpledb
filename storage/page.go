@@ -2,13 +2,11 @@ package storage
 
 import (
 	"fmt"
+	"math"
 	"unsafe"
 )
 
 const PageSize = 1024 * 8
-
-// IntSize is the byte size of the system's int
-const IntSize = int(unsafe.Sizeof(int(123)))
 
 // Offset is the offset of a field within a page
 // Because pages are fixed 8KB, we can use a uint16 to address any offset within a page
@@ -32,6 +30,8 @@ const (
 	// This is not necessarily the same as the size of the int in the database
 	// It is mostly used for legacy code while all the code is migrated to the new types
 	SizeOfGoInt = (Size)(unsafe.Sizeof(int(0)))
+
+	SizeOfVarlen Size = Size(math.MaxUint16)
 )
 
 type (
