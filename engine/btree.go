@@ -53,7 +53,7 @@ func newBTreePage(x tx.Transaction, currentBlock storage.Block, layout Layout) b
 
 func (page bTreePage) slotPosition(slot int) storage.Offset {
 	size := page.layout.slotsize
-	return bTreePageContentOffset + storage.Offset(slot*size)
+	return bTreePageContentOffset + storage.Offset(slot)*size
 }
 
 // fieldPosition returns the position of the field in the page.
@@ -107,7 +107,7 @@ func (page bTreePage) setString(slot int, fieldName string, val string) error {
 
 func (page bTreePage) setVal(slot int, fieldName string, val storage.Value) error {
 	// todo: here the type should be a long
-	if t := page.layout.schema.ftype(fieldName); t == storage.INTEGER {
+	if t := page.layout.schema.ftype(fieldName); t == storage.LONG {
 		return page.setInt(slot, fieldName, storage.ValueAsInteger[storage.Long](val))
 	}
 
@@ -125,7 +125,7 @@ func (page bTreePage) mustGetVal(slot int, fieldName string) storage.Value {
 
 func (page bTreePage) val(slot int, fieldName string) (storage.Value, error) {
 	t := page.layout.schema.ftype(fieldName)
-	if t == storage.INTEGER {
+	if t == storage.LONG {
 		v, err := page.int(slot, fieldName)
 
 		return storage.ValueFromInteger[storage.Long](storage.SizeOfLong, v), err
@@ -282,17 +282,17 @@ func (page bTreePage) format(block storage.Block, flag storage.Long) error {
 
 	recordSize := page.layout.slotsize
 
-	for pos := int(bTreePageContentOffset); pos+recordSize <= int(page.x.BlockSize()); pos += recordSize {
+	for pos := bTreePageContentOffset; storage.Offset(pos)+recordSize <= page.x.BlockSize(); pos += recordSize {
 		page.makeDefaultRecord(block, pos)
 	}
 
 	return nil
 }
 
-func (page bTreePage) makeDefaultRecord(block storage.Block, pos int) error {
+func (page bTreePage) makeDefaultRecord(block storage.Block, pos storage.Offset) error {
 	for _, f := range page.layout.schema.fields {
 		offset := page.layout.Offset(f)
-		if page.layout.schema.ftype(f) == storage.INTEGER {
+		if page.layout.schema.ftype(f) == storage.LONG {
 			if err := page.x.SetFixedLen(
 				block,
 				storage.Offset(pos+offset),
@@ -302,7 +302,7 @@ func (page bTreePage) makeDefaultRecord(block storage.Block, pos int) error {
 			); err != nil {
 				return fmt.Errorf("error creating default int record: %w", err)
 			}
-		} else if page.layout.schema.ftype(f) == storage.STRING {
+		} else if page.layout.schema.ftype(f) == storage.TEXT {
 			if err := page.x.SetVarLen(
 				block,
 				storage.Offset(pos+offset),

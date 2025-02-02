@@ -1,7 +1,6 @@
 package engine
 
 import (
-	"errors"
 	"io"
 
 	"github.com/luigitni/simpledb/pages"
@@ -72,7 +71,7 @@ func (ts *tableScan) Close() {
 // It then continues until either a next record is found or the end of the file is encountered, in which case returns false
 func (ts *tableScan) Next() error {
 	for {
-		slot, err := ts.recordPage.NextFrom(ts.currentSlot + 1)
+		slot, err := ts.recordPage.NextAfter(ts.currentSlot)
 		if err == nil {
 			ts.currentSlot = slot
 			break
@@ -108,23 +107,21 @@ func (ts *tableScan) Varlen(fieldname string) (storage.Varlen, error) {
 }
 
 func (ts *tableScan) Val(fieldname string) (storage.Value, error) {
-	switch ts.layout.schema.ftype(fieldname) {
-	case storage.INTEGER:
+	if size := ts.layout.schema.ftype(fieldname).Size(); size != storage.SizeOfVarlen {
 		v, err := ts.FixedLen(fieldname)
 		if err != nil {
 			return storage.Value{}, err
 		}
+
 		return storage.ValueFromFixedLen(v), nil
-	case storage.STRING:
-		v, err := ts.Varlen(fieldname)
-		if err != nil {
-			return storage.Value{}, err
-		}
-		return storage.ValueFromVarlen(v), nil
 	}
 
-	pm := "invalid type for field " + fieldname
-	panic(pm)
+	v, err := ts.Varlen(fieldname)
+	if err != nil {
+		return storage.Value{}, err
+	}
+
+	return storage.ValueFromVarlen(v), nil
 }
 
 func (ts *tableScan) HasField(fieldname string) bool {
@@ -132,14 +129,11 @@ func (ts *tableScan) HasField(fieldname string) bool {
 }
 
 func (ts *tableScan) SetVal(fieldname string, val storage.Value) error {
-	switch ts.layout.schema.ftype(fieldname) {
-	case storage.INTEGER:
+	if size := ts.layout.schema.ftype(fieldname).Size(); size != storage.SizeOfVarlen {
 		return ts.recordPage.SetFixedLen(ts.currentSlot, fieldname, val.AsFixedLen())
-	case storage.STRING:
-		return ts.recordPage.SetVarLen(ts.currentSlot, fieldname, val.AsVarlen())
 	}
 
-	return errors.New("invalid type for field " + fieldname)
+	return ts.recordPage.SetVarLen(ts.currentSlot, fieldname, val.AsVarlen())
 }
 
 // Insert looks for an empty slot to flag as used.
@@ -159,7 +153,7 @@ func (ts *tableScan) Insert(recordSize storage.Offset) error {
 
 func (ts *tableScan) insert(recordSize storage.Offset, update bool) (RID, error) {
 	for {
-		slot, err := ts.recordPage.InsertFrom(ts.currentSlot+1, recordSize, update)
+		slot, err := ts.recordPage.InsertAfter(ts.currentSlot, recordSize, update)
 		if err == nil {
 			return NewRID(ts.recordPage.Block().Number(), slot), nil
 		}
@@ -219,7 +213,7 @@ func (ts *tableScan) moveToBlock(block storage.Long) {
 	ts.Close()
 	b := storage.NewBlock(ts.fileName, block)
 	ts.recordPage = pages.NewSlottedRecordPage(ts.x, b, ts.layout)
-	ts.currentSlot = 0
+	ts.currentSlot = pages.BeforeFirstSlot
 }
 
 // moveToNewBlock attempts to append a new block to the file
@@ -233,7 +227,7 @@ func (ts *tableScan) moveToNewBlock() error {
 	}
 	ts.recordPage = pages.NewSlottedRecordPage(ts.x, block, ts.layout)
 	ts.recordPage.Format()
-	ts.currentSlot = 0
+	ts.currentSlot = pages.BeforeFirstSlot
 	return nil
 }
 

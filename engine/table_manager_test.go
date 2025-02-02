@@ -8,39 +8,37 @@ import (
 	"github.com/luigitni/simpledb/tx"
 )
 
-func TestTableManager(t *testing.T) {
-	trans := tx.NewTx(test.MakeManagers(t))
-
+func TestCreateTable(t *testing.T) {
+	x := tx.NewTx(test.MakeManagers(t))
 	tm := newTableManager()
-	tm.init(trans)
+
+	tm.init(x)
+	defer x.Commit()
 
 	schema := newSchema()
-	schema.addIntField("A")
-	schema.addFixedLenStringField("B", 9)
+	schema.addField("name", storage.TEXT)
+	schema.addField("surname", storage.TEXT)
+	schema.addField("age", storage.TINYINT)
+	schema.addField("salary", storage.INT)
 
-	if err := tm.createTable("MyTable", schema, trans); err != nil {
+	if err := tm.createTable("employees", schema, x); err != nil {
 		t.Fatal(err)
 	}
 
-	layout, err := tm.layout("MyTable", trans)
+	layout, err := tm.layout("employees", x)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	t.Logf("MyTable has slot size %d", layout.SlotSize())
+	derived := layout.Schema()
+	for _, field := range schema.fields {
+		if !derived.HasField(field) {
+			t.Fatalf("field %q not found in derived schema", field)
+		}
 
-	t.Log("MyTable fields:")
-	sch := layout.Schema()
-	for _, fname := range sch.fields {
-		switch sch.ftype(fname) {
-		case storage.INTEGER:
-			t.Logf("%s INTEGER", fname)
-		case storage.STRING:
-			t.Logf("%s VARCHAR(%d)", fname, sch.flen(fname))
+		df := derived.finfo(field)
+		if df.Type != schema.ftype(field) {
+			t.Fatalf("field %q has type %q, expected %q", field, df.Type, schema.ftype(field))
 		}
 	}
-
-	// check the table catalog that the
-
-	trans.Commit()
 }

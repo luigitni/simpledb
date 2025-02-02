@@ -104,7 +104,7 @@ func TestUpdateCommandSimple(t *testing.T) {
 		t.Fatalf("expected field to be %q, got %s", "col", field.Field)
 	}
 
-	if v := field.NewValue.String(); v != "5" {
+	if v := field.NewValue.String(storage.INT); v != "5" {
 		t.Fatalf("expected newValue to be %q, got %s", "5", field.Field)
 	}
 }
@@ -271,12 +271,12 @@ func TestCreateTableCommand(t *testing.T) {
 	expF := []FieldDef{
 		{
 			Name: "name",
-			Type: storage.STRING,
+			Type: storage.TEXT,
 			Len:  0,
 		},
 		{
 			Name: "age",
-			Type: storage.INTEGER,
+			Type: storage.INT,
 			Len:  0,
 		},
 	}

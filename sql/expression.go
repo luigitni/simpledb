@@ -51,9 +51,9 @@ func (exp Expression) AppliesTo(schema Schema) bool {
 	return schema.HasField(exp.fname)
 }
 
-func (exp Expression) String() string {
+func (exp Expression) String(t storage.FieldType) string {
 	if exp.val != nil {
-		return exp.val.String()
+		return exp.val.String(t)
 	}
 
 	return exp.fname

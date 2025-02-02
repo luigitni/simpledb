@@ -1,14 +1,8 @@
 package storage
 
 import (
+	"fmt"
 	"slices"
-)
-
-type FieldType int
-
-const (
-	INTEGER FieldType = iota
-	STRING
 )
 
 // Value is a generic value
@@ -16,6 +10,10 @@ type Value []byte
 
 func ValueFromFixedLen(i FixedLen) Value {
 	return Value(i)
+}
+
+func ValueFromName(n Name) Value {
+	return Value(n)
 }
 
 func ValueFromVarlen(v Varlen) Value {
@@ -39,6 +37,10 @@ func (v Value) AsVarlen() Varlen {
 	return ValueAsVarlen(v)
 }
 
+func (v Value) AsName() Name {
+	return Name(v)
+}
+
 func (v Value) AsGoString() string {
 	return ValueAsGoString(v)
 }
@@ -57,15 +59,7 @@ func ValueAsVarlen(v Value) Varlen {
 
 // todo: use specialised function to avoid branch prediction misses
 func (c Value) Size(t FieldType) Offset {
-	switch t {
-	case INTEGER:
-		return Offset(SizeOfInt)
-	case STRING:
-		v := c.AsVarlen()
-		return Offset(v.Size())
-	}
-
-	panic("unsupported type")
+	return Offset(t.Size())
 }
 
 func (c Value) Hash() int {
@@ -96,6 +90,27 @@ func (v Value) More(other Value) bool {
 	return false
 }
 
-func (c Value) String() string {
-	return "not implemented"
+func (c Value) String(t FieldType) string {
+	return stringFunc[t](c)
+}
+
+var stringFunc = [...]func(Value) string{
+	TINYINT: func(v Value) string {
+		return fmt.Sprintf("%d", ValueAsInteger[TinyInt](v))
+	},
+	SMALLINT: func(v Value) string {
+		return fmt.Sprintf("%d", ValueAsInteger[SmallInt](v))
+	},
+	INT: func(v Value) string {
+		return fmt.Sprintf("%d", ValueAsInteger[Int](v))
+	},
+	LONG: func(v Value) string {
+		return fmt.Sprintf("%d", ValueAsInteger[Long](v))
+	},
+	NAME: func(v Value) string {
+		return ValueAsGoString(v)
+	},
+	TEXT: func(v Value) string {
+		return ValueAsGoString(v)
+	},
 }

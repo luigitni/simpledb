@@ -3,16 +3,14 @@ package engine
 import "github.com/luigitni/simpledb/storage"
 
 type fieldInfo struct {
-	Type   storage.FieldType
-	Lenght int
-	Index  int
+	Type  storage.FieldType
+	Index storage.SmallInt
 }
 
 // Schema is the record schema of a table.
 // It contains the name and type of each field of the table,
 // As well as the length of each varchar field
 type Schema struct {
-	idx    int
 	fields []string
 	info   map[string]fieldInfo
 }
@@ -36,40 +34,29 @@ func (s *Schema) ftype(name string) storage.FieldType {
 	return s.info[name].Type
 }
 
+func (s *Schema) finfo(name string) fieldInfo {
+	return s.info[name]
+}
+
+// todo: legacy, remove
 func (s *Schema) flen(name string) int {
-	return s.info[name].Lenght
+	return int(s.info[name].Type.Size())
 }
 
 func (s *Schema) addField(name string, typ storage.FieldType) {
 	s.fields = append(s.fields, name)
 	s.info[name] = fieldInfo{
 		Type:  typ,
-		Index: s.idx,
+		Index: storage.SmallInt(len(s.fields) - 1),
 	}
-	s.idx++
 }
 
-func (s *Schema) setFieldAtIndex(name string, typ storage.FieldType, index int) {
+func (s *Schema) setFieldAtIndex(name string, typ storage.FieldType, index storage.SmallInt) {
 	s.fields = append(s.fields, name)
 	s.info[name] = fieldInfo{
 		Type:  typ,
 		Index: index,
 	}
-}
-
-func (s *Schema) addIntField(name string) {
-	s.addField(name, storage.INTEGER)
-}
-
-func (s *Schema) addStringField(name string) {
-	s.addField(name, storage.STRING)
-}
-
-// addFixedLenStringField adds a string field to the schema, of type VARCHAR
-// The length is the conceptual length of the field.
-// For example, if the field is described as VARCHAR(8), then length is 8
-func (s *Schema) addFixedLenStringField(name string, length int) {
-	s.addStringField(name)
 }
 
 func (s *Schema) add(fname string, schema Schema) {

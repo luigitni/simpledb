@@ -11,17 +11,27 @@ import (
 )
 
 const (
-	tableCatalogTableName = "tables"
-	catFieldTableName     = "name"
+	// table catalog
+	tableCatalogTableName      = "tables"
+	tableCatalogNameField      = "name"
+	tableCatalogNumColumnField = "columns"
 
-	fieldsCatalogTableName = "fields"
-	catFieldFieldName      = "name"
-	catFieldType           = "type"
-	catFieldIndex          = "index"
-	catFieldSize           = "size"
+	sizeOfTableCatalogRecord = storage.SizeOfName + // table name
+		storage.SizeOfSmallInt // number of columns
 
-	// NameMaxLen is the maximum len of a field or table name
-	NameMaxLen = 16
+	fieldsCatalogTableName      = "fields"
+	fieldsCatalogNameField      = "name"
+	fieldsCatalogTableNameField = "table"
+	fieldsCatalogTypeIDField    = "type_id"
+	fieldsCatalogTypeNameField  = "type_name"
+	fieldsCatalogSizeField      = "size"
+	fieldsCatalogIndexField     = "index"
+
+	sizeOfFieldsCatalogRecord = storage.SizeOfName + // field name
+		storage.SizeOfName + // table name
+		storage.SizeOfName + // field type
+		storage.SizeOfSmallInt + // field size
+		storage.SizeOfName // field index
 )
 
 var ErrViewNotFound = errors.New("cannot find table in catalog")
@@ -38,44 +48,55 @@ var ErrViewNotFound = errors.New("cannot find table in catalog")
 //     -- Type: type of the field.
 //     -- FldIdx: index of the field in the table's record layout.
 type tableManager struct {
-	// tcat is the catalog table for tables
-	tcat Layout
-	// fcat is the catalog table for fields
-	fcat Layout
+	// tablesCatalog is the catalog table for tables
+	tablesCatalog Layout
+	// fieldsCatalog is the catalog table for fields
+	fieldsCatalog Layout
 }
 
 func newTableManager() *tableManager {
-	tcats := newSchema()
-	tcats.addFixedLenStringField(catFieldTableName, NameMaxLen)
-	tcat := NewLayout(tcats)
+	tablesCatalog := newSchema()
+	tablesCatalog.addField(tableCatalogNameField, storage.NAME)
+	tablesCatalog.addField(tableCatalogNumColumnField, storage.SMALLINT)
 
-	fcats := newSchema()
-	fcats.addFixedLenStringField(catFieldTableName, NameMaxLen)
-	fcats.addFixedLenStringField(catFieldFieldName, NameMaxLen)
-	fcats.addIntField(catFieldType)
-	fcats.addIntField(catFieldIndex)
-	fcat := NewLayout(fcats)
+	tablesCatalogLayout := NewLayout(tablesCatalog)
+
+	fieldsCatalog := newSchema()
+	// name of the field
+	fieldsCatalog.addField(fieldsCatalogNameField, storage.NAME)
+	// name of the table the field belongs to
+	fieldsCatalog.addField(fieldsCatalogTableNameField, storage.NAME)
+	// id of the type of the field
+	fieldsCatalog.addField(fieldsCatalogTypeIDField, storage.SMALLINT)
+	// name of the type of the field
+	fieldsCatalog.addField(fieldsCatalogTypeNameField, storage.NAME)
+	// size of the field in bytes
+	fieldsCatalog.addField(fieldsCatalogSizeField, storage.SMALLINT)
+	// index of the field within the record
+	fieldsCatalog.addField(fieldsCatalogIndexField, storage.SMALLINT)
+
+	fieldsCatalogLayout := NewLayout(fieldsCatalog)
 
 	return &tableManager{
-		tcat: tcat,
-		fcat: fcat,
+		tablesCatalog: tablesCatalogLayout,
+		fieldsCatalog: fieldsCatalogLayout,
 	}
 }
 
-func (tm tableManager) init(x tx.Transaction) error {
-	if err := tm.createTable(tableCatalogTableName, *tm.tcat.Schema(), x); err != nil {
+func (tm *tableManager) init(x tx.Transaction) error {
+	if err := tm.createTable(tableCatalogTableName, *tm.tablesCatalog.Schema(), x); err != nil {
 		return err
 	}
 
-	if err := tm.createTable(fieldsCatalogTableName, *tm.fcat.Schema(), x); err != nil {
+	if err := tm.createTable(fieldsCatalogTableName, *tm.fieldsCatalog.Schema(), x); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
-	tcat := newTableScan(tr, tableCatalogTableName, tm.tcat)
+func (tm *tableManager) tableExists(tblname string, tr tx.Transaction) bool {
+	tcat := newTableScan(tr, tableCatalogTableName, tm.tablesCatalog)
 
 	q := "SELECT tblname FROM tblcat WHERE tblname = " + tblname
 	p := sql.NewParser(q)
@@ -95,7 +116,7 @@ func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 			panic(err)
 		}
 
-		v, err := sel.Val(catFieldTableName)
+		v, err := sel.Val(tableCatalogNameField)
 		if err != nil {
 			panic(err)
 		}
@@ -112,56 +133,74 @@ func (tm tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 // by calculating each fields offset.
 // It adds the newly created table as a record into the table catalog file and then
 // adds each field of the table to the field catalog.
-func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction) error {
-	layout := NewLayout(sch)
-
-	tcat := newTableScan(x, tableCatalogTableName, tm.tcat)
+func (tm *tableManager) createTable(tblname string, sch Schema, x tx.Transaction) error {
+	tcat := newTableScan(x, tableCatalogTableName, tm.tablesCatalog)
 	defer tcat.Close()
 
 	// add the new table into the table catalog
-	size := storage.UnsafeSizeOfStringAsVarlen(tblname)
-	if err := tcat.Insert(storage.Offset(size)); err != nil {
+	// the table only has one field, the table name
+	if err := tcat.Insert(storage.Offset(sizeOfTableCatalogRecord)); err != nil {
 		return err
 	}
 
-	if err := tcat.SetVal(catFieldTableName, storage.ValueFromGoString(tblname)); err != nil {
+	nameBuf := storage.NewNameFromGoString(tblname)
+
+	if err := tcat.SetVal(tableCatalogNameField, storage.ValueFromName(nameBuf)); err != nil {
+		return err
+	}
+
+	columns := storage.SmallInt(len(sch.fields))
+	if err := tcat.SetVal(
+		tableCatalogNumColumnField,
+		storage.ValueFromInteger[storage.SmallInt](storage.SizeOfSmallInt, columns),
+	); err != nil {
 		return err
 	}
 
 	// for each schema field, insert a record into the field catalog.
-	fcat := newTableScan(x, fieldsCatalogTableName, tm.fcat)
+	fcat := newTableScan(x, fieldsCatalogTableName, tm.fieldsCatalog)
 	defer fcat.Close()
 
 	for _, fname := range sch.fields {
-		var size storage.Offset
-		size += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(tblname))
-		size += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fname))
-		size += storage.Offset(storage.SizeOfInt) // fieldType
-		size += storage.Offset(storage.SizeOfInt) // fieldIndex
-
 		// scan up to the first available slot and add the field data to the field catalog
-		if err := fcat.Insert(size); err != nil {
+		if err := fcat.Insert(storage.Offset(sizeOfFieldsCatalogRecord)); err != nil {
 			return err
 		}
 
-		if err := fcat.SetVal(catFieldTableName, storage.ValueFromGoString(tblname)); err != nil {
+		nameBuf.WriteGoString(fname)
+		if err := fcat.SetVal(fieldsCatalogNameField, storage.ValueFromName(nameBuf)); err != nil {
 			return err
 		}
 
-		if err := fcat.SetVal(catFieldFieldName, storage.ValueFromGoString(fname)); err != nil {
+		nameBuf.WriteGoString(tblname)
+		if err := fcat.SetVal(fieldsCatalogTableNameField, storage.ValueFromName(nameBuf)); err != nil {
+			return err
+		}
+
+		info := sch.finfo(fname)
+
+		if err := fcat.SetVal(
+			fieldsCatalogTypeIDField,
+			storage.ValueFromInteger[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(info.Type)),
+		); err != nil {
+			return err
+		}
+
+		nameBuf.WriteGoString(sch.ftype(fname).String())
+		if err := fcat.SetVal(fieldsCatalogTypeNameField, storage.ValueFromName(nameBuf)); err != nil {
 			return err
 		}
 
 		if err := fcat.SetVal(
-			catFieldType,
-			storage.ValueFromInteger[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(sch.ftype(fname))),
+			fieldsCatalogSizeField,
+			storage.ValueFromInteger[storage.Size](storage.SizeOfSize, info.Type.Size()),
 		); err != nil {
 			return err
 		}
 
 		if err := fcat.SetVal(
-			catFieldIndex,
-			storage.ValueFromInteger[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(layout.FieldIndex(fname))),
+			fieldsCatalogIndexField,
+			storage.ValueFromInteger[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(info.Index)),
 		); err != nil {
 			return err
 		}
@@ -172,10 +211,11 @@ func (tm tableManager) createTable(tblname string, sch Schema, x tx.Transaction)
 
 // layout opens two table scans, one into the table catalog table and the other one
 // into the fields catalog, and retrieves the layout of the requested table.
-func (tm tableManager) layout(tblname string, x tx.Transaction) (Layout, error) {
+func (tm *tableManager) layout(tblname string, x tx.Transaction) (Layout, error) {
 	var empty Layout
 
-	tcat := newTableScan(x, tableCatalogTableName, tm.tcat)
+	// check the table exists
+	tcat := newTableScan(x, tableCatalogTableName, tm.tablesCatalog)
 	defer tcat.Close()
 	for {
 		err := tcat.Next()
@@ -187,17 +227,18 @@ func (tm tableManager) layout(tblname string, x tx.Transaction) (Layout, error) 
 			return empty, err
 		}
 
-		tname, err := tcat.Val(catFieldTableName)
+		tname, err := tcat.Val(tableCatalogNameField)
 		if err != nil {
 			return empty, err
 		}
 
-		if tname.AsGoString() == tblname {
+		if tname.AsName().UnsafeAsGoString() == tblname {
 			break
 		}
 	}
 
-	fcat := newTableScan(x, fieldsCatalogTableName, tm.fcat)
+	// get the layout of the table from the fields catalog
+	fcat := newTableScan(x, fieldsCatalogTableName, tm.fieldsCatalog)
 	defer fcat.Close()
 
 	schema := newSchema()
@@ -214,31 +255,34 @@ func (tm tableManager) layout(tblname string, x tx.Transaction) (Layout, error) 
 			return empty, err
 		}
 
-		tname, err := fcat.Val(catFieldTableName)
+		tname, err := fcat.Val(fieldsCatalogTableNameField)
 		if err != nil {
 			return empty, err
 		}
 
-		if tname.AsGoString() == tblname {
-			fldname, err := fcat.Val(catFieldFieldName)
+		tbl := tname.AsName().UnsafeAsGoString()
+
+		if tbl == tblname {
+			// retrieve the field name, type, and index
+			fldname, err := fcat.Val(fieldsCatalogNameField)
 			if err != nil {
 				return empty, err
 			}
 
-			fldtype, err := fcat.Val(catFieldType)
+			fldtype, err := fcat.Val(fieldsCatalogTypeIDField)
 			if err != nil {
 				return empty, err
 			}
 
-			fldidx, err := fcat.Val(catFieldIndex)
+			fldidx, err := fcat.Val(fieldsCatalogIndexField)
 			if err != nil {
 				return empty, err
 			}
 
 			schema.setFieldAtIndex(
-				fldname.AsGoString(),
+				fldname.AsName().UnsafeAsGoString(),
 				storage.FieldType(storage.ValueAsInteger[storage.SmallInt](fldtype)),
-				int(storage.ValueAsInteger[storage.SmallInt](fldidx)),
+				storage.ValueAsInteger[storage.SmallInt](fldidx),
 			)
 		}
 	}

@@ -63,6 +63,12 @@ func (e slottedRecordPageHeaderEntry) setFlag(f flag) slottedRecordPageHeaderEnt
 	return e
 }
 
+const (
+	MaxSlot         storage.SmallInt = (1 << (storage.SizeOfSmallInt * 8)) - 3
+	InvalidSlot                      = MaxSlot + 1
+	BeforeFirstSlot                  = InvalidSlot + 1
+)
+
 // slottedRecordPageHeader represents the header of a slotted record page
 // It holds the metadata about the page and the slot array for the records.
 type slottedRecordPageHeader struct {
@@ -472,7 +478,7 @@ func (p *SlottedRecordPage) fieldOffset(slot storage.SmallInt, fieldname string)
 	// read the record header to find the requested field
 	fieldIndex := p.layout.FieldIndex(fieldname)
 	if fieldIndex == -1 {
-		return 0, fmt.Errorf("invalid field %s for record", fieldname)
+		return 0, fmt.Errorf("invalid field %q for record", fieldname)
 	}
 
 	recordOffset := entry.recordOffset()
@@ -522,7 +528,7 @@ func (p *SlottedRecordPage) VarLen(slot storage.SmallInt, fieldname string) (sto
 func (p *SlottedRecordPage) updateFieldEnd(slot storage.SmallInt, fieldname string, fieldEnd storage.Offset) error {
 	fieldIndex := p.layout.FieldIndex(fieldname)
 	if fieldIndex == -1 {
-		return fmt.Errorf("invalid field %s for record", fieldname)
+		return fmt.Errorf("invalid field %q for record", fieldname)
 	}
 
 	entry, err := p.entry(slot)
@@ -619,19 +625,19 @@ func (p *SlottedRecordPage) Format() error {
 
 // NextFrom returns the next used slot after the given one
 // Returns ErrNoFreeSlot if such slot cannot be found within the transaction's block
-func (p *SlottedRecordPage) NextFrom(slot storage.SmallInt) (storage.SmallInt, error) {
-	return p.searchFrom(slot, flagInUseRecord, 0)
+func (p *SlottedRecordPage) NextAfter(slot storage.SmallInt) (storage.SmallInt, error) {
+	return p.searchAfter(slot, flagInUseRecord, 0)
 }
 
 // InsertFrom returns the next empty slot starting at the given one such that
 // it can hold the provided record size.
-func (p *SlottedRecordPage) InsertFrom(slot storage.SmallInt, recordSize storage.Offset, update bool) (storage.SmallInt, error) {
-	nextSlot, err := p.searchFrom(slot, flagEmptyRecord, recordSize)
+func (p *SlottedRecordPage) InsertAfter(slot storage.SmallInt, recordSize storage.Offset, update bool) (storage.SmallInt, error) {
+	nextSlot, err := p.searchAfter(slot, flagEmptyRecord, recordSize)
 	// no empty slot found, try to append to the end
 	if err == ErrNoFreeSlot {
 		header, err := p.readHeader()
 		if err != nil {
-			return 0, err
+			return InvalidSlot, err
 		}
 
 		// calculate the actual size of the record including the record header
@@ -639,11 +645,11 @@ func (p *SlottedRecordPage) InsertFrom(slot storage.SmallInt, recordSize storage
 
 		// append a new slot to the page header for the record
 		if err := header.appendRecordSlot(actualRecordSize); err == errNoFreeSpaceAvailable {
-			return 0, ErrNoFreeSlot
+			return InvalidSlot, ErrNoFreeSlot
 		}
 
 		if err := p.writeHeader(header); err != nil {
-			return 0, err
+			return InvalidSlot, err
 		}
 
 		recordHeader := recordHeader{
@@ -661,14 +667,14 @@ func (p *SlottedRecordPage) InsertFrom(slot storage.SmallInt, recordSize storage
 
 		// write the record header at the end of the free space
 		if err := p.writeRecordHeader(header.freeSpaceEnd, recordHeader); err != nil {
-			return 0, err
+			return InvalidSlot, err
 		}
 
 		return header.numSlots - 1, nil
 	}
 
 	if err != nil {
-		return 0, err
+		return InvalidSlot, err
 	}
 
 	return nextSlot, nil
@@ -679,21 +685,21 @@ func (p *SlottedRecordPage) InsertFrom(slot storage.SmallInt, recordSize storage
 // Otherwise it returns the slot index
 // todo: we can optimise this by looking for the best slot available for the record of size, for example by picking
 // the smallest empty slot that can fit the record rather than just the first one
-func (p *SlottedRecordPage) searchFrom(slot storage.SmallInt, flag flag, recordSize storage.Offset) (storage.SmallInt, error) {
+func (p *SlottedRecordPage) searchAfter(slot storage.SmallInt, flag flag, recordSize storage.Offset) (storage.SmallInt, error) {
 	header, err := p.readHeader()
 	if err != nil {
-		return 0, err
+		return InvalidSlot, err
 	}
 
-	for i := slot; i < header.numSlots; i++ {
+	for i := slot + 1; i < header.numSlots; i++ {
 		entry, err := p.entry(i)
 		if err != nil {
-			return 0, err
+			return InvalidSlot, err
 		}
 
 		recordHeader, err := p.readRecordHeader(entry.recordOffset())
 		if err != nil {
-			return 0, err
+			return InvalidSlot, err
 		}
 
 		if recordHeader.txinfo.xmin == p.tx.Id() && recordHeader.hasFlag(flagUpdated) {
@@ -705,5 +711,5 @@ func (p *SlottedRecordPage) searchFrom(slot storage.SmallInt, flag flag, recordS
 		}
 	}
 
-	return 0, ErrNoFreeSlot
+	return InvalidSlot, ErrNoFreeSlot
 }

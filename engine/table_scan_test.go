@@ -13,8 +13,8 @@ import (
 
 func TestTableScan(t *testing.T) {
 	schema := newSchema()
-	schema.addIntField("A")
-	schema.addStringField("B")
+	schema.addField("A", storage.INT)
+	schema.addField("B", storage.TEXT)
 
 	layout := NewLayout(schema)
 	for _, field := range layout.schema.fields {

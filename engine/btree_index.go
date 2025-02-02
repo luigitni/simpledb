@@ -74,9 +74,9 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 
 		var minVal storage.Value
 		switch fldType {
-		case storage.INTEGER:
+		case storage.LONG:
 			minVal = storage.ValueFromInteger[storage.Long](storage.SizeOfLong, 0)
-		case storage.STRING:
+		case storage.TEXT:
 			minVal = storage.ValueFromGoString("")
 		}
 

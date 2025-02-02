@@ -8,10 +8,9 @@ import (
 )
 
 const (
-	viewCatalogTableName = "viewcat"
-	fieldViewName        = "viewname"
-	fieldViewDef         = "viewdef"
-	maxViewDefinition    = 100
+	viewCatalogTableName = "views"
+	fieldViewName        = "name"
+	fieldViewDef         = "def"
 )
 
 // viewManager stores view definitions in the view catalog.
@@ -28,8 +27,8 @@ func newViewManager(tm *tableManager) *viewManager {
 
 func (vm viewManager) init(trans tx.Transaction) error {
 	schema := newSchema()
-	schema.addFixedLenStringField(fieldViewName, NameMaxLen)
-	schema.addFixedLenStringField(fieldViewDef, maxViewDefinition)
+	schema.addField(fieldViewName, storage.NAME)
+	schema.addField(fieldViewDef, storage.TEXT)
 	return vm.createTable(viewCatalogTableName, schema, trans)
 }
 
@@ -43,7 +42,9 @@ func (vm viewManager) createView(vname string, vdef string, trans tx.Transaction
 	ts := newTableScan(trans, "viewcat", layout)
 	defer ts.Close()
 
-	if err := ts.SetVal("viewname", storage.ValueFromGoString(vname)); err != nil {
+	vn := storage.NewNameFromGoString(vname)
+
+	if err := ts.SetVal("viewname", storage.ValueFromName(vn)); err != nil {
 		return err
 	}
 

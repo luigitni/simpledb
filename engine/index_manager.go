@@ -46,14 +46,10 @@ func newIndexInfo(x tx.Transaction, idxName string, fieldName string, tableSchem
 
 func idxLayout(tableSchema Schema, fieldName string) Layout {
 	schema := newSchema()
-	schema.addIntField("block")
-	schema.addIntField("id")
-	switch tableSchema.ftype(fieldName) {
-	case storage.INTEGER:
-		schema.addIntField("dataval")
-	case storage.STRING:
-		schema.addFixedLenStringField("dataval", tableSchema.flen(fieldName))
-	}
+	schema.addField("block", storage.LONG)
+	schema.addField("id", storage.INT)
+
+	schema.addField("dataval", tableSchema.ftype(fieldName))
 
 	return NewLayout(schema)
 }
@@ -74,7 +70,7 @@ func (ii *indexInfo) RecordsOutput() int {
 }
 
 func (ii *indexInfo) BlocksAccessed() int {
-	rpb := int(ii.x.BlockSize()) / ii.idxLayout.slotsize
+	rpb := int(ii.x.BlockSize() / ii.idxLayout.slotsize)
 	numBlocks := ii.stats.records / rpb
 	return BTreeIndexSearchCost(numBlocks, rpb)
 }
@@ -99,9 +95,9 @@ type indexManager struct {
 
 func indexCatalogSchema() Schema {
 	schema := newSchema()
-	schema.addFixedLenStringField(fieldIdxName, NameMaxLen)
-	schema.addFixedLenStringField(catFieldTableName, NameMaxLen)
-	schema.addFixedLenStringField(catFieldFieldName, NameMaxLen)
+	schema.addField(fieldIdxName, storage.NAME)
+	schema.addField(tableCatalogNameField, storage.NAME)
+	schema.addField(fieldsCatalogNameField, storage.NAME)
 	return schema
 }
 
@@ -133,11 +129,11 @@ func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName st
 		return err
 	}
 
-	if err := ts.SetVal(catFieldTableName, storage.ValueFromGoString(tblName)); err != nil {
+	if err := ts.SetVal(tableCatalogNameField, storage.ValueFromGoString(tblName)); err != nil {
 		return err
 	}
 
-	if err := ts.SetVal(catFieldFieldName, storage.ValueFromGoString(fldName)); err != nil {
+	if err := ts.SetVal(fieldsCatalogNameField, storage.ValueFromGoString(fldName)); err != nil {
 		return err
 	}
 
@@ -161,7 +157,7 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		table, err := scan.Val(catFieldTableName)
+		table, err := scan.Val(tableCatalogNameField)
 		if err != nil {
 			return nil, err
 		}
@@ -175,7 +171,7 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		fldName, err := scan.Val(catFieldFieldName)
+		fldName, err := scan.Val(fieldsCatalogNameField)
 		if err != nil {
 			return nil, err
 		}

@@ -6,22 +6,22 @@ import "github.com/luigitni/simpledb/storage"
 // It contains the name, type, length and offset of each field of the table
 type Layout struct {
 	schema       Schema
-	fieldIndexes map[string]int
-	offsets      map[string]int
+	fieldIndexes map[string]storage.SmallInt
+	offsets      map[string]storage.Offset
 	sizes        map[string]int
-	slotsize     int
+	slotsize     storage.Offset
 }
 
 func NewLayout(schema Schema) Layout {
-	offsets := make(map[string]int, len(schema.fields))
-	fieldIndexes := make(map[string]int, len(schema.fields))
+	offsets := make(map[string]storage.Offset, len(schema.fields))
+	fieldIndexes := make(map[string]storage.SmallInt, len(schema.fields))
 
-	s := storage.IntSize
+	var s storage.Offset
 	// compute the offset of each field
 	for _, f := range schema.fields {
 		fieldIndexes[f] = schema.info[f].Index
 		offsets[f] = s
-		s += lenInBytes(schema, f)
+		s += storage.Offset(lenInBytes(schema, f))
 	}
 
 	return Layout{
@@ -34,22 +34,15 @@ func NewLayout(schema Schema) Layout {
 
 const varlen = -1
 
-func lenInBytes(schema Schema, field string) int {
-	t := schema.ftype(field)
-	switch t {
-	case storage.INTEGER:
-		return int(storage.SizeOfInt)
-	case storage.STRING:
-		return -1
-	}
-	panic("unsupported type")
+func lenInBytes(schema Schema, field string) storage.Size {
+	return schema.ftype(field).Size()
 }
 
 func (l Layout) Schema() *Schema {
 	return &l.schema
 }
 
-func (l Layout) Offset(fname string) int {
+func (l Layout) Offset(fname string) storage.Offset {
 	return l.offsets[fname]
 }
 
@@ -59,7 +52,7 @@ func (l Layout) FieldIndex(fname string) int {
 		return -1
 	}
 
-	return idx
+	return int(idx)
 }
 
 func (l Layout) FieldSize(fname string) storage.Size {
@@ -70,6 +63,6 @@ func (l Layout) FieldsCount() int {
 	return len(l.schema.fields)
 }
 
-func (l Layout) SlotSize() int {
+func (l Layout) SlotSize() storage.Offset {
 	return l.slotsize
 }

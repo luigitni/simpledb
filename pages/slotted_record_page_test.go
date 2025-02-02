@@ -212,19 +212,19 @@ func TestSlottedRecordPageSearchAfter(t *testing.T) {
 	}
 
 	t.Run("page is empty, no free slot available amongst the existing ones", func(t *testing.T) {
-		if _, err := page.searchFrom(0, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
+		if _, err := page.searchAfter(BeforeFirstSlot, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
 		}
 	})
 
 	for i, v := range []storage.Offset{255, 1024, 512, 323, 8} {
-		if _, err := page.InsertFrom(storage.SmallInt(i), v, false); err != nil {
+		if _, err := page.InsertAfter(storage.SmallInt(i), v, false); err != nil {
 			t.Fatalf("error appending record slot: %v", err)
 		}
 	}
 
 	t.Run("no free slot available amongst the existing ones", func(t *testing.T) {
-		if _, err := page.searchFrom(0, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
+		if _, err := page.searchAfter(BeforeFirstSlot, flagEmptyRecord, 1024); err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
 		}
 	})
@@ -250,7 +250,7 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 
 	t.Run("successfully inserts records one after another", func(t *testing.T) {
 		for i, v := range []storage.Offset{255, 1024, 512, 323, 8} {
-			slot, err := page.InsertFrom(0, v, false)
+			slot, err := page.InsertAfter(BeforeFirstSlot, v, false)
 			if err != nil {
 				t.Errorf("error inserting after -1: %v", err)
 			}
@@ -262,7 +262,7 @@ func TestSlottedRecordPageInsertAfter(t *testing.T) {
 	})
 
 	t.Run("no space is availale for inserting records", func(t *testing.T) {
-		_, err := page.InsertFrom(0, defaultFreeSpaceEnd+1, false)
+		_, err := page.InsertAfter(BeforeFirstSlot, defaultFreeSpaceEnd+1, false)
 		if err != ErrNoFreeSlot {
 			t.Errorf("expected ErrNoFreeSlot, got %v", err)
 		}
@@ -321,7 +321,7 @@ func TestSlottedRecordPageSet(t *testing.T) {
 		}
 	}
 
-	slot, err := page.InsertFrom(0, recordLength, false)
+	slot, err := page.InsertAfter(BeforeFirstSlot, recordLength, false)
 	if err != nil {
 		t.Fatal(err)
 	}
