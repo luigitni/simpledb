@@ -2,6 +2,7 @@ package tx
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/luigitni/simpledb/storage"
 )
@@ -15,6 +16,8 @@ type setVarLenLogRecord struct {
 	block  storage.Block
 	val    storage.Varlen
 }
+
+const sizeOfVarlenRecord = int(unsafe.Sizeof(setVarLenLogRecord{})) + int(storage.SizeOfTinyInt)
 
 // NewSetStringRecord constructs a SetStringLogRecord
 // by reading from the given page.
@@ -61,16 +64,15 @@ func (ss setVarLenLogRecord) Undo(tx Transaction) {
 // A string log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
 func logSetVarlen(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) int {
-	pool := logPools.poolForSize(storage.Size(val.Size()))
-	p := pool.Get().(*[]byte)
-	defer pool.Put(p)
-	writeVarlen(p, txnum, block, offset, val)
+	l := sizeOfVarlenRecord + int(val.Len())
+	buf := make([]byte, l)
+	writeVarlen(buf, txnum, block, offset, val)
 
-	return lm.Append(*p)
+	return lm.Append(buf)
 }
 
-func writeVarlen(dst *[]byte, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) {
-	rbuf := recordBuffer{bytes: *dst}
+func writeVarlen(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) {
+	rbuf := recordBuffer{bytes: dst}
 
 	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETSTRING)))
 	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTinyInt, txnum))

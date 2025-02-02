@@ -4,6 +4,8 @@ import "github.com/luigitni/simpledb/storage"
 
 type checkpointLogRecord struct{}
 
+const sizeOfCheckpointRecord = storage.SizeOfTinyInt
+
 func newCheckpointRecord(record recordBuffer) checkpointLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
 
@@ -27,14 +29,13 @@ func (record checkpointLogRecord) String() string {
 }
 
 func logCheckpoint(lm logManager) int {
-	p := logPools.tiny1int.Get().(*[]byte)
-	defer logPools.tiny1int.Put(p)
-	writeCheckpoint(p)
-	return lm.Append(*p)
+	buf := make([]byte, sizeOfCheckpointRecord)
+	writeCheckpoint(buf)
+	return lm.Append(buf)
 }
 
-func writeCheckpoint(dst *[]byte) {
-	rbuf := recordBuffer{bytes: *dst}
+func writeCheckpoint(dst []byte) {
+	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
 		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(CHECKPOINT)),

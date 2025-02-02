@@ -2,6 +2,7 @@ package tx
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/luigitni/simpledb/storage"
 )
@@ -9,6 +10,8 @@ import (
 type rollbackLogRecord struct {
 	txnum storage.TxID
 }
+
+const sizeOfRollbackRecord = int(unsafe.Sizeof(rollbackLogRecord{})) + int(storage.SizeOfTinyInt)
 
 func newRollbackRecord(record recordBuffer) rollbackLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
@@ -35,16 +38,15 @@ func (record rollbackLogRecord) String() string {
 }
 
 func logRollback(lm logManager, txnum storage.TxID) int {
-	p := logPools.small2ints.Get().(*[]byte)
-	defer logPools.small2ints.Put(p)
+	buf := make([]byte, sizeOfRollbackRecord)
 
-	writeRollback(p, txnum)
+	writeRollback(buf, txnum)
 
-	return lm.Append(*p)
+	return lm.Append(buf)
 }
 
-func writeRollback(dst *[]byte, txnum storage.TxID) {
-	rbuf := recordBuffer{bytes: *dst}
+func writeRollback(dst []byte, txnum storage.TxID) {
+	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
 		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(ROLLBACK)),

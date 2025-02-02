@@ -2,6 +2,7 @@ package tx
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/luigitni/simpledb/storage"
 )
@@ -9,6 +10,8 @@ import (
 type commitLogRecord struct {
 	txnum storage.TxID
 }
+
+const sizeOfCommitRecord = int(unsafe.Sizeof(commitLogRecord{})) + int(storage.SizeOfTinyInt)
 
 func newCommitRecord(record recordBuffer) commitLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
@@ -35,16 +38,14 @@ func (record commitLogRecord) String() string {
 }
 
 func logCommit(lm logManager, txnum storage.TxID) int {
-	p := logPools.small2ints.Get().(*[]byte)
-	defer logPools.small2ints.Put(p)
+	buf := make([]byte, sizeOfCommitRecord)
+	writeCommit(buf, txnum)
 
-	writeCommit(p, txnum)
-
-	return lm.Append(*p)
+	return lm.Append(buf)
 }
 
-func writeCommit(dst *[]byte, txnum storage.TxID) {
-	rbuf := recordBuffer{bytes: *dst}
+func writeCommit(dst []byte, txnum storage.TxID) {
+	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
 		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(COMMIT)),

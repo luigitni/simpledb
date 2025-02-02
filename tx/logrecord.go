@@ -1,70 +1,8 @@
 package tx
 
 import (
-	"sync"
-
 	"github.com/luigitni/simpledb/storage"
 )
-
-type pools struct {
-	tiny1int       sync.Pool
-	small2ints     sync.Pool
-	setInt         sync.Pool
-	setSmallString sync.Pool
-	setLString     sync.Pool
-	setXLString    sync.Pool
-}
-
-var logPools = pools{
-	tiny1int: sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, storage.SizeOfTinyInt)
-			return &b
-		},
-	},
-	small2ints: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 2*storage.SizeOfSmallInt)
-			return &s
-		},
-	},
-	setInt: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, storage.SizeOfInt)
-			return &s
-		},
-	},
-	setSmallString: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 512)
-			return &s
-		},
-	},
-	setLString: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 1024)
-			return &s
-		},
-	},
-	setXLString: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 3072)
-			return &s
-		},
-	},
-}
-
-// todo: the poolforsize is not too useful and it's not sure it's worth it
-func (p *pools) poolForSize(s storage.Size) *sync.Pool {
-	switch {
-	case s < 512:
-		return &p.setSmallString
-	case s < 1024:
-		return &p.setLString
-	default:
-		return &p.setXLString
-	}
-}
 
 type recordBuffer struct {
 	offset storage.Offset

@@ -43,8 +43,8 @@ func assertVarlenAtPos(t *testing.T, data []byte, pos storage.Offset, exp string
 }
 
 func TestLogCheckpointRecord(t *testing.T) {
-	buf := make([]byte, storage.SizeOfTinyInt)
-	writeCheckpoint(&buf)
+	buf := make([]byte, sizeOfCheckpointRecord)
+	writeCheckpoint(buf)
 
 	// test that the first entry is CHECKPOINT
 	assertIntegerAtOffset(t, buf, 0, storage.SizeOfTinyInt, storage.TinyInt(CHECKPOINT))
@@ -53,8 +53,8 @@ func TestLogCheckpointRecord(t *testing.T) {
 func TestLogStartRecord(t *testing.T) {
 	const txNum storage.TxID = 123
 
-	p := make([]byte, 16)
-	writeStart(&p, txNum)
+	p := make([]byte, sizeOfStartRecord)
+	writeStart(p, txNum)
 
 	var offset storage.Offset
 
@@ -67,8 +67,8 @@ func TestLogStartRecord(t *testing.T) {
 func TestLogRollbackRecord(t *testing.T) {
 	const txNum storage.TxID = 123
 
-	p := make([]byte, 16)
-	writeRollback(&p, txNum)
+	p := make([]byte, sizeOfRollbackRecord)
+	writeRollback(p, txNum)
 
 	// test that the first entry is ROLLBACK
 	var offset storage.Offset
@@ -82,8 +82,8 @@ func TestLogRollbackRecord(t *testing.T) {
 func TestLogCommitRecord(t *testing.T) {
 	const txNum storage.TxID = 123
 
-	p := make([]byte, 16)
-	writeCommit(&p, txNum)
+	p := make([]byte, sizeOfCommitRecord)
+	writeCommit(p, txNum)
 
 	var offset storage.Offset
 
@@ -103,9 +103,9 @@ func TestLogFixedLenRecord(t *testing.T) {
 
 	block := storage.NewBlock(fname, bid)
 
-	p := make([]byte, 512)
+	p := make([]byte, sizeOfFixedLenRecord+int(storage.SizeOfInt))
 
-	writeFixedLen(&p, txNum, block, offsetVal, storage.SizeOfInt, storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, val))
+	writeFixedLen(p, txNum, block, offsetVal, storage.SizeOfInt, storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, val))
 
 	var offset storage.Offset
 	// test that the first entry is SETFIXED
@@ -148,9 +148,9 @@ func TestLogSetStrRecord(t *testing.T) {
 
 	block := storage.NewBlock(fname, bid)
 
-	p := make([]byte, 512+len(val))
+	p := make([]byte, sizeOfVarlenRecord+len(val))
 
-	writeVarlen(&p, txNum, block, offsetVal, storage.UnsafeNewVarlenFromGoString(val))
+	writeVarlen(p, txNum, block, offsetVal, storage.UnsafeNewVarlenFromGoString(val))
 
 	var offset storage.Offset
 

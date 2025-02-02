@@ -2,6 +2,7 @@ package tx
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/luigitni/simpledb/storage"
 )
@@ -9,6 +10,8 @@ import (
 type startLogRecord struct {
 	txnum storage.TxID
 }
+
+const sizeOfStartRecord = int(unsafe.Sizeof(startLogRecord{})) + int(storage.SizeOfTinyInt)
 
 func newStartLogRecord(record recordBuffer) startLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
@@ -35,16 +38,14 @@ func (record startLogRecord) String() string {
 }
 
 func logStart(lm logManager, txnum storage.TxID) int {
-	p := logPools.small2ints.Get().(*[]byte)
-	defer logPools.small2ints.Put(p)
+	buf := make([]byte, sizeOfStartRecord)
+	writeStart(buf, txnum)
 
-	writeStart(p, txnum)
-
-	return lm.Append(*p)
+	return lm.Append(buf)
 }
 
-func writeStart(dst *[]byte, txnum storage.TxID) {
-	rbuf := recordBuffer{bytes: *dst}
+func writeStart(dst []byte, txnum storage.TxID) {
+	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
 		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(START)),
