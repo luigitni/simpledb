@@ -3,7 +3,6 @@ package engine
 import (
 	"fmt"
 	"io"
-	"math/rand"
 	"testing"
 
 	"github.com/luigitni/simpledb/storage"
@@ -13,124 +12,113 @@ import (
 
 func TestTableScan(t *testing.T) {
 	schema := newSchema()
-	schema.addField("A", storage.INT)
-	schema.addField("B", storage.TEXT)
+	schema.addField("id", storage.INT)
+	schema.addField("tag", storage.TEXT)
 
 	layout := NewLayout(schema)
-	for _, field := range layout.schema.fields {
-		t.Logf("field %q has offset %d", field, layout.Offset(field))
-	}
 
 	fm, lm, bm := test.MakeManagers(t)
 
-	trans := tx.NewTx(fm, lm, bm)
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
 
-	scan := newTableScan(trans, "TEST", layout)
-	t.Log("Filling the table with 50 random records")
+	scan := newTableScan(x, "employee", layout)
 	scan.BeforeFirst()
+
+	tag := func(id storage.Int) string {
+		return fmt.Sprintf("employee_%d", id)
+	}
+
+	t.Run("test insert one record and delete", func(t *testing.T) {
+		const val storage.Int = 10
+		fullName := tag(val)
+
+		var size storage.Offset
+		size += storage.Offset(storage.SizeOfInt)
+		size += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fullName))
+
+		scan.Insert(size)
+		if err := scan.SetVal("id", storage.ValueFromInteger(storage.SizeOfInt, val)); err != nil {
+			t.Fatal(err)
+		}
+
+		if err := scan.SetVal("tag", storage.ValueFromGoString(fullName)); err != nil {
+			t.Fatal(err)
+		}
+
+		scan.Delete()
+
+		scan.BeforeFirst()
+		err := scan.Next()
+		if err == nil {
+			t.Fatal("expected EOF")
+		}
+
+		if err != io.EOF {
+			t.Fatalf("expected EOF, got %s", err)
+		}
+	})
 
 	record := map[RID]struct{}{}
 
-	for i := 0; i < 50; i++ {
-		v := storage.Int(rand.Intn(50))
-		strVal := fmt.Sprintf("rec%d", v)
+	t.Run("test insert multiple records", func(t *testing.T) {
+		scan.BeforeFirst()
 
-		var size storage.Offset
-		size += storage.Offset(storage.SizeOfInt) +
-			storage.Offset(storage.UnsafeSizeOfStringAsVarlen(strVal))
+		for v := range 50 {
+			v := storage.Int(v)
+			s := fmt.Sprintf("employee_%d", v)
 
-		scan.Insert(size)
-		if err := scan.SetVal("A", storage.ValueFromInteger[storage.Int](storage.SizeOfInt, v)); err != nil {
-			t.Fatal(err)
-		}
+			var size storage.Offset
+			size += storage.Offset(storage.SizeOfInt)
+			size += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(s))
 
-		s := fmt.Sprintf("rec%d", v)
-		if err := scan.SetVal("B", storage.ValueFromGoString(s)); err != nil {
-			t.Fatal(err)
-		}
+			scan.Insert(size)
 
-		rid := scan.GetRID()
-		if v >= 25 {
-			record[rid] = struct{}{}
-		}
-
-		t.Logf("inserting into slot %s record {%d, %q}", rid, v, s)
-	}
-
-	t.Log("Deleting records with A < 25")
-	scan.BeforeFirst()
-	count := 0
-	for {
-		err := scan.Next()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		av, err := scan.Val("A")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		a := storage.ValueAsInteger[storage.Int](av)
-
-		if a < 25 {
-			rid := scan.GetRID()
-			if _, ok := record[rid]; ok {
-				t.Fatalf("Unexpected deletion of record %q", rid)
+			if err := scan.SetVal("id", storage.ValueFromInteger(storage.SizeOfInt, v)); err != nil {
+				t.Fatalf("error setting id val: %s", err)
 			}
 
-			b, err := scan.Val("B")
+			if err := scan.SetVal("tag", storage.ValueFromGoString(s)); err != nil {
+				t.Fatalf("error setting tag val: %s", err)
+			}
+
+			record[scan.GetRID()] = struct{}{}
+		}
+	})
+
+	t.Run("test heap scan", func(t *testing.T) {
+		scan.BeforeFirst()
+
+		var id storage.Int
+		for {
+			err := scan.Next()
+			if err == io.EOF {
+				break
+			}
+
 			if err != nil {
-				t.Fatal(err)
+				t.Fatalf("unexpected error while scanning the heap table: %s", err)
 			}
 
-			t.Logf("Deleting record %s {%d, %q}", rid, a, b.AsGoString())
-
-			if err := scan.Delete(); err != nil {
-				t.Fatal(err)
+			v, err := scan.Val("id")
+			if err != nil {
+				t.Fatalf("error retrieving id: %s", err)
 			}
-			count++
+
+			if got := v.AsFixedLen().UnsafeAsInt(); got != id {
+				t.Fatalf("expected scanned value to be %d, got %d", id, got)
+			}
+
+			s, err := scan.Val("tag")
+			if err != nil {
+				t.Fatalf("error retrieving tag: %s", err)
+			}
+
+			if got := storage.UnsafeVarlenToGoString(s.AsVarlen()); got != tag(id) {
+				t.Fatalf("expected tag %q, got %q", tag(id), got)
+			}
+
+			id++
 		}
-	}
-
-	t.Logf("%d records were deleted", count)
-
-	t.Log("Printing remaining records:")
-	scan.BeforeFirst()
-
-	for {
-		err := scan.Next()
-		if err == io.EOF {
-			break
-		}
-
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		av, err := scan.Val("A")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		a := storage.ValueAsInteger[storage.Int](av)
-
-		bv, err := scan.Val("B")
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		b := bv.AsGoString()
-
-		rid := scan.GetRID()
-		if _, ok := record[rid]; !ok {
-			t.Fatalf("record %s: {%d, %q} was expected to be deleted", rid, a, b)
-		}
-
-		t.Logf("slot %s: {%d, %q}", rid, a, b)
-	}
+	})
 }

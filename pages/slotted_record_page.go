@@ -13,7 +13,7 @@ var (
 	ErrNoFreeSlot           = errors.New("no free slot available")
 )
 
-type flag uint16
+type flag storage.Int
 
 const (
 	flagEmptyRecord flag = 1 << iota
@@ -21,7 +21,7 @@ const (
 	flagDeletedRecord
 )
 
-const headerEntrySize = storage.SizeOfLong
+const sizeOfHeaderEntry = storage.SizeOfLong
 
 // slottedRecordPageHeaderEntry represents an entry in the page header.
 // Each entry is an 8-byte value
@@ -88,11 +88,11 @@ const (
 )
 
 func (h slottedRecordPageHeader) freeSpaceStart() storage.Offset {
-	return h.lastSlotOffset() + storage.Offset(headerEntrySize)
+	return h.lastSlotOffset() + storage.Offset(sizeOfHeaderEntry)
 }
 
 func (h slottedRecordPageHeader) lastSlotOffset() storage.Offset {
-	return entriesOffset + storage.Offset(h.numSlots)*storage.Offset(headerEntrySize)
+	return entriesOffset + storage.Offset(h.numSlots)*storage.Offset(sizeOfHeaderEntry)
 }
 
 func (h slottedRecordPageHeader) freeSpaceAvailable() storage.Offset {
@@ -447,13 +447,18 @@ func (p *SlottedRecordPage) readRecordHeader(offset storage.Offset) (recordHeade
 
 // entry returns the entry of the record pointed to by the given slot
 func (p *SlottedRecordPage) entry(slot storage.SmallInt) (slottedRecordPageHeaderEntry, error) {
-	offset := entriesOffset + storage.Offset(headerEntrySize)*storage.Offset(slot)
-	v, err := p.tx.FixedLen(p.block, offset, headerEntrySize)
+	offset := entriesOffset + storage.Offset(sizeOfHeaderEntry)*storage.Offset(slot)
+	v, err := p.tx.FixedLen(p.block, offset, sizeOfHeaderEntry)
 	if err != nil {
 		return slottedRecordPageHeaderEntry{}, err
 	}
 
 	return slottedRecordPageHeaderEntry(v), nil
+}
+
+func (p *SlottedRecordPage) writeEntry(slot storage.SmallInt, entry slottedRecordPageHeaderEntry) error {
+	offset := entriesOffset + storage.Offset(sizeOfHeaderEntry)*storage.Offset(slot)
+	return p.tx.SetFixedLen(p.block, offset, sizeOfHeaderEntry, storage.FixedLen(entry[:]), true)
 }
 
 func (p *SlottedRecordPage) setFlag(slot storage.SmallInt, flag flag) error {
@@ -589,12 +594,13 @@ func (p *SlottedRecordPage) SetVarLen(slot storage.SmallInt, fieldname string, v
 
 // Delete flags the record's slot as empty by setting its flag
 func (p *SlottedRecordPage) Delete(slot storage.SmallInt) error {
-	if err := p.setFlag(slot, flagDeletedRecord); err != nil {
+	entry, err := p.entry(slot)
+	if err != nil {
 		return err
 	}
 
-	entry, err := p.entry(slot)
-	if err != nil {
+	entry = entry.setFlag(flagDeletedRecord)
+	if err := p.writeEntry(slot, entry); err != nil {
 		return err
 	}
 
