@@ -111,7 +111,7 @@ func (sm *statManager) refreshStatistics(x tx.Transaction) error {
 			return err
 		}
 
-		n := tname.AsGoString()
+		n := tname.AsName().UnsafeAsGoString()
 
 		layout, err := sm.layout(n, x)
 		if err != nil {

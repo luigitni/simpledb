@@ -87,7 +87,6 @@ func (v Value) Less(other Value) bool {
 // todo: implement supported type specific comparisons
 func (v Value) More(other Value) bool {
 	panic("not implemented")
-	return false
 }
 
 func (c Value) String(t FieldType) string {
