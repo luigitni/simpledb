@@ -21,11 +21,11 @@ const (
 
 	fieldsCatalogTableName      = "fields"
 	fieldsCatalogNameField      = "name"
-	fieldsCatalogTableNameField = "table"
+	fieldsCatalogTableNameField = "table_name"
 	fieldsCatalogTypeIDField    = "type_id"
 	fieldsCatalogTypeNameField  = "type_name"
-	fieldsCatalogSizeField      = "size"
-	fieldsCatalogIndexField     = "index"
+	fieldsCatalogSizeField      = "field_size"
+	fieldsCatalogIndexField     = "field_index"
 
 	sizeOfFieldsCatalogRecord = storage.SizeOfName + // field name
 		storage.SizeOfName + // table name
