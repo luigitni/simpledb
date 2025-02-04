@@ -41,10 +41,6 @@ func (v Value) AsName() Name {
 	return Name(v)
 }
 
-func (v Value) AsGoString() string {
-	return ValueAsGoString(v)
-}
-
 func ValueAsInteger[V Integer](v Value) V {
 	return UnsafeFixedToInteger[V](v.AsFixedLen())
 }
@@ -107,7 +103,7 @@ var stringFunc = [...]func(Value) string{
 		return fmt.Sprintf("%d", ValueAsInteger[Long](v))
 	},
 	NAME: func(v Value) string {
-		return ValueAsGoString(v)
+		return v.AsName().UnsafeAsGoString()
 	},
 	TEXT: func(v Value) string {
 		return ValueAsGoString(v)

@@ -121,7 +121,7 @@ func (tm *tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 			panic(err)
 		}
 
-		if v.AsGoString() == tblname {
+		if v.AsName().UnsafeAsGoString() == tblname {
 			return true
 		}
 	}

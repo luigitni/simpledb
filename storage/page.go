@@ -74,6 +74,10 @@ func (v Varlen) Data() []byte {
 	return v[SizeOfInt:]
 }
 
+func (v Varlen) UnsafeAsGoString() string {
+	return UnsafeVarlenToGoString(v)
+}
+
 // UnsafeNewVarlenFromGoString creates a Varlen type from a string
 // The original string is copied into the Varlen's byte slice
 // This could allocate a new byte slice and copies the string into it

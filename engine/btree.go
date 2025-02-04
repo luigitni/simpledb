@@ -111,7 +111,7 @@ func (page bTreePage) setVal(slot int, fieldName string, val storage.Value) erro
 		return page.setInt(slot, fieldName, storage.ValueAsInteger[storage.Long](val))
 	}
 
-	return page.setString(slot, fieldName, val.AsGoString())
+	return page.setString(slot, fieldName, val.AsVarlen().UnsafeAsGoString())
 }
 
 func (page bTreePage) mustGetVal(slot int, fieldName string) storage.Value {

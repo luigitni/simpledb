@@ -62,7 +62,7 @@ func TestConstant(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if s := c.AsGoString(); s != v.exp {
+		if s := c.AsVarlen().UnsafeAsGoString(); s != v.exp {
 			t.Fatalf("expected %q, got %s", v.exp, s)
 		}
 	}
@@ -186,7 +186,7 @@ func TestUpdateCommandMultipleFields(t *testing.T) {
 				t.Fatalf("expected newValue to be %d, got %d", val, v)
 			}
 		case string:
-			if v := v.AsGoString(); v != val {
+			if v := v.AsVarlen().UnsafeAsGoString(); v != val {
 				t.Fatalf("expected newValue to be %q, got %s", val, v)
 			}
 		}
@@ -240,7 +240,7 @@ func TestInsertCommand(t *testing.T) {
 		}
 	}
 
-	if v := ins.Values[0].AsGoString(); v != "aval" {
+	if v := ins.Values[0].AsVarlen().UnsafeAsGoString(); v != "aval" {
 		t.Fatalf("expected value to be %q, got %q", "aval", v)
 	}
 

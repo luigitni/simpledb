@@ -162,7 +162,7 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		if table.AsGoString() != tblName {
+		if table.AsName().UnsafeAsGoString() != tblName {
 			continue
 		}
 
@@ -186,9 +186,9 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		fn := fldName.AsGoString()
+		fn := fldName.AsName().UnsafeAsGoString()
 
-		ii := newIndexInfo(x, idxName.AsGoString(), fn, *layout.Schema(), stat)
+		ii := newIndexInfo(x, idxName.AsName().UnsafeAsGoString(), fn, *layout.Schema(), stat)
 		m[fn] = ii
 	}
 
