@@ -41,10 +41,12 @@ func main() {
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 
 	ctx, canc := context.WithCancel(context.Background())
-	if err := conn.Listen(ctx, port, db); err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
-	}
+	go func() {
+		if err := conn.Listen(ctx, port, db); err != nil {
+			fmt.Fprintf(os.Stderr, "connection error: %s\n", err)
+			os.Exit(1)
+		}
+	}()
 
 	<-quit
 	canc()
