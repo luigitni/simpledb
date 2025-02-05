@@ -45,8 +45,8 @@ func newRecoveryManagerForTx(tx Transaction, txnum storage.TxID, lm logManager, 
 // buff is the buffer containing the page
 // offset is the offset of the value within the page
 // val is the value to be written
-// todo: why is the actual implementation passing the oldval?
-func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offset, size storage.Size, val storage.FixedLen) int {
+// because in this version the recovery is undo-only, we don't need the new value
+func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offset, size storage.Size, _ storage.FixedLen) int {
 	oldval := buff.Contents().UnsafeGetFixedLen(offset, size)
 	block := buff.Block()
 	return logSetFixedLen(man.lm, man.txnum, block, offset, size, oldval)
@@ -55,9 +55,9 @@ func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offse
 // setVarLen writes a SETVARLEN record to the log and return its lsn.
 // buff is the buffer containing the page,
 // offset is the offset of the value within the page
-// newval is the value to be written.
-// WHY IS IT PASSING OLDVAL??
-func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset storage.Offset, val storage.Varlen) int {
+// newval is the value to be written - because in this version
+// the recovery is undo-only, we don't need the new value
+func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset storage.Offset, _ storage.Varlen) int {
 	oldval := buff.Contents().UnsafeGetVarlen(offset)
 	block := buff.Block()
 	return logSetVarlen(man.lm, man.txnum, block, offset, oldval)

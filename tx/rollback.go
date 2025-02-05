@@ -13,7 +13,7 @@ type rollbackLogRecord struct {
 
 const sizeOfRollbackRecord = int(unsafe.Sizeof(rollbackLogRecord{})) + int(storage.SizeOfTinyInt)
 
-func newRollbackRecord(record recordBuffer) rollbackLogRecord {
+func newRollbackRecord(record *recordBuffer) rollbackLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
 
 	return rollbackLogRecord{

@@ -30,8 +30,9 @@ func (r *recordBuffer) writeBlock(block storage.Block) {
 }
 
 func (r *recordBuffer) readFixedLen(size storage.Size) storage.FixedLen {
-	v := storage.UnsafeByteSliceToFixed(r.bytes[r.offset : r.offset+storage.Offset(size)])
-	r.offset += storage.Offset(size)
+	s := storage.Offset(size)
+	v := storage.UnsafeByteSliceToFixed(r.bytes[r.offset : r.offset+s])
+	r.offset += s
 	return v
 }
 
@@ -44,7 +45,8 @@ func (r *recordBuffer) readVarlen() storage.Varlen {
 
 func (r *recordBuffer) readBlock() storage.Block {
 	fileName := r.readVarlen()
-	blockID := storage.UnsafeFixedToInteger[storage.Long](r.readFixedLen(storage.SizeOfLong))
+	fixed := r.readFixedLen(storage.SizeOfLong)
+	blockID := storage.UnsafeFixedToInteger[storage.Long](fixed)
 
 	return storage.NewBlock(
 		storage.UnsafeVarlenToGoString(fileName),
@@ -75,7 +77,7 @@ const (
 )
 
 func createLogRecord(bytes []byte) logRecord {
-	rbuf := recordBuffer{bytes: bytes}
+	rbuf := &recordBuffer{bytes: bytes}
 	tt := storage.UnsafeFixedToInteger[storage.TinyInt](
 		rbuf.readFixedLen(storage.SizeOfTinyInt),
 	)

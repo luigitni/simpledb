@@ -135,7 +135,7 @@ func TestLogFixedLenRecord(t *testing.T) {
 	// value of the record
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfInt, val)
 
-	newSetFixedLenRecord(recordBuffer{bytes: p})
+	newSetFixedLenRecord(&recordBuffer{bytes: p})
 }
 
 func TestLogSetStrRecord(t *testing.T) {
@@ -178,5 +178,5 @@ func TestLogSetStrRecord(t *testing.T) {
 	assertVarlenAtPos(t, p, offset, val)
 	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(val))
 
-	newSetVarLenRecord(recordBuffer{bytes: p})
+	newSetVarLenRecord(&recordBuffer{bytes: p})
 }

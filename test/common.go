@@ -38,7 +38,7 @@ func DefaultConfig(t *testing.T) Conf {
 
 func MakeManagers(t *testing.T) (*file.FileManager, *log.WalWriter, *buffer.BufferManager) {
 	fm := file.NewFileManager(t.TempDir(), blockSize)
-	lm := log.NewLogManager(fm, logfile)
+	lm := log.NewWalWriter(fm, logfile)
 
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
 
@@ -47,7 +47,7 @@ func MakeManagers(t *testing.T) (*file.FileManager, *log.WalWriter, *buffer.Buff
 
 func MakeManagersWithConfig(conf Conf) (*file.FileManager, *log.WalWriter, *buffer.BufferManager) {
 	fm := file.NewFileManager(conf.DbFolder, conf.BlockSize)
-	lm := log.NewLogManager(fm, conf.LogFile)
+	lm := log.NewWalWriter(fm, conf.LogFile)
 
 	bm := buffer.NewBufferManager(fm, lm, conf.BuffersAvailable)
 

@@ -6,7 +6,7 @@ type checkpointLogRecord struct{}
 
 const sizeOfCheckpointRecord = storage.SizeOfTinyInt
 
-func newCheckpointRecord(record recordBuffer) checkpointLogRecord {
+func newCheckpointRecord(record *recordBuffer) checkpointLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
 
 	return checkpointLogRecord{}

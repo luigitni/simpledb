@@ -17,7 +17,7 @@ type WalWriter struct {
 	sync.Mutex
 }
 
-func NewLogManager(fm *file.FileManager, logfile string) *WalWriter {
+func NewWalWriter(fm *file.FileManager, logfile string) *WalWriter {
 	logsize := fm.Size(logfile)
 
 	logpage := storage.NewPage()

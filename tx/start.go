@@ -13,7 +13,7 @@ type startLogRecord struct {
 
 const sizeOfStartRecord = int(unsafe.Sizeof(startLogRecord{})) + int(storage.SizeOfTinyInt)
 
-func newStartLogRecord(record recordBuffer) startLogRecord {
+func newStartLogRecord(record *recordBuffer) startLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
 
 	return startLogRecord{

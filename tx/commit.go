@@ -13,7 +13,7 @@ type commitLogRecord struct {
 
 const sizeOfCommitRecord = int(unsafe.Sizeof(commitLogRecord{})) + int(storage.SizeOfTinyInt)
 
-func newCommitRecord(record recordBuffer) commitLogRecord {
+func newCommitRecord(record *recordBuffer) commitLogRecord {
 	_ = record.readFixedLen(storage.SizeOfTinyInt)
 
 	return commitLogRecord{

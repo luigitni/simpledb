@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"math"
+	"strings"
 	"unsafe"
 )
 
@@ -78,6 +79,15 @@ func (v Varlen) UnsafeAsGoString() string {
 	return UnsafeVarlenToGoString(v)
 }
 
+// String returns a string representation of the Varlen value
+// It should only be used for debugging purposes
+// The string is a new string created from the Varlen's data
+// This could allocate a new string and copy the data into it
+func (v Varlen) String() string {
+	size := UnsafeFixedToInteger[Int](FixedLen(v[:SizeOfInt]))
+	return string(v[SizeOfInt : Int(SizeOfInt)+size])
+}
+
 // UnsafeNewVarlenFromGoString creates a Varlen type from a string
 // The original string is copied into the Varlen's byte slice
 // This could allocate a new byte slice and copies the string into it
@@ -85,16 +95,6 @@ func (v Varlen) UnsafeAsGoString() string {
 func UnsafeNewVarlenFromGoString(s string) Varlen {
 	b := append(UnsafeIntegerToFixed[Int](SizeOfInt, Int(len(s))), []byte(s)...)
 	return Varlen(b)
-}
-
-// UnsafeNewVarlenFromBytes creates a Varlen type from a byte slice
-// The byte slice is copied into the Varlen's byte slice
-// And the length of the byte slice is prepended to the byte slice
-// This could allocate a new byte slice.
-// The allocation's decision depends on the append semantics of the Go runtime
-func UnsafeNewVarlenFromBytes(b []byte) Varlen {
-	buf := append(UnsafeIntegerToFixed[Int](SizeOfInt, Int(len(b))), b...)
-	return Varlen(buf)
 }
 
 // UnsafeVarlenToGoString converts a Varlen to a string
@@ -110,7 +110,9 @@ func UnsafeVarlenToGoString(v Varlen) string {
 // UnsafeBytesToVarlen creates a Varlen type from a byte slice
 // The byte slice must be formatted as a Varlen.
 func UnsafeBytesToVarlen(b []byte) Varlen {
-	return Varlen(b)
+	size := UnsafeByteSliceToFixed(b[:SizeOfInt]).UnsafeAsInt()
+
+	return Varlen(b[:SizeOfInt+Size(size)])
 }
 
 // UnsafeVarlenToBytes converts a Varlen to a byte slice
@@ -166,6 +168,48 @@ func (f FixedLen) UnsafeAsInt() Int {
 
 func (f FixedLen) UnsafeAsLong() Long {
 	return UnsafeFixedToInteger[Long](f)
+}
+
+// String returns a string representation of the FixedLen value
+// It should only be used for debugging purposes
+// The type is inferred from the size of the FixedLen value
+// and will always be interpreted as an integer type
+func (f FixedLen) String() string {
+
+	var builder strings.Builder
+	builder.WriteByte('[')
+
+	for i := range f {
+		builder.WriteByte(f[i])
+		if i != len(f)-1 {
+			builder.WriteByte(',')
+			builder.WriteByte(' ')
+		}
+	}
+
+	builder.WriteByte(']')
+
+	return builder.String()
+}
+
+func (f FixedLen) Format(state fmt.State, verb rune) {
+
+	if verb == 'd' {
+		switch Size(len(f)) {
+		case SizeOfTinyInt:
+			state.Write([]byte(fmt.Sprintf("%d", f.UnsafeAsTinyInt())))
+		case SizeOfSmallInt:
+			state.Write([]byte(fmt.Sprintf("%d", f.UnsafeAsSmallInt())))
+		case SizeOfInt:
+			state.Write([]byte(fmt.Sprintf("%d", f.UnsafeAsInt())))
+		case SizeOfLong:
+			state.Write([]byte(fmt.Sprintf("%d", f.UnsafeAsLong())))
+		}
+
+		return
+	}
+
+	state.Write([]byte(f.String()))
 }
 
 // Page is a fixed size byte slice

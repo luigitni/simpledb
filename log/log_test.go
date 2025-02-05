@@ -15,7 +15,7 @@ func TestAppend(t *testing.T) {
 	blockSize := storage.PageSize
 
 	fman := file.NewFileManager(dbFolder, storage.Long(blockSize))
-	lm := NewLogManager(fman, logfile)
+	lm := NewWalWriter(fman, logfile)
 
 	t.Run("increments the latestLSN", func(t *testing.T) {
 		for i := range 10 {
@@ -66,7 +66,7 @@ func TestIterator(t *testing.T) {
 	blockSize := storage.PageSize
 
 	fman := file.NewFileManager(dbFolder, storage.Long(blockSize))
-	lm := NewLogManager(fman, logfile)
+	lm := NewWalWriter(fman, logfile)
 
 	t.Run("returns an empty iterator if the log is empty", func(t *testing.T) {
 		iter := lm.Iterator()

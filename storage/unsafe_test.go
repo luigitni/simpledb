@@ -56,6 +56,7 @@ func TestUnsafeVarlen(t *testing.T) {
 			t.Fatalf("expected %s, got %s", s, ss)
 		}
 	})
+
 }
 
 func BenchmarkUnsafeFixedToInt(b *testing.B) {

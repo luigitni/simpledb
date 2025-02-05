@@ -30,7 +30,7 @@ type DB struct {
 
 func NewDB() (*DB, error) {
 	fm := file.NewFileManager(defaultPath, blockSize)
-	lm := log.NewLogManager(fm, defaultLogFile)
+	lm := log.NewWalWriter(fm, defaultLogFile)
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
 
 	x := tx.NewTx(fm, lm, bm)

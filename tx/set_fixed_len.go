@@ -21,7 +21,7 @@ type setFixedLenRecord struct {
 
 const sizeOfFixedLenRecord = int(unsafe.Sizeof(setFixedLenRecord{})) + int(storage.SizeOfTinyInt)
 
-func newSetFixedLenRecord(record recordBuffer) setFixedLenRecord {
+func newSetFixedLenRecord(record *recordBuffer) setFixedLenRecord {
 	rec := setFixedLenRecord{}
 
 	// skip the first byte, which is the record type
@@ -41,7 +41,7 @@ func newSetFixedLenRecord(record recordBuffer) setFixedLenRecord {
 }
 
 func (si setFixedLenRecord) String() string {
-	return fmt.Sprintf("<SETFIXED:%d %d %s %d %v>", si.size, si.txnum, si.block, si.offset, si.val)
+	return fmt.Sprintf("<SETFIXED:%d %d %s %d %d>", si.size, si.txnum, si.block.ID(), si.offset, si.val)
 }
 
 func (si setFixedLenRecord) Op() txType {
@@ -63,12 +63,12 @@ func (si setFixedLenRecord) Undo(tx Transaction) {
 // | log type | tx number | filename | block number | offset | value |
 func logSetFixedLen(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen) int {
 	buf := make([]byte, sizeOfFixedLenRecord+int(size))
-	writeFixedLen(buf, txnum, block, offset, size, val)
+	written := writeFixedLen(buf, txnum, block, offset, size, val)
 
-	return lm.Append(buf)
+	return lm.Append(buf[:written])
 }
 
-func writeFixedLen(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen) {
+func writeFixedLen(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen) storage.Offset {
 	rbuf := recordBuffer{bytes: dst}
 
 	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETFIXED)))
@@ -77,4 +77,6 @@ func writeFixedLen(dst []byte, txnum storage.TxID, block storage.Block, offset s
 	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixed[storage.Offset](storage.SizeOfOffset, offset))
 	rbuf.writeFixedLen(storage.SizeOfSize, storage.UnsafeIntegerToFixed[storage.Size](storage.SizeOfSize, storage.Size(size)))
 	rbuf.writeFixedLen(size, val)
+
+	return rbuf.offset
 }
