@@ -19,12 +19,12 @@ const (
 )
 
 var typeSizes = [...]Size{
-	SizeOfTinyInt,
-	SizeOfSmallInt,
-	SizeOfInt,
-	SizeOfLong,
-	SizeOfName,
-	SizeOfVarlen,
+	TINYINT:  SizeOfTinyInt,
+	SMALLINT: SizeOfSmallInt,
+	INT:      SizeOfInt,
+	LONG:     SizeOfLong,
+	NAME:     SizeOfName,
+	TEXT:     SizeOfVarlen,
 }
 
 var typeNames = [...]string{

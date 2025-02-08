@@ -53,9 +53,13 @@ func ValueAsVarlen(v Value) Varlen {
 	return UnsafeBytesToVarlen(v)
 }
 
-// todo: use specialised function to avoid branch prediction misses
-func (c Value) Size(t FieldType) Offset {
-	return Offset(t.Size())
+func (v Value) Size(t FieldType) Offset {
+	if size := t.Size(); size != SizeOfVarlen {
+		return Offset(size)
+	}
+
+	// todo: implement sizes when toasts are implemented
+	return Offset(v.AsVarlen().Size())
 }
 
 func (c Value) Hash() int {
