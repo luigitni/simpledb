@@ -8,10 +8,10 @@ import (
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/engine"
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 	"github.com/luigitni/simpledb/sql"
 	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/tx"
+	"github.com/luigitni/simpledb/wal"
 )
 
 const (
@@ -23,14 +23,14 @@ const (
 
 type DB struct {
 	fm  *file.FileManager
-	lm  *log.WalWriter
+	lm  *wal.WalWriter
 	bm  *buffer.BufferManager
 	mdm *engine.MetadataManager
 }
 
 func NewDB() (*DB, error) {
 	fm := file.NewFileManager(defaultPath, blockSize)
-	lm := log.NewWalWriter(fm, defaultLogFile)
+	lm := wal.NewWalWriter(fm, defaultLogFile)
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
 
 	x := tx.NewTx(fm, lm, bm)

@@ -1,4 +1,4 @@
-package log
+package wal
 
 import (
 	"bytes"
@@ -128,8 +128,6 @@ func makeLogEntry(t *testing.T, idx int) string {
 func populateLogManager(t *testing.T, lm *WalWriter, start, end int) {
 	t.Helper()
 
-	t.Log("Creating log records:")
-
 	var builder bytes.Buffer
 	for i := start; i <= end; i++ {
 
@@ -139,5 +137,4 @@ func populateLogManager(t *testing.T, lm *WalWriter, start, end int) {
 		lsn := lm.Append(builder.Bytes())
 		t.Logf("%d", lsn)
 	}
-	t.Log("Records created.")
 }

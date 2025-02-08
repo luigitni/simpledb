@@ -7,8 +7,8 @@ import (
 
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
 	"github.com/luigitni/simpledb/storage"
+	"github.com/luigitni/simpledb/wal"
 )
 
 const (
@@ -36,18 +36,18 @@ func DefaultConfig(t *testing.T) Conf {
 	}
 }
 
-func MakeManagers(t *testing.T) (*file.FileManager, *log.WalWriter, *buffer.BufferManager) {
+func MakeManagers(t *testing.T) (*file.FileManager, *wal.WalWriter, *buffer.BufferManager) {
 	fm := file.NewFileManager(t.TempDir(), blockSize)
-	lm := log.NewWalWriter(fm, logfile)
+	lm := wal.NewWalWriter(fm, logfile)
 
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
 
 	return fm, lm, bm
 }
 
-func MakeManagersWithConfig(conf Conf) (*file.FileManager, *log.WalWriter, *buffer.BufferManager) {
+func MakeManagersWithConfig(conf Conf) (*file.FileManager, *wal.WalWriter, *buffer.BufferManager) {
 	fm := file.NewFileManager(conf.DbFolder, conf.BlockSize)
-	lm := log.NewWalWriter(fm, conf.LogFile)
+	lm := wal.NewWalWriter(fm, conf.LogFile)
 
 	bm := buffer.NewBufferManager(fm, lm, conf.BuffersAvailable)
 

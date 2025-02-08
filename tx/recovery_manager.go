@@ -4,14 +4,14 @@ import (
 	"sync/atomic"
 
 	"github.com/luigitni/simpledb/buffer"
-	"github.com/luigitni/simpledb/log"
 	"github.com/luigitni/simpledb/storage"
+	"github.com/luigitni/simpledb/wal"
 )
 
 type logManager interface {
 	Flush(lsn int)
 	Append(record []byte) int
-	Iterator() *log.WalIterator
+	Iterator() *wal.WalIterator
 }
 
 // recoveryManager is the Recovery manager.

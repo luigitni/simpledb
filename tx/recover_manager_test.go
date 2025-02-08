@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/luigitni/simpledb/log"
 	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/test"
+	"github.com/luigitni/simpledb/wal"
 )
 
 type mockLogManager struct {
@@ -24,9 +24,9 @@ func (m *mockLogManager) Flush(lsn int) {
 	m.flushCalledTimes++
 }
 
-func (m *mockLogManager) Iterator() *log.WalIterator {
+func (m *mockLogManager) Iterator() *wal.WalIterator {
 	m.iteratorCalledTimes++
-	return &log.WalIterator{}
+	return &wal.WalIterator{}
 }
 
 func TestRecoveryManager(t *testing.T) {

@@ -1,4 +1,4 @@
-package log
+package wal
 
 import (
 	"sync"

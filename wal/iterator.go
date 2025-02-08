@@ -1,4 +1,4 @@
-package log
+package wal
 
 import (
 	"github.com/luigitni/simpledb/file"
