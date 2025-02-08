@@ -27,11 +27,6 @@ const (
 
 	SizeOfTxID Size = 4
 
-	// SizeOfGoInt is the size of a Go int
-	// This is not necessarily the same as the size of the int in the database
-	// It is mostly used for legacy code while all the code is migrated to the new types
-	SizeOfGoInt = (Size)(unsafe.Sizeof(int(0)))
-
 	SizeOfVarlen Size = Size(math.MaxUint16)
 )
 
@@ -233,12 +228,6 @@ func WrapPage(buf [PageSize]byte) *Page {
 func runtimeAssert(exp bool, msg string, args ...interface{}) {
 	if !exp {
 		panic("runtime assert failed: " + fmt.Sprintf(msg, args...))
-	}
-}
-
-func (p *Page) assertSize(offset int, size int) {
-	if offset+size > PageSize {
-		panic(fmt.Sprintf("data out of page bounds. offset: %d length: %d. Max page size is %d", offset, size, PageSize))
 	}
 }
 
