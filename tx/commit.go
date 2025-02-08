@@ -14,7 +14,10 @@ type commitLogRecord struct {
 const sizeOfCommitRecord = int(unsafe.Sizeof(commitLogRecord{})) + int(storage.SizeOfTinyInt)
 
 func newCommitRecord(record *recordBuffer) commitLogRecord {
-	_ = record.readFixedLen(storage.SizeOfTinyInt)
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != COMMIT {
+		panic(fmt.Sprintf("bad %s record: %s", COMMIT, v))
+	}
 
 	return commitLogRecord{
 		txnum: storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),

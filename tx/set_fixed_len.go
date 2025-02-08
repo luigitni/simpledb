@@ -24,8 +24,11 @@ const sizeOfFixedLenRecord = int(unsafe.Sizeof(setFixedLenRecord{})) + int(stora
 func newSetFixedLenRecord(record *recordBuffer) setFixedLenRecord {
 	rec := setFixedLenRecord{}
 
-	// skip the first byte, which is the record type
-	_ = record.readFixedLen(storage.SizeOfTinyInt)
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != SETFIXED {
+		panic(fmt.Sprintf("bad %s record: %s", SETFIXED, v))
+	}
+
 	// read the transaction number
 	rec.txnum = storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
 	// read the block name

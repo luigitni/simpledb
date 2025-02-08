@@ -14,7 +14,10 @@ type rollbackLogRecord struct {
 const sizeOfRollbackRecord = int(unsafe.Sizeof(rollbackLogRecord{})) + int(storage.SizeOfTinyInt)
 
 func newRollbackRecord(record *recordBuffer) rollbackLogRecord {
-	_ = record.readFixedLen(storage.SizeOfTinyInt)
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != ROLLBACK {
+		panic(fmt.Sprintf("bad %s record: %s", ROLLBACK, v))
+	}
 
 	return rollbackLogRecord{
 		txnum: storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),

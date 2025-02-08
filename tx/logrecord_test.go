@@ -155,7 +155,7 @@ func TestLogSetStrRecord(t *testing.T) {
 	var offset storage.Offset
 
 	// test that the first entry is SETSTRING
-	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETSTRING))
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETVARLEN))
 	offset += storage.Offset(storage.SizeOfTinyInt)
 
 	// tx number

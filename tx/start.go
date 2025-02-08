@@ -14,7 +14,10 @@ type startLogRecord struct {
 const sizeOfStartRecord = int(unsafe.Sizeof(startLogRecord{})) + int(storage.SizeOfTinyInt)
 
 func newStartLogRecord(record *recordBuffer) startLogRecord {
-	_ = record.readFixedLen(storage.SizeOfTinyInt)
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != START {
+		panic(fmt.Sprintf("bad %s record: %s", START, v))
+	}
 
 	return startLogRecord{
 		txnum: storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),

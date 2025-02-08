@@ -67,13 +67,30 @@ type logRecord interface {
 
 type txType storage.TinyInt
 
+var txTypeToString = [...]string{
+	CHECKPOINT: "CHECKPOINT",
+	START:      "START",
+	COMMIT:     "COMMIT",
+	ROLLBACK:   "ROLLBACK",
+	SETFIXED:   "SETFIXED",
+	SETVARLEN:  "SETSTRING",
+}
+
+func txTypeFromFixedLen(f storage.FixedLen) txType {
+	return txType(storage.UnsafeFixedToInteger[storage.TinyInt](f))
+}
+
+func (t txType) String() string {
+	return txTypeToString[t]
+}
+
 const (
 	CHECKPOINT txType = 1 + iota
 	START
 	COMMIT
 	ROLLBACK
 	SETFIXED
-	SETSTRING
+	SETVARLEN
 )
 
 func createLogRecord(bytes []byte) logRecord {
@@ -95,7 +112,7 @@ func createLogRecord(bytes []byte) logRecord {
 		return newRollbackRecord(rbuf)
 	case SETFIXED:
 		return newSetFixedLenRecord(rbuf)
-	case SETSTRING:
+	case SETVARLEN:
 		return newSetVarLenRecord(rbuf)
 	}
 

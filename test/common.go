@@ -12,10 +12,10 @@ import (
 )
 
 const (
-	logfile          = "testlog"
-	blockfile        = "testfile"
-	blockSize        = 400
-	buffersAvaialble = 3
+	DefaultTestLogfile          = "testlog"
+	DefaultTestBlockfile        = "testfile"
+	DefautlTestBlockSize        = 400
+	DefaultTestBuffersAvailable = 3
 )
 
 type Conf struct {
@@ -29,18 +29,18 @@ type Conf struct {
 func DefaultConfig(t *testing.T) Conf {
 	return Conf{
 		DbFolder:         t.TempDir(),
-		LogFile:          logfile,
-		BlockFile:        blockfile,
-		BlockSize:        blockSize,
-		BuffersAvailable: buffersAvaialble,
+		LogFile:          DefaultTestLogfile,
+		BlockFile:        DefaultTestBlockfile,
+		BlockSize:        DefautlTestBlockSize,
+		BuffersAvailable: DefaultTestBuffersAvailable,
 	}
 }
 
 func MakeManagers(t *testing.T) (*file.FileManager, *wal.WalWriter, *buffer.BufferManager) {
-	fm := file.NewFileManager(t.TempDir(), blockSize)
-	lm := wal.NewWalWriter(fm, logfile)
+	fm := file.NewFileManager(t.TempDir(), DefautlTestBlockSize)
+	lm := wal.NewWalWriter(fm, DefaultTestLogfile)
 
-	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
+	bm := buffer.NewBufferManager(fm, lm, DefaultTestBuffersAvailable)
 
 	return fm, lm, bm
 }

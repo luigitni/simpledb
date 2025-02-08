@@ -25,8 +25,11 @@ const sizeOfVarlenRecord = int(unsafe.Sizeof(setVarLenLogRecord{})) + int(storag
 func newSetVarLenRecord(record *recordBuffer) setVarLenLogRecord {
 	rec := setVarLenLogRecord{}
 
-	// skip the first byte, which is the record type
-	_ = record.readFixedLen(storage.SizeOfTinyInt)
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != SETVARLEN {
+		panic(fmt.Sprintf("bad %s record: %s", SETVARLEN, v))
+	}
+
 	// read the transaction number
 	rec.txnum = storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
 	// read the block name
@@ -40,7 +43,7 @@ func newSetVarLenRecord(record *recordBuffer) setVarLenLogRecord {
 }
 
 func (ss setVarLenLogRecord) Op() txType {
-	return SETSTRING
+	return SETVARLEN
 }
 
 func (ss setVarLenLogRecord) TxNumber() storage.TxID {
@@ -74,7 +77,7 @@ func logSetVarlen(lm logManager, txnum storage.TxID, block storage.Block, offset
 func writeVarlen(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) storage.Offset {
 	rbuf := recordBuffer{bytes: dst}
 
-	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETSTRING)))
+	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETVARLEN)))
 	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTinyInt, txnum))
 	rbuf.writeBlock(block)
 	// write the offset as a fixed length integer

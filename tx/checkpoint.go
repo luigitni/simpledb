@@ -1,13 +1,20 @@
 package tx
 
-import "github.com/luigitni/simpledb/storage"
+import (
+	"fmt"
+
+	"github.com/luigitni/simpledb/storage"
+)
 
 type checkpointLogRecord struct{}
 
 const sizeOfCheckpointRecord = storage.SizeOfTinyInt
 
 func newCheckpointRecord(record *recordBuffer) checkpointLogRecord {
-	_ = record.readFixedLen(storage.SizeOfTinyInt)
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != CHECKPOINT {
+		panic(fmt.Sprintf("bad %s record: %s", COMMIT, v))
+	}
 
 	return checkpointLogRecord{}
 }

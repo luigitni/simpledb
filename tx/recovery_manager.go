@@ -1,8 +1,6 @@
 package tx
 
 import (
-	"sync/atomic"
-
 	"github.com/luigitni/simpledb/buffer"
 	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/wal"
@@ -80,6 +78,8 @@ func (man recoveryManager) rollback() {
 
 // doRollback rolls the transaction back by iterating through log records
 // until it finds the transaction's START record, calling tx.Undo() for each of the TX log records.
+// The Undo methods write back to the buffer cache the old values of the modified fields
+// before flushing the buffer.
 func (man recoveryManager) doRollback() {
 	reader := man.lm.Iterator()
 	defer reader.Close()
@@ -89,13 +89,15 @@ func (man recoveryManager) doRollback() {
 			break
 		}
 
-		// get the next log entry - remember, the log is written from right to left
 		bytes := reader.Next()
 		record := createLogRecord(bytes)
+
 		if record.TxNumber() == man.txnum {
 			if record.Op() == START {
+
 				return
 			}
+
 			record.Undo(man.tx)
 		}
 	}
@@ -110,7 +112,7 @@ func (man recoveryManager) recover() {
 	man.lm.Flush(lsn)
 
 	// set the next tx number to the max transaction number
-	atomic.StoreUint32(&nextTxNum, uint32(maxTx))
+	setLastTxNum(maxTx)
 }
 
 // doRecover does a complete database recovery.

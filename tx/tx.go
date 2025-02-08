@@ -8,7 +8,7 @@ import (
 	"github.com/luigitni/simpledb/storage"
 )
 
-var nextTxNum uint32 = uint32(storage.TxIDStart)
+var lastTxNum uint32 = uint32(storage.TxIDStart)
 
 type Transaction interface {
 	// Id returns the transaction id
@@ -78,9 +78,13 @@ type Transaction interface {
 	BlockSize() storage.Offset
 }
 
-// incrTxNum generates transaction ids
-func incrTxNum() storage.TxID {
-	return storage.TxID(atomic.AddUint32(&nextTxNum, 1))
+// nextTxNum generates transaction ids
+func nextTxNum() storage.TxID {
+	return storage.TxID(atomic.AddUint32(&lastTxNum, 1))
+}
+
+func setLastTxNum(num storage.TxID) {
+	atomic.StoreUint32(&lastTxNum, uint32(num))
 }
 
 var _ Transaction = transactionImpl{}
@@ -98,7 +102,7 @@ func NewTx(fm *file.FileManager, lm logManager, bm *buffer.BufferManager) Transa
 	tx := transactionImpl{
 		bufMan:  bm,
 		fileMan: fm,
-		num:     incrTxNum(),
+		num:     nextTxNum(),
 		concMan: NewConcurrencyManager(),
 		buffers: makeBufferList(bm),
 	}
@@ -116,15 +120,12 @@ func (tx transactionImpl) Id() storage.TxID {
 
 func (tx transactionImpl) Commit() {
 	tx.recoverMan.commit()
-	// release all locks
-	tx.concMan.Release()
-	tx.buffers.unpinAll()
+	tx.release()
 }
 
 func (tx transactionImpl) Rollback() {
 	tx.recoverMan.rollback()
-	tx.concMan.Release()
-	tx.buffers.unpinAll()
+	tx.release()
 }
 
 func (tx transactionImpl) Recover() {
@@ -217,4 +218,9 @@ func (tx transactionImpl) availableBuffers() int {
 
 func (tx transactionImpl) BlockSize() storage.Offset {
 	return tx.fileMan.BlockSize()
+}
+
+func (tx transactionImpl) release() {
+	tx.concMan.Release()
+	tx.buffers.unpinAll()
 }
