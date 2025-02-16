@@ -2,6 +2,7 @@ package tx
 
 import (
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -102,7 +103,7 @@ func makeLockTable() *LockTable {
 			case req := <-lt.lockRequestChan:
 				// lock request has timed out, return the error to the channel
 				if time.Since(req.timestamp) > lockReqTimeout {
-					req.res <- ErrLockAcquisitionTimeout
+					req.res <- fmt.Errorf("%w: key: %s", ErrLockAcquisitionTimeout, req.key)
 					close(req.res)
 					continue
 				}

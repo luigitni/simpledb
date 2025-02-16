@@ -23,15 +23,20 @@ func (r *recordBuffer) writeVarLen(v storage.Varlen) {
 	r.offset += storage.Offset(v.Size())
 }
 
+func (r *recordBuffer) writeRaw(data []byte) {
+	copy(r.bytes[r.offset:], data)
+	r.offset += storage.Offset(len(data))
+}
+
 func (r *recordBuffer) writeBlock(block storage.Block) {
 	v := storage.UnsafeNewVarlenFromGoString(block.FileName())
 	r.writeVarLen(v)
-	r.writeFixedLen(storage.SizeOfLong, storage.UnsafeIntegerToFixed[storage.Long](storage.SizeOfLong, block.Number()))
+	r.writeFixedLen(storage.SizeOfLong, storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfLong, block.Number()))
 }
 
 func (r *recordBuffer) readFixedLen(size storage.Size) storage.FixedLen {
 	s := storage.Offset(size)
-	v := storage.UnsafeByteSliceToFixed(r.bytes[r.offset : r.offset+s])
+	v := storage.UnsafeByteSliceToFixedlen(r.bytes[r.offset : r.offset+s])
 	r.offset += s
 	return v
 }
@@ -68,12 +73,13 @@ type logRecord interface {
 type txType storage.TinyInt
 
 var txTypeToString = [...]string{
-	CHECKPOINT: "CHECKPOINT",
-	START:      "START",
-	COMMIT:     "COMMIT",
-	ROLLBACK:   "ROLLBACK",
-	SETFIXED:   "SETFIXED",
-	SETVARLEN:  "SETSTRING",
+	CHECKPOINT:  "CHECKPOINT",
+	START:       "START",
+	COMMIT:      "COMMIT",
+	ROLLBACK:    "ROLLBACK",
+	SETFIXEDLEN: "SETFIXED",
+	SETVARLEN:   "SETSTRING",
+	COPY:        "COPY",
 }
 
 func txTypeFromFixedLen(f storage.FixedLen) txType {
@@ -89,8 +95,9 @@ const (
 	START
 	COMMIT
 	ROLLBACK
-	SETFIXED
+	SETFIXEDLEN
 	SETVARLEN
+	COPY
 )
 
 func createLogRecord(bytes []byte) logRecord {
@@ -110,10 +117,12 @@ func createLogRecord(bytes []byte) logRecord {
 		return newCommitRecord(rbuf)
 	case ROLLBACK:
 		return newRollbackRecord(rbuf)
-	case SETFIXED:
+	case SETFIXEDLEN:
 		return newSetFixedLenRecord(rbuf)
 	case SETVARLEN:
 		return newSetVarLenRecord(rbuf)
+	case COPY:
+		return newCopyRecord(rbuf)
 	}
 
 	return nil

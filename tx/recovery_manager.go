@@ -45,7 +45,7 @@ func newRecoveryManagerForTx(tx Transaction, txnum storage.TxID, lm logManager, 
 // val is the value to be written
 // because in this version the recovery is undo-only, we don't need the new value
 func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offset, size storage.Size, _ storage.FixedLen) int {
-	oldval := buff.Contents().UnsafeGetFixedLen(offset, size)
+	oldval := buff.Contents().UnsafeGetFixedlen(offset, size)
 	block := buff.Block()
 	return logSetFixedLen(man.lm, man.txnum, block, offset, size, oldval)
 }
@@ -58,7 +58,15 @@ func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offse
 func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset storage.Offset, _ storage.Varlen) int {
 	oldval := buff.Contents().UnsafeGetVarlen(offset)
 	block := buff.Block()
+
 	return logSetVarlen(man.lm, man.txnum, block, offset, oldval)
+}
+
+func (man recoveryManager) logCopy(buff *buffer.Buffer, _ storage.Offset, dst storage.Offset, size storage.Offset) int {
+	oldval := buff.Contents().Slice(dst, dst+size)
+	block := buff.Block()
+
+	return logCopy(man.lm, man.txnum, block, dst, oldval)
 }
 
 // Write a commit record to the log and flushes it to disk

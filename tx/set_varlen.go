@@ -59,7 +59,7 @@ func (ss setVarLenLogRecord) String() string {
 // and unpins the buffer
 func (ss setVarLenLogRecord) Undo(tx Transaction) {
 	tx.Pin(ss.block)
-	tx.SetVarLen(ss.block, ss.offset, ss.val, false)
+	tx.SetVarlen(ss.block, ss.offset, ss.val, false)
 	tx.Unpin(ss.block)
 }
 
@@ -77,11 +77,11 @@ func logSetVarlen(lm logManager, txnum storage.TxID, block storage.Block, offset
 func writeVarlen(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) storage.Offset {
 	rbuf := recordBuffer{bytes: dst}
 
-	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETVARLEN)))
-	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTinyInt, txnum))
+	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETVARLEN)))
+	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum))
 	rbuf.writeBlock(block)
-	// write the offset as a fixed length integer
-	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixed[storage.Offset](storage.SizeOfOffset, offset))
+
+	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, offset))
 	rbuf.writeVarLen(val) // write offset
 
 	return rbuf.offset

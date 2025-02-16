@@ -1,6 +1,7 @@
 package tx_test
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -43,7 +44,7 @@ func TestLockTable(t *testing.T) {
 	}
 
 	for i := 0; i < 100; i++ {
-		if e := <-out; e != tx.ErrLockAcquisitionTimeout {
+		if e := <-out; !errors.Is(e, tx.ErrLockAcquisitionTimeout) {
 			t.Fatalf("expected timeout on Slock acquisition when block is Xlocked. got nil")
 		}
 	}
@@ -71,7 +72,7 @@ func TestLockTable(t *testing.T) {
 }
 
 func TestAcquireXLock(t *testing.T) {
-	const fname = "tesblock"
+	const fname = "testblock"
 	const howMany = 1000
 
 	blocks := make([]storage.Block, howMany)

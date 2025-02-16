@@ -26,7 +26,7 @@ func TestFile(t *testing.T) {
 
 	offset2 := offset + storage.Offset(varlen.Size())
 
-	page.UnsafeSetFixedLen(offset2, storage.SizeOfInt, storage.UnsafeIntegerToFixed(storage.SizeOfInt, storage.Int(intv)))
+	page.UnsafeSetFixedlen(offset2, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfInt, storage.Int(intv)))
 
 	// write the page to the block
 	fman.Write(block, page)
@@ -35,7 +35,7 @@ func TestFile(t *testing.T) {
 	p2 := storage.NewPage()
 	fman.Read(block, p2)
 
-	got := p2.UnsafeGetFixedLen(offset2, storage.SizeOfInt)
+	got := p2.UnsafeGetFixedlen(offset2, storage.SizeOfInt)
 	if got := storage.UnsafeFixedToInteger[storage.Int](got); got != intv {
 		t.Fatalf("expected %d at offset %d. Got %d", intv, offset2, got)
 	}

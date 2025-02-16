@@ -25,7 +25,7 @@ var _ UpdateScan = &tableScan{}
 type tableScan struct {
 	x           tx.Transaction
 	layout      Layout
-	recordPage  *pages.SlottedRecordPage
+	recordPage  *pages.SlottedPage
 	fileName    string
 	currentSlot storage.SmallInt
 }
@@ -199,7 +199,7 @@ func (ts *tableScan) Delete() error {
 func (ts *tableScan) MoveToRID(rid RID) {
 	ts.Close()
 	block := storage.NewBlock(ts.fileName, rid.Blocknum)
-	ts.recordPage = pages.NewSlottedRecordPage(ts.x, block, ts.layout)
+	ts.recordPage = pages.NewSlottedPage(ts.x, block, ts.layout)
 	ts.currentSlot = rid.Slot
 }
 
@@ -212,7 +212,7 @@ func (ts *tableScan) GetRID() RID {
 func (ts *tableScan) moveToBlock(block storage.Long) {
 	ts.Close()
 	b := storage.NewBlock(ts.fileName, block)
-	ts.recordPage = pages.NewSlottedRecordPage(ts.x, b, ts.layout)
+	ts.recordPage = pages.NewSlottedPage(ts.x, b, ts.layout)
 	ts.currentSlot = pages.BeforeFirstSlot
 }
 
@@ -225,8 +225,8 @@ func (ts *tableScan) moveToNewBlock() error {
 	if err != nil {
 		return err
 	}
-	ts.recordPage = pages.NewSlottedRecordPage(ts.x, block, ts.layout)
-	ts.recordPage.Format()
+	ts.recordPage = pages.NewSlottedPage(ts.x, block, ts.layout)
+	ts.recordPage.Format(0)
 	ts.currentSlot = pages.BeforeFirstSlot
 	return nil
 }

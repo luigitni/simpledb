@@ -5,7 +5,7 @@ import "testing"
 func TestValueFromFixed(t *testing.T) {
 	const exp = 42
 
-	fixed := UnsafeIntegerToFixed(SizeOfInt, Int(exp))
+	fixed := UnsafeIntegerToFixedlen(SizeOfInt, Int(exp))
 	val := ValueFromFixedLen(fixed)
 
 	if v := ValueAsInteger[Int](val); v != exp {

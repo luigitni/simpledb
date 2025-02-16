@@ -64,7 +64,7 @@ func (it *WalIterator) moveToBlock(block storage.Block) {
 	it.fm.Read(block, it.page)
 	// boundary contains the offset of the most recently added record
 	// read the boundary from the page
-	it.boundary = it.page.UnsafeGetFixedLen(0, storage.SizeOfOffset).UnsafeAsOffset()
+	it.boundary = it.page.UnsafeGetFixedlen(0, storage.SizeOfOffset).UnsafeAsOffset()
 	// position the iterator after the boundary offset
 	it.currentPos = it.boundary
 	it.block = block

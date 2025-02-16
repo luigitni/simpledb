@@ -51,10 +51,10 @@ func writeCommit(dst []byte, txnum storage.TxID) {
 	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
-		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(COMMIT)),
+		storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(COMMIT)),
 	)
 	rbuf.writeFixedLen(
 		storage.SizeOfTxID,
-		storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTxID, txnum),
+		storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum),
 	)
 }

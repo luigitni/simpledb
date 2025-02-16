@@ -1,6 +1,7 @@
 package tx
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/luigitni/simpledb/storage"
@@ -93,7 +94,7 @@ func TestLogCommitRecord(t *testing.T) {
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
 }
 
-func TestLogFixedLenRecord(t *testing.T) {
+func TestLogFixedlenRecord(t *testing.T) {
 	const txNum storage.TxID = 123
 	const val storage.Int = 476
 	const offsetVal storage.Offset = 57
@@ -105,11 +106,11 @@ func TestLogFixedLenRecord(t *testing.T) {
 
 	p := make([]byte, sizeOfFixedLenRecord+int(storage.SizeOfInt))
 
-	writeFixedLen(p, txNum, block, offsetVal, storage.SizeOfInt, storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, val))
+	writeFixedLen(p, txNum, block, offsetVal, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, val))
 
 	var offset storage.Offset
 	// test that the first entry is SETFIXED
-	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETFIXED))
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETFIXEDLEN))
 	offset += storage.Offset(storage.SizeOfTinyInt)
 
 	// tx number
@@ -138,7 +139,7 @@ func TestLogFixedLenRecord(t *testing.T) {
 	newSetFixedLenRecord(&recordBuffer{bytes: p})
 }
 
-func TestLogSetStrRecord(t *testing.T) {
+func TestLogSetVarlenRecord(t *testing.T) {
 	const txNum storage.TxID = 123
 	const val = "testvalue"
 	const offsetVal storage.Offset = 57
@@ -179,4 +180,53 @@ func TestLogSetStrRecord(t *testing.T) {
 	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(val))
 
 	newSetVarLenRecord(&recordBuffer{bytes: p})
+}
+
+func TestLogCopy(t *testing.T) {
+	const txNum storage.TxID = 123
+	const val = "testvalue"
+	const offsetVal storage.Offset = 57
+
+	const fname = "testblock"
+	const bid storage.Long = 1
+
+	block := storage.NewBlock(fname, bid)
+
+	p := make([]byte, sizeOfCopyRecord+len(val))
+
+	writeCopy(p, txNum, block, offsetVal, []byte(val))
+
+	var offset storage.Offset
+
+	// test that the first entry is COPY
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(COPY))
+	offset += storage.Offset(storage.SizeOfTinyInt)
+
+	// tx number
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
+	offset += storage.Offset(storage.SizeOfTxID)
+
+	// block name
+	assertVarlenAtPos(t, p, offset, fname)
+	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fname))
+
+	// block id number
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfLong, bid)
+	offset += storage.Offset(storage.SizeOfLong)
+
+	// offset of the record
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, offsetVal)
+	offset += storage.Offset(storage.SizeOfOffset)
+
+	// length of the data
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, storage.Offset(len(val)))
+	offset += storage.Offset(storage.SizeOfOffset)
+
+	got := p[offset : offset+storage.Offset(len(val))]
+
+	if !slices.Equal(got, []byte(val)) {
+		t.Fatalf("expected %q at pos %d. Got %q", val, offset, got)
+	}
+
+	newCopyRecord(&recordBuffer{bytes: p})
 }

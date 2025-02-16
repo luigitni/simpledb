@@ -52,10 +52,10 @@ func writeRollback(dst []byte, txnum storage.TxID) {
 	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
-		storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(ROLLBACK)),
+		storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(ROLLBACK)),
 	)
 	rbuf.writeFixedLen(
 		storage.SizeOfTxID,
-		storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTxID, txnum),
+		storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum),
 	)
 }

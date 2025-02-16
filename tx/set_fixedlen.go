@@ -25,8 +25,8 @@ func newSetFixedLenRecord(record *recordBuffer) setFixedLenRecord {
 	rec := setFixedLenRecord{}
 
 	f := record.readFixedLen(storage.SizeOfTinyInt)
-	if v := txTypeFromFixedLen(f); v != SETFIXED {
-		panic(fmt.Sprintf("bad %s record: %s", SETFIXED, v))
+	if v := txTypeFromFixedLen(f); v != SETFIXEDLEN {
+		panic(fmt.Sprintf("bad %s record: %s", SETFIXEDLEN, v))
 	}
 
 	// read the transaction number
@@ -48,7 +48,7 @@ func (si setFixedLenRecord) String() string {
 }
 
 func (si setFixedLenRecord) Op() txType {
-	return SETFIXED
+	return SETFIXEDLEN
 }
 
 func (si setFixedLenRecord) TxNumber() storage.TxID {
@@ -57,7 +57,7 @@ func (si setFixedLenRecord) TxNumber() storage.TxID {
 
 func (si setFixedLenRecord) Undo(tx Transaction) {
 	tx.Pin(si.block)
-	tx.SetFixedLen(si.block, si.offset, si.size, si.val, false)
+	tx.SetFixedlen(si.block, si.offset, si.size, si.val, false)
 	tx.Unpin(si.block)
 }
 
@@ -74,11 +74,11 @@ func logSetFixedLen(lm logManager, txnum storage.TxID, block storage.Block, offs
 func writeFixedLen(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen) storage.Offset {
 	rbuf := recordBuffer{bytes: dst}
 
-	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixed[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETFIXED)))
-	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixed[storage.TxID](storage.SizeOfTxID, txnum))
+	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETFIXEDLEN)))
+	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum))
 	rbuf.writeBlock(block)
-	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixed[storage.Offset](storage.SizeOfOffset, offset))
-	rbuf.writeFixedLen(storage.SizeOfSize, storage.UnsafeIntegerToFixed[storage.Size](storage.SizeOfSize, storage.Size(size)))
+	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, offset))
+	rbuf.writeFixedLen(storage.SizeOfSize, storage.UnsafeIntegerToFixedlen[storage.Size](storage.SizeOfSize, storage.Size(size)))
 	rbuf.writeFixedLen(size, val)
 
 	return rbuf.offset

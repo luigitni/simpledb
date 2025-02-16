@@ -88,7 +88,7 @@ func (v Varlen) String() string {
 // This could allocate a new byte slice and copies the string into it
 // The allocation's decision depends on the append semantics of the Go runtime
 func UnsafeNewVarlenFromGoString(s string) Varlen {
-	b := append(UnsafeIntegerToFixed[Int](SizeOfInt, Int(len(s))), []byte(s)...)
+	b := append(UnsafeIntegerToFixedlen[Int](SizeOfInt, Int(len(s))), []byte(s)...)
 	return Varlen(b)
 }
 
@@ -105,7 +105,7 @@ func UnsafeVarlenToGoString(v Varlen) string {
 // UnsafeBytesToVarlen creates a Varlen type from a byte slice
 // The byte slice must be formatted as a Varlen.
 func UnsafeBytesToVarlen(b []byte) Varlen {
-	size := UnsafeByteSliceToFixed(b[:SizeOfInt]).UnsafeAsInt()
+	size := UnsafeByteSliceToFixedlen(b[:SizeOfInt]).UnsafeAsInt()
 
 	return Varlen(b[:SizeOfInt+Size(size)])
 }
@@ -235,18 +235,18 @@ func (p *Page) Contents() []byte {
 	return p.buf[:]
 }
 
-func (p *Page) Slice(from int, to int) []byte {
+func (p *Page) Slice(from Offset, to Offset) []byte {
 	return p.buf[from:to]
 }
 
-func (p *Page) UnsafeSetFixedLen(offset Offset, size Size, val FixedLen) {
+func (p *Page) UnsafeSetFixedlen(offset Offset, size Size, val FixedLen) {
 	from := offset
 	to := offset + Offset(size)
 	runtimeAssert(to <= PageSize, "SetFixedLen: out of bounds (from: %d to: %d)", from, to)
 	copy(p.buf[from:to], val)
 }
 
-func (p *Page) UnsafeGetFixedLen(offset Offset, size Size) FixedLen {
+func (p *Page) UnsafeGetFixedlen(offset Offset, size Size) FixedLen {
 	return p.buf[offset : offset+Offset(size)]
 }
 
@@ -257,8 +257,8 @@ func (p *Page) UnsafeWriteRawVarlen(offset Offset, raw []byte) {
 	to := offset + Offset(size) + Offset(SizeOfInt)
 	runtimeAssert(to <= PageSize, "WriteRawVarlen: out of bounds (from: %d to: %d)", from, to)
 
-	v := UnsafeIntegerToFixed[Int](SizeOfInt, size)
-	p.UnsafeSetFixedLen(from, SizeOfInt, v)
+	v := UnsafeIntegerToFixedlen[Int](SizeOfInt, size)
+	p.UnsafeSetFixedlen(from, SizeOfInt, v)
 
 	copy(p.buf[from+Offset(SizeOfInt):to], raw)
 }
@@ -277,15 +277,21 @@ func (p *Page) UnsafeGetVarlen(offset Offset) Varlen {
 	return Varlen(unsafe.Slice(&p.buf[offset], int(l)+int(SizeOfInt)))
 }
 
+func (p *Page) Copy(src Offset, dst Offset, length Offset) {
+	runtimeAssert(src+length <= PageSize && dst+length <= PageSize, "Copy: src out of bounds (from: %d to: %d)", src, src+length)
+
+	copy(p.buf[dst:dst+length], p.buf[src:src+length])
+}
+
 func UnsafeFixedToInteger[V Integer](val FixedLen) V {
 	n := *(*V)(unsafe.Pointer(&val[0]))
 	return n
 }
 
-func UnsafeIntegerToFixed[V Integer](size Size, val V) FixedLen {
+func UnsafeIntegerToFixedlen[V Integer](size Size, val V) FixedLen {
 	return unsafe.Slice((*byte)(unsafe.Pointer(&val)), int(size))
 }
 
-func UnsafeByteSliceToFixed(val []byte) FixedLen {
+func UnsafeByteSliceToFixedlen(val []byte) FixedLen {
 	return FixedLen(val)
 }

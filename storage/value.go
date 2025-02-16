@@ -26,7 +26,7 @@ func ValueFromGoString(s string) Value {
 }
 
 func ValueFromInteger[V Integer](size Size, i V) Value {
-	return Value(UnsafeIntegerToFixed(size, i))
+	return Value(UnsafeIntegerToFixedlen(size, i))
 }
 
 func (v Value) AsFixedLen() FixedLen {
@@ -80,13 +80,29 @@ func (v Value) Equals(other Value) bool {
 }
 
 // todo: implement type specific comparisons
-func (v Value) Less(other Value) bool {
-	panic("not implemented")
+func (v Value) Less(t FieldType, other Value) bool {
+	return lessFunc[t](v, other)
 }
 
-// todo: implement supported type specific comparisons
-func (v Value) More(other Value) bool {
-	panic("not implemented")
+var lessFunc = [...]func(Value, Value) bool{
+	TINYINT: func(a, b Value) bool {
+		return ValueAsInteger[TinyInt](a) < ValueAsInteger[TinyInt](b)
+	},
+	SMALLINT: func(a, b Value) bool {
+		return ValueAsInteger[SmallInt](a) < ValueAsInteger[SmallInt](b)
+	},
+	INT: func(a, b Value) bool {
+		return ValueAsInteger[Int](a) < ValueAsInteger[Int](b)
+	},
+	LONG: func(a, b Value) bool {
+		return ValueAsInteger[Long](a) < ValueAsInteger[Long](b)
+	},
+	NAME: func(a, b Value) bool {
+		return a.AsName().UnsafeAsGoString() < b.AsName().UnsafeAsGoString()
+	},
+	TEXT: func(a, b Value) bool {
+		return ValueAsGoString(a) < ValueAsGoString(b)
+	},
 }
 
 func (c Value) String(t FieldType) string {

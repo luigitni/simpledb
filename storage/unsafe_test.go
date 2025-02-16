@@ -7,7 +7,7 @@ import (
 func TestUnsafeFixedToInt(t *testing.T) {
 	var i Int = 8
 
-	fixed := UnsafeIntegerToFixed[Int](SizeOfInt, i)
+	fixed := UnsafeIntegerToFixedlen[Int](SizeOfInt, i)
 
 	if v := UnsafeFixedToInteger[Int](fixed); v != i {
 		t.Fatalf("expected %d, got %d", i, v)
@@ -62,7 +62,7 @@ func TestUnsafeVarlen(t *testing.T) {
 func BenchmarkUnsafeFixedToInt(b *testing.B) {
 	var i Int = 8
 
-	fixed := UnsafeIntegerToFixed[Int](SizeOfInt, i)
+	fixed := UnsafeIntegerToFixedlen[Int](SizeOfInt, i)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {

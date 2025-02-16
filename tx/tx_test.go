@@ -9,7 +9,7 @@ import (
 )
 
 func TestSerialTx(t *testing.T) {
-	const blockname = "testfile"
+	const blockname = "thisisablock"
 
 	fm, lm, bm := test.MakeManagers(t)
 
@@ -23,15 +23,15 @@ func TestSerialTx(t *testing.T) {
 		expStr1 = "one"
 	)
 
-	intVal1 := storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, expInt1)
+	intVal1 := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, expInt1)
 	strVal1 := storage.UnsafeNewVarlenFromGoString(expStr1)
 	// the block initially contains unknown bytes
 	// so do not log the values yet
-	if err := tx1.SetFixedLen(block, 80, storage.SizeOfInt, intVal1, false); err != nil {
+	if err := tx1.SetFixedlen(block, 80, storage.SizeOfInt, intVal1, false); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := tx1.SetVarLen(block, 40, strVal1, false); err != nil {
+	if err := tx1.SetVarlen(block, 40, strVal1, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -41,7 +41,7 @@ func TestSerialTx(t *testing.T) {
 	tx2 := tx.NewTx(fm, lm, bm)
 	tx2.Pin(block)
 
-	ival, err := tx2.FixedLen(block, 80, storage.SizeOfInt)
+	ival, err := tx2.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -50,7 +50,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatalf("expected intval to be %d, got %d", expInt1, v)
 	}
 
-	sval, err := tx2.VarLen(block, 40)
+	sval, err := tx2.Varlen(block, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -64,14 +64,14 @@ func TestSerialTx(t *testing.T) {
 		expInt2 = 45
 		expStr2 = "two"
 	)
-	intVal2 := storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, expInt2)
+	intVal2 := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, expInt2)
 	strVal2 := storage.UnsafeNewVarlenFromGoString(expStr2)
 
-	if err := tx2.SetFixedLen(block, 80, storage.SizeOfInt, intVal2, true); err != nil {
+	if err := tx2.SetFixedlen(block, 80, storage.SizeOfInt, intVal2, true); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := tx2.SetVarLen(block, 40, strVal2, true); err != nil {
+	if err := tx2.SetVarlen(block, 40, strVal2, true); err != nil {
 		t.Fatal(err)
 	}
 
@@ -81,7 +81,7 @@ func TestSerialTx(t *testing.T) {
 	tx3 := tx.NewTx(fm, lm, bm)
 	tx3.Pin(block)
 
-	ival, err = tx3.FixedLen(block, 80, storage.SizeOfInt)
+	ival, err = tx3.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -90,7 +90,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatalf("expected intval to be %d, got %d", expInt2, v)
 	}
 
-	sval, err = tx3.VarLen(block, 40)
+	sval, err = tx3.Varlen(block, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -103,10 +103,10 @@ func TestSerialTx(t *testing.T) {
 
 	const expInt3 = 9999
 
-	intVal3 := storage.UnsafeIntegerToFixed[storage.Int](storage.SizeOfInt, expInt3)
-	tx3.SetFixedLen(block, 80, storage.SizeOfInt, intVal3, true)
+	intVal3 := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, expInt3)
+	tx3.SetFixedlen(block, 80, storage.SizeOfInt, intVal3, true)
 
-	ival, err = tx3.FixedLen(block, 80, storage.SizeOfInt)
+	ival, err = tx3.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,7 +121,7 @@ func TestSerialTx(t *testing.T) {
 	tx4 := tx.NewTx(fm, lm, bm)
 	tx4.Pin(block)
 
-	ival, err = tx4.FixedLen(block, 80, storage.SizeOfInt)
+	ival, err = tx4.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
