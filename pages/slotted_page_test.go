@@ -24,6 +24,16 @@ func (m mockLayout) FieldSize(fname string) storage.Size {
 	return m.sizes[fname]
 }
 
+func (m mockLayout) FieldSizeByIndex(idx int) storage.Size {
+	for k, v := range m.indexes {
+		if v == idx {
+			return m.sizes[k]
+		}
+	}
+
+	return 0
+}
+
 var _ Layout = mockLayout{}
 
 func TestSlottedPageHeaderEntry(t *testing.T) {
@@ -282,9 +292,9 @@ func TestSlottedPageSet(t *testing.T) {
 		},
 		sizes: map[string]storage.Size{
 			"field1": storage.SizeOfTinyInt,
-			"field2": 0,
+			"field2": storage.SizeOfVarlen,
 			"field3": storage.SizeOfInt,
-			"field4": 0,
+			"field4": storage.SizeOfVarlen,
 		},
 	}
 

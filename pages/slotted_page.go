@@ -790,6 +790,32 @@ func (p *SlottedPage) Format(specialSpaceSize storage.Offset) error {
 	return nil
 }
 
+func (p *SlottedPage) AvailableSpace() (storage.Offset, error) {
+	header, err := p.Header()
+	if err != nil {
+		return 0, err
+	}
+
+	return header.freeSpaceAvailable(), nil
+}
+
+func (p *SlottedPage) RecordsFit(size ...storage.Offset) (bool, error) {
+	header, err := p.Header()
+	if err != nil {
+		return false, err
+	}
+
+	var tot storage.Offset
+	for _, s := range size {
+		tot += p.recordSizeIncludingRecordHeader(s) +
+			storage.Offset(sizeOfHeaderEntry)
+	}
+
+	available := header.freeSpaceAvailable()
+
+	return available >= tot, nil
+}
+
 // NextFrom returns the next used slot after the given one
 // Returns ErrNoFreeSlot if such slot cannot be found within the transaction's block
 func (p *SlottedPage) NextAfter(slot storage.SmallInt) (storage.SmallInt, error) {
