@@ -59,6 +59,10 @@ func (l Layout) FieldSize(fname string) storage.Size {
 	return storage.Size(lenInBytes(l.schema, fname))
 }
 
+func (l Layout) FieldSizeByIndex(idx int) storage.Size {
+	return storage.Size(lenInBytes(l.schema, l.schema.fields[idx]))
+}
+
 func (l Layout) FieldsCount() int {
 	return len(l.schema.fields)
 }

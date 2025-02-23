@@ -220,7 +220,11 @@ func (h slottedPageHeader) mustSpecialSpaceStart() storage.Offset {
 // appendRecordSlot appends a new record slot to the page header
 // It takes in the actual size of the record to be inserted
 func (header *slottedPageHeader) appendRecordSlot(actualRecordSize storage.Offset) error {
-	if actualRecordSize > header.freeSpaceAvailable() {
+	available := header.freeSpaceAvailable()
+
+	totalSize := actualRecordSize + storage.Offset(sizeOfHeaderEntry)
+
+	if totalSize > available {
 		return errNoFreeSpaceAvailable
 	}
 
@@ -323,9 +327,6 @@ type SlottedPage struct {
 // todo: this can be represented by an array of 16 bit ints to save space
 // and possibly speed up access, once support for smaller ints is added
 type recordHeader struct {
-	// ends stores the offsets of the ends of each field in the record
-	ends []storage.Offset
-
 	txinfo recordHeaderTxInfo
 }
 
@@ -380,8 +381,7 @@ func (p *SlottedPage) Block() storage.Block {
 // recordHeaderSize returns the size of the record header
 // which includes the transaction info and the ends of the fields
 func (p *SlottedPage) recordHeaderSize() storage.Offset {
-	return storage.Offset(recordHeaderTxInfoSize) +
-		storage.Offset(p.layout.FieldsCount())*storage.Offset(storage.SizeOfSmallInt)
+	return storage.Offset(recordHeaderTxInfoSize)
 }
 
 // recordSizeIncludingRecordHeader calculates the size of a record on disk including header
@@ -444,22 +444,6 @@ func (p *SlottedPage) writeRecordHeader(offset storage.Offset, recordHeader reco
 		return err
 	}
 
-	offset += storage.Offset(storage.SizeOfSmallInt)
-
-	for _, field := range recordHeader.ends {
-		offset += storage.Offset(storage.SizeOfOffset)
-
-		if err := p.x.SetFixedlen(
-			p.block,
-			offset,
-			storage.SizeOfOffset,
-			storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, field),
-			true,
-		); err != nil {
-			return err
-		}
-	}
-
 	return nil
 }
 
@@ -490,25 +474,7 @@ func (p *SlottedPage) readRecordHeader(offset storage.Offset) (recordHeader, err
 		return recordHeader{}, err
 	}
 
-	offset += storage.Offset(storage.SizeOfSmallInt)
-
-	ends := make([]storage.Offset, 0, p.layout.FieldsCount())
-
-	for range p.layout.FieldsCount() {
-		offset += storage.Offset(storage.SizeOfOffset)
-
-		end, err := p.x.Fixedlen(p.block, offset, storage.SizeOfOffset)
-		if err != nil {
-			return recordHeader{}, err
-		}
-
-		v := storage.UnsafeFixedToInteger[storage.Offset](end)
-
-		ends = append(ends, v)
-	}
-
 	return recordHeader{
-		ends: ends,
 		txinfo: recordHeaderTxInfo{
 			xmin:  storage.UnsafeFixedToInteger[storage.TxID](xmin),
 			xmax:  storage.UnsafeFixedToInteger[storage.TxID](xmax),
@@ -551,32 +517,26 @@ func (p *SlottedPage) FieldOffset(slot storage.SmallInt, fieldname string) (stor
 		return 0, err
 	}
 
-	// read the record header to find the requested field
-	fieldIndex := p.layout.FieldIndex(fieldname)
-	if fieldIndex == -1 {
-		return 0, fmt.Errorf("invalid field %q for record", fieldname)
+	offset := entry.recordOffset()
+	idx := p.layout.FieldIndex(fieldname)
+
+	for i := range idx {
+		size := p.layout.FieldSizeByIndex(i)
+		if size == storage.SizeOfVarlen {
+			// read the varlen size at the offset
+			v, err := p.x.Fixedlen(p.block, offset, storage.SizeOfInt)
+			if err != nil {
+				return 0, err
+			}
+
+			offset += storage.UnsafeFixedToInteger[storage.Offset](v)
+			offset += storage.Offset(storage.SizeOfInt)
+		} else {
+			offset += storage.Offset(size)
+		}
 	}
 
-	recordOffset := entry.recordOffset()
-	// the first field starts right after the record header
-	firstFieldOffset := recordOffset + p.recordHeaderSize()
-
-	if fieldIndex == 0 {
-		return firstFieldOffset, nil
-	}
-
-	prevIndex := fieldIndex - 1
-	// read the end of the previous field to find the start of this one
-	fieldOffset := recordOffset +
-		storage.Offset(recordHeaderTxInfoSize) +
-		storage.Offset(prevIndex)*storage.Offset(storage.SizeOfSmallInt)
-
-	fo, err := p.x.Fixedlen(p.block, fieldOffset, storage.SizeOfOffset)
-	if err != nil {
-		return 0, err
-	}
-
-	return storage.UnsafeFixedToInteger[storage.Offset](fo), nil
+	return offset, nil
 }
 
 // Int returns the value of an integer field for the record pointed by the given slot
@@ -601,30 +561,6 @@ func (p *SlottedPage) VarLen(slot storage.SmallInt, fieldname string) (storage.V
 	return p.x.Varlen(p.block, offset)
 }
 
-func (p *SlottedPage) updateFieldEnd(slot storage.SmallInt, fieldname string, fieldEnd storage.Offset) error {
-	fieldIndex := p.layout.FieldIndex(fieldname)
-	if fieldIndex == -1 {
-		return fmt.Errorf("invalid field %q for record", fieldname)
-	}
-
-	entry, err := p.entry(slot)
-	if err != nil {
-		return err
-	}
-
-	fieldOffsetEntry := storage.Offset(recordHeaderTxInfoSize) +
-		entry.recordOffset() +
-		storage.Offset(fieldIndex)*storage.Offset(storage.SizeOfOffset)
-
-	return p.x.SetFixedlen(
-		p.block,
-		fieldOffsetEntry,
-		storage.SizeOfSmallInt,
-		storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, fieldEnd),
-		true,
-	)
-}
-
 // SetFixedLen sets the value of an integer field for the record pointed by the given slot
 func (p *SlottedPage) SetFixedLen(slot storage.SmallInt, fieldname string, val storage.FixedLen) error {
 	// get the offset of the field for the record at slot
@@ -641,10 +577,7 @@ func (p *SlottedPage) SetFixedLen(slot storage.SmallInt, fieldname string, val s
 		return err
 	}
 
-	// update the end of this field in the record header
-	fieldEnd := offset + storage.Offset(size)
-
-	return p.updateFieldEnd(slot, fieldname, fieldEnd)
+	return nil
 }
 
 // SetString sets the value of a string field for the record pointed by the given slot
@@ -658,9 +591,7 @@ func (p *SlottedPage) SetVarLen(slot storage.SmallInt, fieldname string, val sto
 		return err
 	}
 
-	fieldEnd := offset + storage.Offset(val.Size())
-
-	return p.updateFieldEnd(slot, fieldname, fieldEnd)
+	return nil
 }
 
 // SetFixedLenAtSpecial sets the value of a fixed len field in the special space.
@@ -843,7 +774,6 @@ func (p *SlottedPage) InsertAfter(slot storage.SmallInt, recordSize storage.Offs
 		}
 
 		recordHeader := recordHeader{
-			ends: make([]storage.Offset, p.layout.FieldsCount()),
 			txinfo: recordHeaderTxInfo{
 				xmin: p.x.Id(),
 				xmax: 0,

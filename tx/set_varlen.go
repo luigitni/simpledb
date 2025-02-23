@@ -67,7 +67,9 @@ func (ss setVarLenLogRecord) Undo(tx Transaction) {
 // A string log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
 func logSetVarlen(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) int {
-	l := sizeOfVarlenRecord + int(val.Size())
+	blocknameSize := storage.UnsafeNewVarlenFromGoString(block.FileName()).Size()
+
+	l := sizeOfVarlenRecord + int(val.Size()) + int(blocknameSize)
 	buf := make([]byte, l)
 	written := writeVarlen(buf, txnum, block, offset, val)
 

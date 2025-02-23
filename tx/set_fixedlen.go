@@ -65,7 +65,10 @@ func (si setFixedLenRecord) Undo(tx Transaction) {
 // An int log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
 func logSetFixedLen(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen) int {
-	buf := make([]byte, sizeOfFixedLenRecord+int(size))
+	blocknameSize := storage.UnsafeNewVarlenFromGoString(block.FileName()).Size()
+
+	l := sizeOfFixedLenRecord + int(size) + int(blocknameSize)
+	buf := make([]byte, l)
 	written := writeFixedLen(buf, txnum, block, offset, size, val)
 
 	return lm.Append(buf[:written])

@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/luigitni/simpledb/storage"
+	"github.com/luigitni/simpledb/test"
+	"github.com/luigitni/simpledb/tx"
 )
 
 type mockLayout struct {
@@ -62,12 +64,20 @@ func TestSlottedPageHeaderEntry(t *testing.T) {
 }
 
 func TestSlottedPageAppendRecordSlot(t *testing.T) {
-	tx := newMockTx()
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock(test.RandomBlockName(), 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfSmallInt},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, block, layout)
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -113,12 +123,21 @@ func TestSlottedPageAppendRecordSlot(t *testing.T) {
 }
 
 func TestSlottedPageWriteHeader(t *testing.T) {
-	tx := newMockTx()
+
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock(test.RandomBlockName(), 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfSmallInt},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, block, layout)
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -158,12 +177,18 @@ func TestSlottedPageWriteHeader(t *testing.T) {
 }
 
 func TestSlottedPageReadHeader(t *testing.T) {
-	tx := newMockTx()
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
 
 	const (
 		blockNumber  storage.Long   = 1
 		freeSpaceEnd storage.Offset = 1024
 	)
+
+	block := storage.NewBlock(test.RandomBlockName(), blockNumber)
+	x.Append(block.FileName())
 
 	entries := []slottedPageHeaderEntry{
 		slottedPageHeaderEntry{}.setOffset(0).setLength(256).setFlag(flagInUseRecord),
@@ -171,7 +196,7 @@ func TestSlottedPageReadHeader(t *testing.T) {
 		slottedPageHeaderEntry{}.setOffset(1024).setLength(1024).setFlag(flagInUseRecord),
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("testfile", 1), nil)
+	page := NewSlottedPage(x, block, nil)
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -210,13 +235,20 @@ func TestSlottedPageReadHeader(t *testing.T) {
 }
 
 func TestSlottedPageSearchAfter(t *testing.T) {
-	tx := newMockTx()
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock(test.RandomBlockName(), 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
 		sizes:   map[string]storage.Size{"field1": storage.SizeOfInt},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -248,12 +280,20 @@ func TestSlottedPageSearchAfter(t *testing.T) {
 }
 
 func TestSlottedPageInsertAfter(t *testing.T) {
-	tx := newMockTx()
+
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock(test.RandomBlockName(), 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -281,7 +321,13 @@ func TestSlottedPageInsertAfter(t *testing.T) {
 }
 
 func TestSlottedPageSet(t *testing.T) {
-	tx := newMockTx()
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock("set_page", 0)
+	x.Append(block.FileName())
 
 	layout := mockLayout{
 		indexes: map[string]int{
@@ -298,7 +344,7 @@ func TestSlottedPageSet(t *testing.T) {
 		},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
@@ -407,16 +453,22 @@ func TestSlottedPageSet(t *testing.T) {
 }
 
 func TestSlottedPageSetAtSpecial(t *testing.T) {
+	fm, lm, bm := test.MakeManagers(t)
 
-	page := NewSlottedPage(newMockTx(), storage.NewBlock("file", 1), nil)
-
-	var specialSpaceSize storage.Offset = 512
-
-	if err := page.Format(specialSpaceSize); err != nil {
-		t.Fatalf("error formatting page: %v", err)
-	}
+	const specialSpaceSize storage.Offset = 512
 
 	t.Run("format header includes special space size", func(t *testing.T) {
+		x := tx.NewTx(fm, lm, bm)
+		defer x.Commit()
+
+		block := storage.NewBlock(test.RandomBlockName(), 1)
+		x.Append(block.FileName())
+
+		page := NewSlottedPage(x, block, nil)
+
+		if err := page.Format(specialSpaceSize); err != nil {
+			t.Fatalf("error formatting page: %v", err)
+		}
 
 		header, err := page.Header()
 		if err != nil {
@@ -441,6 +493,18 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 	})
 
 	t.Run("set fixedlen at special slot", func(t *testing.T) {
+		x := tx.NewTx(fm, lm, bm)
+		defer x.Commit()
+
+		block := storage.NewBlock(test.RandomBlockName(), 0)
+		x.Append(block.FileName())
+
+		page := NewSlottedPage(x, block, nil)
+
+		if err := page.Format(specialSpaceSize); err != nil {
+			t.Fatalf("error formatting page: %v", err)
+		}
+
 		const exp storage.Int = 12345
 		f := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, exp)
 
@@ -459,6 +523,18 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 	})
 
 	t.Run("set varlen at special slot", func(t *testing.T) {
+		x := tx.NewTx(fm, lm, bm)
+		defer x.Commit()
+
+		block := storage.NewBlock(test.RandomBlockName(), 0)
+		x.Append(block.FileName())
+
+		page := NewSlottedPage(x, block, nil)
+
+		if err := page.Format(specialSpaceSize); err != nil {
+			t.Fatalf("error formatting page: %v", err)
+		}
+
 		const exp = "This is a string"
 		v := storage.UnsafeNewVarlenFromGoString(exp)
 
@@ -479,12 +555,20 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 }
 
 func TestSlottedPageDelete(t *testing.T) {
-	tx := newMockTx()
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock(test.RandomBlockName(), 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfSmallInt},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, block, layout)
 
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -512,12 +596,21 @@ func TestSlottedPageDelete(t *testing.T) {
 }
 
 func TestSlottedPageShiftSlotsRight(t *testing.T) {
-	tx := newMockTx()
+
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock("shift_right", 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfSmallInt},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, block, layout)
 
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -580,12 +673,20 @@ func TestSlottedPageShiftSlotsRight(t *testing.T) {
 }
 
 func TestSlottedPageShiftSlotsLeft(t *testing.T) {
-	tx := newMockTx()
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock("shift_left", 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfSmallInt},
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -652,13 +753,21 @@ func TestSlottedPageShiftSlotsLeft(t *testing.T) {
 }
 
 func TestSlottedPageCompact(t *testing.T) {
+	fm, lm, bm := test.MakeManagers(t)
+
 	t.Run("compact page", func(t *testing.T) {
-		tx := newMockTx()
+		tx := tx.NewTx(fm, lm, bm)
+		defer tx.Commit()
+
+		block := storage.NewBlock("compact_page", 0)
+		tx.Append(block.FileName())
+
 		layout := mockLayout{
 			indexes: map[string]int{"field1": 0},
+			sizes:   map[string]storage.Size{"field1": storage.SizeOfInt},
 		}
 
-		page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+		page := NewSlottedPage(tx, block, layout)
 
 		if err := page.Format(0); err != nil {
 			t.Fatalf("error formatting page: %v", err)
@@ -767,12 +876,18 @@ func TestSlottedPageCompact(t *testing.T) {
 	})
 
 	t.Run("fill page with records and compact", func(t *testing.T) {
-		tx := newMockTx()
 		layout := mockLayout{
 			indexes: map[string]int{"field1": 0},
+			sizes:   map[string]storage.Size{"field1": storage.SizeOfInt},
 		}
 
-		page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+		tx := tx.NewTx(fm, lm, bm)
+		defer tx.Commit()
+
+		block := storage.NewBlock("fill_page_compact", 0)
+		tx.Append(block.FileName())
+
+		page := NewSlottedPage(tx, block, layout)
 
 		if err := page.Format(0); err != nil {
 			t.Fatalf("error formatting page: %v", err)
@@ -781,7 +896,6 @@ func TestSlottedPageCompact(t *testing.T) {
 		for {
 			slot, err := page.InsertAfter(BeforeFirstSlot, storage.Offset(storage.SizeOfInt), false)
 			if err == ErrNoFreeSlot {
-
 				break
 			}
 
@@ -789,7 +903,8 @@ func TestSlottedPageCompact(t *testing.T) {
 				t.Fatalf("error inserting record: %v", err)
 			}
 
-			f := storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfInt, storage.Long(slot))
+			f := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, storage.Int(slot))
+
 			if err := page.SetFixedLen(slot, "field1", f); err != nil {
 				t.Fatalf("error setting fixedlen: %v", err)
 			}
@@ -819,9 +934,17 @@ func TestSlottedPageCompact(t *testing.T) {
 }
 
 func TestSlottedPageTruncate(t *testing.T) {
-	tx := newMockTx()
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	block := storage.NewBlock("truncate", 0)
+	x.Append(block.FileName())
+
 	layout := mockLayout{
 		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfSmallInt},
 	}
 
 	fc := layout.FieldsCount()
@@ -829,7 +952,7 @@ func TestSlottedPageTruncate(t *testing.T) {
 		t.Fatalf("expected fields count to be 1, got %d", fc)
 	}
 
-	page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
 	if err := page.Format(0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
@@ -889,13 +1012,23 @@ func TestSlottedPageTruncate(t *testing.T) {
 
 func BenchmarkSlottedPageCompact(b *testing.B) {
 
-	preparePage := func() *SlottedPage {
-		tx := newMockTx()
-		layout := mockLayout{
-			indexes: map[string]int{"field1": 0},
-		}
+	fm, lm, bm := test.MakeManagersWithDir(b.TempDir())
 
-		page := NewSlottedPage(tx, storage.NewBlock("file", 1), layout)
+	x := tx.NewTx(fm, lm, bm)
+
+	block := storage.NewBlock("benchmark", 0)
+	x.Append(block.FileName())
+
+	layout := mockLayout{
+		indexes: map[string]int{"field1": 0},
+		sizes:   map[string]storage.Size{"field1": storage.SizeOfInt},
+	}
+
+	x.Commit()
+
+	preparePage := func(x tx.Transaction) *SlottedPage {
+
+		page := NewSlottedPage(x, block, layout)
 
 		if err := page.Format(0); err != nil {
 			b.Fatalf("error formatting page: %v", err)
@@ -933,19 +1066,22 @@ func BenchmarkSlottedPageCompact(b *testing.B) {
 		return page
 	}
 
-	p := preparePage()
-
 	b.ResetTimer()
 	b.ReportAllocs()
 
 	for i := 0; i < b.N; i++ {
+
+		b.StopTimer()
+		x := tx.NewTx(fm, lm, bm)
+		p := preparePage(x)
+		b.StartTimer()
 		if err := p.Compact(); err != nil {
 			b.Fatalf("error compacting page: %v", err)
 		}
 
 		b.StopTimer()
+		x.Commit()
 		p.Close()
-		p = preparePage()
 		b.StartTimer()
 	}
 
