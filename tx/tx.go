@@ -149,7 +149,11 @@ func (tx transactionImpl) Copy(block storage.Block, src storage.Offset, dst stor
 		return err
 	}
 
-	buf := tx.buffers.buffer(block)
+	buf, err := tx.buffers.buffer(block)
+	if err != nil {
+		return err
+	}
+
 	lsn := -1
 	if shouldLog {
 		lsn = tx.recoverMan.logCopy(buf, src, dst, length)
@@ -165,7 +169,11 @@ func (tx transactionImpl) Fixedlen(block storage.Block, offset storage.Offset, s
 		return nil, err
 	}
 
-	buf := tx.buffers.buffer(block)
+	buf, err := tx.buffers.buffer(block)
+	if err != nil {
+		return nil, err
+	}
+
 	v := buf.Contents().UnsafeGetFixedlen(offset, size)
 	return v, nil
 }
@@ -175,7 +183,11 @@ func (tx transactionImpl) Varlen(block storage.Block, offset storage.Offset) (st
 		return storage.Varlen{}, err
 	}
 
-	buf := tx.buffers.buffer(block)
+	buf, err := tx.buffers.buffer(block)
+	if err != nil {
+		return storage.Varlen{}, err
+	}
+
 	v := buf.Contents().UnsafeGetVarlen(offset)
 	return v, nil
 }
@@ -185,7 +197,11 @@ func (tx transactionImpl) SetFixedlen(block storage.Block, offset storage.Offset
 		return err
 	}
 
-	buf := tx.buffers.buffer(block)
+	buf, err := tx.buffers.buffer(block)
+	if err != nil {
+		return err
+	}
+
 	lsn := -1
 	if shouldLog {
 		lsn = tx.recoverMan.setFixedLen(buf, offset, size, val)
@@ -202,7 +218,11 @@ func (tx transactionImpl) SetVarlen(block storage.Block, offset storage.Offset, 
 		return err
 	}
 
-	buf := tx.buffers.buffer(block)
+	buf, err := tx.buffers.buffer(block)
+	if err != nil {
+		return err
+	}
+
 	lsn := -1
 	if shouldLog {
 		lsn = tx.recoverMan.setVarLen(buf, offset, val)
