@@ -23,14 +23,20 @@ func (r *recordBuffer) writeVarLen(v storage.Varlen) {
 	r.offset += storage.Offset(v.Size())
 }
 
+func (r *recordBuffer) writeString(s string) {
+	storage.UnsafeWriteVarlenToBytesFromGoString(r.bytes[r.offset:], s)
+	r.offset += storage.Offset(
+		storage.UnsafeSizeOfStringAsVarlen(s),
+	)
+}
+
 func (r *recordBuffer) writeRaw(data []byte) {
 	copy(r.bytes[r.offset:], data)
 	r.offset += storage.Offset(len(data))
 }
 
 func (r *recordBuffer) writeBlock(block storage.Block) {
-	v := storage.UnsafeNewVarlenFromGoString(block.FileName())
-	r.writeVarLen(v)
+	r.writeString(block.FileName())
 	r.writeFixedLen(storage.SizeOfLong, storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfLong, block.Number()))
 }
 

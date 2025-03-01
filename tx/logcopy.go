@@ -59,7 +59,7 @@ func (cr copyRecord) Undo(tx Transaction) {
 }
 
 func logCopy(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, data []byte) int {
-	blocknameSize := storage.UnsafeNewVarlenFromGoString(block.FileName()).Size()
+	blocknameSize := storage.UnsafeSizeOfStringAsVarlen(block.FileName())
 
 	l := sizeOfCopyRecord + len(data) + int(blocknameSize)
 	buf := make([]byte, l)
