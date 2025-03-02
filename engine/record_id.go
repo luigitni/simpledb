@@ -6,6 +6,8 @@ import (
 	"github.com/luigitni/simpledb/storage"
 )
 
+const SizeOfRID = storage.SizeOfLong + storage.SizeOfSmallInt
+
 // RID is an identifier of the record within a file.
 // A RID consists of the block number in the file,
 // and the location of the record in that block.

@@ -36,17 +36,18 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 		if err != nil {
 			return nil, err
 		}
+
 		node := newBTreePage(x, block, leafLayout)
 		defer node.Close()
 
-		if err := node.format(block, flagUnset); err != nil {
+		if err := node.format(flagUnset); err != nil {
 			return nil, err
 		}
 	}
 
 	dirSchema := newSchema()
-	dirSchema.add("block", leafLayout.schema)
-	dirSchema.add("dataval", leafLayout.schema)
+	dirSchema.add(indexFieldDataVal, leafLayout.schema)
+	dirSchema.add(indexFieldBlockNumber, leafLayout.schema)
 
 	dirTable := idxName + "_dir"
 
@@ -66,19 +67,14 @@ func NewBTreeIndex(x tx.Transaction, idxName string, leafLayout Layout) (*BTreeI
 
 		node := newBTreePage(x, rootBlock, dirLayout)
 		defer node.Close()
-		if err := node.format(rootBlock, 0); err != nil {
+
+		if err := node.format(flagBTreeRoot); err != nil {
 			return nil, err
 		}
 
-		fldType := dirSchema.ftype("dataval")
+		fldType := dirSchema.ftype(indexFieldDataVal)
 
-		var minVal storage.Value
-		switch fldType {
-		case storage.LONG:
-			minVal = storage.ValueFromInteger[storage.Long](storage.SizeOfLong, 0)
-		case storage.TEXT:
-			minVal = storage.ValueFromGoString("")
-		}
+		minVal := storage.MinValue(fldType)
 
 		if err := node.insertDirectoryRecord(0, minVal, 0); err != nil {
 			return nil, err
@@ -137,7 +133,7 @@ func (idx *BTreeIndex) Next() error {
 }
 
 func (idx *BTreeIndex) DataRID() (RID, error) {
-	return idx.leaf.getDataRID()
+	return idx.leaf.dataRID()
 }
 
 func (idx *BTreeIndex) Insert(v storage.Value, rid RID) error {
@@ -146,26 +142,32 @@ func (idx *BTreeIndex) Insert(v storage.Value, rid RID) error {
 	}
 
 	e, err := idx.leaf.insert(rid)
+	defer idx.leaf.Close()
+
 	if err != nil {
 		return err
 	}
 
-	if e.value == nil {
+	if e.empty() {
 		return nil
 	}
 
 	root := newBTreeDir(idx.x, idx.rootBlock, idx.dirLayout)
+	defer root.Close()
 
 	e, err = root.insert(e)
 	if err != nil {
 		return err
 	}
 
+	if e.empty() {
+		return nil
+	}
+
 	if err := root.makeNewRoot(e); err != nil {
 		return err
 	}
 
-	root.Close()
 	return nil
 }
 

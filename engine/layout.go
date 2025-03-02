@@ -8,7 +8,6 @@ type Layout struct {
 	schema       Schema
 	fieldIndexes map[string]storage.SmallInt
 	offsets      map[string]storage.Offset
-	sizes        map[string]int
 	slotsize     storage.Offset
 }
 
@@ -31,8 +30,6 @@ func NewLayout(schema Schema) Layout {
 		slotsize:     s,
 	}
 }
-
-const varlen = -1
 
 func lenInBytes(schema Schema, field string) storage.Size {
 	return schema.ftype(field).Size()

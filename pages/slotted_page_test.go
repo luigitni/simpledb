@@ -69,7 +69,7 @@ func TestSlottedPageAppendRecordSlot(t *testing.T) {
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	block := storage.NewBlock(test.RandomBlockName(), 0)
+	block := storage.NewBlock(test.RandomName(), 0)
 	x.Append(block.FileName())
 
 	layout := mockLayout{
@@ -129,7 +129,7 @@ func TestSlottedPageWriteHeader(t *testing.T) {
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	block := storage.NewBlock(test.RandomBlockName(), 0)
+	block := storage.NewBlock(test.RandomName(), 0)
 	x.Append(block.FileName())
 
 	layout := mockLayout{
@@ -187,7 +187,7 @@ func TestSlottedPageReadHeader(t *testing.T) {
 		freeSpaceEnd storage.Offset = 1024
 	)
 
-	block := storage.NewBlock(test.RandomBlockName(), blockNumber)
+	block := storage.NewBlock(test.RandomName(), blockNumber)
 	x.Append(block.FileName())
 
 	entries := []slottedPageHeaderEntry{
@@ -240,7 +240,7 @@ func TestSlottedPageSearchAfter(t *testing.T) {
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	block := storage.NewBlock(test.RandomBlockName(), 0)
+	block := storage.NewBlock(test.RandomName(), 0)
 	x.Append(block.FileName())
 
 	layout := mockLayout{
@@ -286,7 +286,7 @@ func TestSlottedPageInsertAfter(t *testing.T) {
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	block := storage.NewBlock(test.RandomBlockName(), 0)
+	block := storage.NewBlock(test.RandomName(), 0)
 	x.Append(block.FileName())
 
 	layout := mockLayout{
@@ -461,7 +461,7 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 		x := tx.NewTx(fm, lm, bm)
 		defer x.Commit()
 
-		block := storage.NewBlock(test.RandomBlockName(), 1)
+		block := storage.NewBlock(test.RandomName(), 1)
 		x.Append(block.FileName())
 
 		page := NewSlottedPage(x, block, nil)
@@ -496,7 +496,7 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 		x := tx.NewTx(fm, lm, bm)
 		defer x.Commit()
 
-		block := storage.NewBlock(test.RandomBlockName(), 0)
+		block := storage.NewBlock(test.RandomName(), 0)
 		x.Append(block.FileName())
 
 		page := NewSlottedPage(x, block, nil)
@@ -526,7 +526,7 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 		x := tx.NewTx(fm, lm, bm)
 		defer x.Commit()
 
-		block := storage.NewBlock(test.RandomBlockName(), 0)
+		block := storage.NewBlock(test.RandomName(), 0)
 		x.Append(block.FileName())
 
 		page := NewSlottedPage(x, block, nil)
@@ -560,7 +560,7 @@ func TestSlottedPageDelete(t *testing.T) {
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	block := storage.NewBlock(test.RandomBlockName(), 0)
+	block := storage.NewBlock(test.RandomName(), 0)
 	x.Append(block.FileName())
 
 	layout := mockLayout{
@@ -595,7 +595,7 @@ func TestSlottedPageDelete(t *testing.T) {
 	})
 }
 
-func TestSlottedPageShiftSlotsRight(t *testing.T) {
+func TestSlottedPageInsertAt(t *testing.T) {
 
 	fm, lm, bm := test.MakeManagers(t)
 
@@ -617,9 +617,9 @@ func TestSlottedPageShiftSlotsRight(t *testing.T) {
 	}
 
 	const numRecords = 100
-	slot := BeforeFirstSlot
 	for i := 0; i < numRecords; i++ {
-		slot, err := page.InsertAfter(slot, storage.Offset(storage.SizeOfSmallInt), false)
+		slot := storage.SmallInt(i)
+		err := page.InsertAt(slot, storage.Offset(storage.SizeOfSmallInt))
 		if err != nil {
 			t.Fatalf("error inserting record: %v", err)
 		}
@@ -628,10 +628,29 @@ func TestSlottedPageShiftSlotsRight(t *testing.T) {
 		if err := page.SetFixedLen(slot, "field1", f); err != nil {
 			t.Fatalf("error setting fixedlen: %v", err)
 		}
+
+		header, err := page.Header()
+		if err != nil {
+			t.Fatalf("error reading header: %v", err)
+		}
+
+		if got := header.mustNumSlots(); got != storage.SmallInt(i+1) {
+			t.Fatalf("expected num slots to be %d, got %d at iteration %d", i+1, got, i)
+		}
+
+		expectedFreeSpaceEnd := defaultFreeSpaceEnd - storage.Offset(storage.SizeOfSmallInt)*storage.Offset(i+1)
+		if got := header.mustFreeSpaceEnd(); got != expectedFreeSpaceEnd {
+			t.Fatalf("expected free space end to be %d, got %d at iteration %d", expectedFreeSpaceEnd, got, i)
+		}
 	}
 
-	if err := page.ShiftSlotsRight(50); err != nil {
+	if err := page.InsertAt(50, storage.Offset(storage.SizeOfSmallInt)); err != nil {
 		t.Fatalf("error shifting slots right: %v", err)
+	}
+
+	f := storage.UnsafeIntegerToFixedlen[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(999))
+	if err := page.SetFixedLen(50, "field1", f); err != nil {
+		t.Fatalf("error setting fixedlen: %v", err)
 	}
 
 	test := func(i, exp storage.SmallInt) error {
@@ -658,10 +677,14 @@ func TestSlottedPageShiftSlotsRight(t *testing.T) {
 	}
 
 	// test that before the pivot, the records are in the correct position
-	for i := 0; i < 51; i++ {
+	for i := 0; i < 50; i++ {
 		if err := test(storage.SmallInt(i), storage.SmallInt(i)); err != nil {
 			t.Fatal(err)
 		}
+	}
+
+	if err := test(storage.SmallInt(50), storage.SmallInt(999)); err != nil {
+		t.Fatal(err)
 	}
 
 	// test that after the pivot, the records are in shifted to the right
@@ -772,8 +795,6 @@ func TestSlottedPageCompact(t *testing.T) {
 		if err := page.Format(0); err != nil {
 			t.Fatalf("error formatting page: %v", err)
 		}
-
-		recordHeaderSize := page.recordHeaderSize()
 
 		const (
 			firstValue  storage.Int = 255
@@ -981,7 +1002,8 @@ func TestSlottedPageTruncate(t *testing.T) {
 		t.Fatalf("error reading header: %v", err)
 	}
 
-	if got := header.mustNumSlots(); got != 50 {
+	got := header.mustNumSlots()
+	if got != 50 {
 		t.Fatalf("expected num slots to be 50, got %d", got)
 	}
 
@@ -992,13 +1014,13 @@ func TestSlottedPageTruncate(t *testing.T) {
 	}
 
 	// expect the end of the free space to be at the end of the last record
-	expectedRecordSize := storage.Offset(storage.SizeOfSmallInt) + page.recordHeaderSize()
+	expectedRecordSize := storage.Offset(storage.SizeOfSmallInt) + recordHeaderSize
 	expectedFreeSpaceEnd := defaultFreeSpaceEnd - (50 * expectedRecordSize)
 	if got := header.mustFreeSpaceEnd(); got != expectedFreeSpaceEnd {
 		t.Fatalf("expected free space end to be %d, got %d", expectedFreeSpaceEnd, got)
 	}
 
-	for i := 0; i < 50; i++ {
+	for i := range got {
 		f, err := page.FixedLen(storage.SmallInt(i), "field1")
 		if err != nil {
 			t.Fatalf("error getting fixedlen: %v", err)
@@ -1081,7 +1103,6 @@ func BenchmarkSlottedPageCompact(b *testing.B) {
 
 		b.StopTimer()
 		x.Commit()
-		p.Close()
 		b.StartTimer()
 	}
 

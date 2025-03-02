@@ -3,6 +3,8 @@
 package test
 
 import (
+	"crypto/rand"
+	"fmt"
 	"testing"
 
 	"github.com/luigitni/simpledb/buffer"
@@ -14,7 +16,7 @@ import (
 const (
 	DefaultTestLogfile          = "testlog"
 	DefaultTestBlockfile        = "testfile"
-	DefautlTestBlockSize        = 400
+	DefautlTestBlockSize        = storage.PageSize
 	DefaultTestBuffersAvailable = 3
 )
 
@@ -45,6 +47,15 @@ func MakeManagers(t *testing.T) (*file.FileManager, *wal.WalWriter, *buffer.Buff
 	return fm, lm, bm
 }
 
+func MakeManagersWithDir(dir string) (*file.FileManager, *wal.WalWriter, *buffer.BufferManager) {
+	fm := file.NewFileManager(dir, DefautlTestBlockSize)
+	lm := wal.NewWalWriter(fm, DefaultTestLogfile)
+
+	bm := buffer.NewBufferManager(fm, lm, DefaultTestBuffersAvailable)
+
+	return fm, lm, bm
+}
+
 func MakeManagersWithConfig(conf Conf) (*file.FileManager, *wal.WalWriter, *buffer.BufferManager) {
 	fm := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 	lm := wal.NewWalWriter(fm, conf.LogFile)
@@ -52,4 +63,11 @@ func MakeManagersWithConfig(conf Conf) (*file.FileManager, *wal.WalWriter, *buff
 	bm := buffer.NewBufferManager(fm, lm, conf.BuffersAvailable)
 
 	return fm, lm, bm
+}
+
+func RandomName() string {
+	const l = 32
+	b := make([]byte, l)
+	rand.Read(b)
+	return fmt.Sprintf("%x", b)
 }

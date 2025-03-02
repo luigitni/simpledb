@@ -38,11 +38,6 @@ func (s *Schema) FieldInfo(name string) fieldInfo {
 	return s.info[name]
 }
 
-// todo: legacy, remove
-func (s *Schema) flen(name string) int {
-	return int(s.info[name].Type.Size())
-}
-
 func (s *Schema) addField(name string, typ storage.FieldType) {
 	s.fields = append(s.fields, name)
 	s.info[name] = fieldInfo{

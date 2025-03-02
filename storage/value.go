@@ -8,6 +8,11 @@ import (
 // Value is a generic value
 type Value []byte
 
+func Copy(v Value) Value {
+	var out Value
+	return append(out, v...)
+}
+
 func ValueFromFixedLen(i FixedLen) Value {
 	return Value(i)
 }
@@ -102,6 +107,56 @@ var lessFunc = [...]func(Value, Value) bool{
 	},
 	TEXT: func(a, b Value) bool {
 		return ValueAsGoString(a) < ValueAsGoString(b)
+	},
+}
+
+func (v Value) More(t FieldType, other Value) bool {
+	return moreFunc[t](v, other)
+}
+
+var moreFunc = [...]func(Value, Value) bool{
+	TINYINT: func(a, b Value) bool {
+		return ValueAsInteger[TinyInt](a) > ValueAsInteger[TinyInt](b)
+	},
+	SMALLINT: func(a, b Value) bool {
+		return ValueAsInteger[SmallInt](a) > ValueAsInteger[SmallInt](b)
+	},
+	INT: func(a, b Value) bool {
+		return ValueAsInteger[Int](a) > ValueAsInteger[Int](b)
+	},
+	LONG: func(a, b Value) bool {
+		return ValueAsInteger[Long](a) > ValueAsInteger[Long](b)
+	},
+	NAME: func(a, b Value) bool {
+		return a.AsName().UnsafeAsGoString() > b.AsName().UnsafeAsGoString()
+	},
+	TEXT: func(a, b Value) bool {
+		return ValueAsGoString(a) > ValueAsGoString(b)
+	},
+}
+
+func MinValue(t FieldType) Value {
+	return minValFunc[t]()
+}
+
+var minValFunc = [...]func() Value{
+	TINYINT: func() Value {
+		return ValueFromInteger[TinyInt](SizeOfTinyInt, 0)
+	},
+	SMALLINT: func() Value {
+		return ValueFromInteger[SmallInt](SizeOfSmallInt, 0)
+	},
+	INT: func() Value {
+		return ValueFromInteger[Int](SizeOfInt, 0)
+	},
+	LONG: func() Value {
+		return ValueFromInteger[Long](SizeOfLong, 0)
+	},
+	NAME: func() Value {
+		return ValueFromName(NewNameFromGoString(""))
+	},
+	TEXT: func() Value {
+		return ValueFromGoString("")
 	},
 }
 

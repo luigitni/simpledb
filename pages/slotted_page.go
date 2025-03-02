@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"slices"
+	"strings"
 
 	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/tx"
@@ -82,11 +83,16 @@ type slottedPageHeader struct {
 const defaultFreeSpaceEnd = storage.PageSize
 
 const (
-	blockNumberOffset       storage.Offset = 0
-	numSlotsOffset          storage.Offset = blockNumberOffset + storage.Offset(storage.SizeOfLong)
-	freeSpaceEndOffset      storage.Offset = numSlotsOffset + storage.Offset(storage.SizeOfSmallInt)
+	// blockNumber is a storage.Long that stores the block number of the page
+	blockNumberOffset storage.Offset = 0
+	// numSlots is a storage.SmallInt that stores the number of slots in the page
+	numSlotsOffset storage.Offset = blockNumberOffset + storage.Offset(storage.SizeOfLong)
+	// freeSpaceEnd is a storage.SmallInt that stores the end of the free space in the page
+	freeSpaceEndOffset storage.Offset = numSlotsOffset + storage.Offset(storage.SizeOfSmallInt)
+	// specialSpaceStart is a storage.Offset that stores the start of the special space in the page
 	specialSpaceStartOffset storage.Offset = freeSpaceEndOffset + storage.Offset(storage.SizeOfSmallInt)
-	entriesOffset           storage.Offset = specialSpaceStartOffset + storage.Offset(storage.SizeOfOffset)
+	// entriesOffset is the offset of the first slot entry in the page
+	entriesOffset storage.Offset = specialSpaceStartOffset + storage.Offset(storage.SizeOfSmallInt)
 )
 
 func (h slottedPageHeader) freeSpaceStart() storage.Offset {
@@ -356,8 +362,8 @@ func (h recordHeader) hasFlag(flag recordHeaderFlag) bool {
 	return h.txinfo.flags&flag != 0
 }
 
-// recordHeaderTxInfoSize is the size of the recordHeaderTxInfo struct
-const recordHeaderTxInfoSize storage.Size = 2*storage.SizeOfTxID + 2*storage.SizeOfSmallInt
+// recordHeaderSize is the size of the recordHeaderTxInfo struct
+const recordHeaderSize storage.Offset = storage.Offset(2*storage.SizeOfTxID + 2*storage.SizeOfSmallInt)
 
 // NewSlottedPage creates a new SlottedRecordPage struct
 func NewSlottedPage(tx tx.Transaction, block storage.Block, layout Layout) *SlottedPage {
@@ -371,22 +377,21 @@ func NewSlottedPage(tx tx.Transaction, block storage.Block, layout Layout) *Slot
 
 // Close closes the page and unpins it from the transaction
 func (p *SlottedPage) Close() {
-	p.x.Unpin(p.block)
+	emptyBlock := storage.Block{}
+	if p.block != emptyBlock {
+		p.x.Unpin(p.block)
+	}
+
+	p.block = emptyBlock
 }
 
 func (p *SlottedPage) Block() storage.Block {
 	return p.block
 }
 
-// recordHeaderSize returns the size of the record header
-// which includes the transaction info and the ends of the fields
-func (p *SlottedPage) recordHeaderSize() storage.Offset {
-	return storage.Offset(recordHeaderTxInfoSize)
-}
-
 // recordSizeIncludingRecordHeader calculates the size of a record on disk including header
 func (p *SlottedPage) recordSizeIncludingRecordHeader(recordSize storage.Offset) storage.Offset {
-	return p.recordHeaderSize() + recordSize
+	return storage.Offset(recordHeaderSize) + recordSize
 }
 
 func (p *SlottedPage) Header() (slottedPageHeader, error) {
@@ -812,7 +817,12 @@ func (p *SlottedPage) searchAfter(slot storage.SmallInt, flag flag, recordSize s
 		return InvalidSlot, err
 	}
 
-	for i := slot + 1; i < header.mustNumSlots(); i++ {
+	numSlots, err := header.numSlots()
+	if err != nil {
+		return InvalidSlot, err
+	}
+
+	for i := slot + 1; i < numSlots; i++ {
 		entry, err := p.entry(i)
 		if err != nil {
 			return InvalidSlot, err
@@ -835,45 +845,49 @@ func (p *SlottedPage) searchAfter(slot storage.SmallInt, flag flag, recordSize s
 	return InvalidSlot, ErrNoFreeSlot
 }
 
-// ShiftSlotsRight shifts the record slots one position to the right starting from the given slot
-func (page *SlottedPage) ShiftSlotsRight(slot storage.SmallInt) error {
+// InsertAt shifts to the right all the records after the given slot and inserts the record at the slot
+// If the slot is at the end of the slot array, it just appends the slot
+func (page *SlottedPage) InsertAt(slot storage.SmallInt, recordSize storage.Offset) error {
 	header, err := page.Header()
 	if err != nil {
 		return fmt.Errorf("ShiftSlotsRight: header %w", err)
 	}
 
-	numSlots := header.mustNumSlots()
-
-	// if the slot is the last one, nothing to shift, just return
-	if slot == numSlots-1 {
-		return nil
+	numSlots, err := header.numSlots()
+	if err != nil {
+		return fmt.Errorf("ShiftSlotsRight: numSlots %w", err)
 	}
 
-	freeSpaceEnd := header.mustFreeSpaceEnd()
+	if slot > numSlots {
+		return fmt.Errorf("InsertAt: slot %d out of bounds", slot)
+	}
+
+	freeSpaceEnd, err := header.freeSpaceEnd()
+	if err != nil {
+		return fmt.Errorf("InsertAt: freeSpaceEnd %w", err)
+	}
+
+	totalSize := recordSize + storage.Offset(sizeOfHeaderEntry)
 
 	// check if there is enough space to shift the slots
-	if header.freeSpaceStart()+storage.Offset(sizeOfPageHeaderEntry) > freeSpaceEnd {
+	if header.freeSpaceStart()+totalSize > freeSpaceEnd {
 		return fmt.Errorf("ShiftSlotsRight: %w", errNoFreeSpaceAvailable)
 	}
 
-	// append a dummy entry to update the boundaries
-	dummy := slottedPageHeaderEntry{}.
-		setOffset(freeSpaceEnd).
-		setLength(0).
-		setFlag(flagEmptyRecord)
-
-	if err := header.appendEntry(dummy); err != nil {
-		return fmt.Errorf("ShiftSlotsRight: append entry: %w", err)
+	if err := header.appendRecordSlot(recordSize); err != nil {
+		return fmt.Errorf("ShiftSlotsRight: appendRecordSlot: %w", err)
 	}
 
-	if err := header.x.Copy(
-		*header.block,
-		entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot),
-		entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot+1),
-		storage.Offset(numSlots-slot)*storage.Offset(sizeOfPageHeaderEntry),
-		true,
-	); err != nil {
-		return fmt.Errorf("ShiftSlotsRight: copy: %w", err)
+	if numSlots != 0 {
+		if err := header.x.Copy(
+			*header.block,
+			entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot),
+			entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot+1),
+			storage.Offset(numSlots-slot)*storage.Offset(sizeOfPageHeaderEntry),
+			true,
+		); err != nil {
+			return fmt.Errorf("ShiftSlotsRight: copy: %w", err)
+		}
 	}
 
 	entry, err := header.entry(slot)
@@ -881,7 +895,12 @@ func (page *SlottedPage) ShiftSlotsRight(slot storage.SmallInt) error {
 		return fmt.Errorf("ShiftSlotsRight: entry: %w", err)
 	}
 
-	entry = entry.setFlag(flagEmptyRecord)
+	freeSpaceEnd = header.mustFreeSpaceEnd()
+
+	entry = entry.
+		setFlag(flagInUseRecord).
+		setLength(recordSize).
+		setOffset(freeSpaceEnd)
 
 	if err := header.setEntry(slot, entry); err != nil {
 		return fmt.Errorf("ShiftSlotsRight: set entry: %w", err)
@@ -953,12 +972,11 @@ func (p *SlottedPage) Compact() error {
 
 	// the page is empty, nothing to compact
 	if header.mustFreeSpaceEnd() == header.mustSpecialSpaceStart() {
-
 		return nil
 	}
 
 	numSlots := header.mustNumSlots()
-	// sort the slots by record offset
+	// sort the slots by record offset so that the highest offset is processed first
 	// and shift all records to the right to fill the gaps
 	// then update the slot entries.
 	cpy := make([]storage.SmallInt, numSlots)
@@ -982,7 +1000,9 @@ func (p *SlottedPage) Compact() error {
 			return 0
 		}
 
-		return int(s.recordOffset() - f.recordOffset())
+		diff := int(s.recordOffset()) - int(f.recordOffset())
+
+		return diff
 	})
 
 	if err != nil {
@@ -1005,7 +1025,8 @@ func (p *SlottedPage) Compact() error {
 		len := entry.recordLength()
 		freeSpaceEnd -= len
 		// copy the record to the new offset
-		if err := p.x.Copy(p.block, entry.recordOffset(), freeSpaceEnd, len, true); err != nil {
+		src := entry.recordOffset()
+		if err := p.x.Copy(p.block, src, freeSpaceEnd, len, true); err != nil {
 			return err
 		}
 
@@ -1023,4 +1044,82 @@ func (p *SlottedPage) Compact() error {
 	}
 
 	return nil
+}
+
+type DumpSlot struct {
+	Offset storage.Offset
+	Length storage.Offset
+	Flags  flag
+}
+
+type Dump struct {
+	BlockNumber       storage.Long
+	NumSlots          storage.SmallInt
+	FreeSpaceStart    storage.Offset
+	FreeSpaceEnd      storage.Offset
+	SpecialSpaceStart storage.Offset
+	Slots             []DumpSlot
+}
+
+func (page SlottedPage) Dump() (Dump, error) {
+	header, err := page.Header()
+	if err != nil {
+		return Dump{}, err
+	}
+
+	numSlots, err := header.numSlots()
+	if err != nil {
+		return Dump{}, err
+	}
+
+	freeSpaceStart := header.freeSpaceStart()
+
+	freeSpaceEnd, err := header.freeSpaceEnd()
+	if err != nil {
+		return Dump{}, err
+	}
+
+	specialSpaceStart, err := header.specialSpaceStart()
+	if err != nil {
+		return Dump{}, err
+	}
+
+	dump := Dump{
+		BlockNumber:       page.block.Number(),
+		NumSlots:          numSlots,
+		FreeSpaceStart:    freeSpaceStart,
+		FreeSpaceEnd:      freeSpaceEnd,
+		SpecialSpaceStart: specialSpaceStart,
+		Slots:             make([]DumpSlot, numSlots),
+	}
+
+	for i := storage.SmallInt(0); i < numSlots; i++ {
+		entry, err := page.entry(i)
+		if err != nil {
+			return Dump{}, err
+		}
+
+		dump.Slots[i] = DumpSlot{
+			Offset: entry.recordOffset(),
+			Length: entry.recordLength(),
+			Flags:  entry.flags(),
+		}
+	}
+
+	return dump, nil
+}
+
+func (dump Dump) String() string {
+	var b strings.Builder
+	b.WriteString(fmt.Sprintf("BlockNumber: %d\n", dump.BlockNumber))
+	b.WriteString(fmt.Sprintf("NumSlots: %d\n", dump.NumSlots))
+	b.WriteString(fmt.Sprintf("FreeSpaceStart: %d\n", dump.FreeSpaceStart))
+	b.WriteString(fmt.Sprintf("FreeSpaceEnd: %d\n", dump.FreeSpaceEnd))
+	b.WriteString(fmt.Sprintf("SpecialSpaceStart: %d\n", dump.SpecialSpaceStart))
+
+	for i, slot := range dump.Slots {
+		b.WriteString(fmt.Sprintf("Slot %d: Offset: %d, Length: %d, Flags: %d\n", i, slot.Offset, slot.Length, slot.Flags))
+	}
+
+	return b.String()
 }

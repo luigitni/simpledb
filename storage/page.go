@@ -27,7 +27,8 @@ const (
 
 	SizeOfTxID Size = 4
 
-	SizeOfVarlen Size = Size(math.MaxUint16)
+	SizeOfVarlen    Size = Size(math.MaxUint16)
+	SizeOfVarlenLen Size = Size(SizeOfInt)
 )
 
 type (
@@ -122,6 +123,12 @@ func UnsafeVarlenToBytes(v Varlen) []byte {
 func UnsafeWriteVarlenToBytes(buf []byte, v Varlen) {
 	// write the size of the varlen
 	copy(buf, v)
+}
+
+func UnsafeWriteVarlenToBytesFromGoString(buf []byte, s string) {
+	len := Int(len(s))
+	copy(buf, UnsafeIntegerToFixedlen[Int](SizeOfInt, len))
+	copy(buf[SizeOfInt:], s)
 }
 
 // UnsafeSizeOfStringAsVarlen returns the size of a string as a Varlen

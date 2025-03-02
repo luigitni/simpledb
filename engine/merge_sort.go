@@ -20,11 +20,13 @@ type sortPlan struct {
 }
 
 func newSortPlan(x tx.Transaction, plan Plan, sortFields []string) *sortPlan {
+	schema := plan.Schema()
 	return &sortPlan{
 		p:      plan,
 		x:      x,
-		schema: plan.Schema(),
+		schema: schema,
 		recordComparator: recordComparator{
+			schema:     schema,
 			sortFields: sortFields,
 		},
 	}
@@ -248,6 +250,7 @@ func (sp *sortPlan) DistinctValues(fieldName string) int {
 }
 
 type recordComparator struct {
+	schema     Schema
 	sortFields []string
 }
 
@@ -263,7 +266,9 @@ func (rc recordComparator) Less(first Scan, second Scan) (bool, error) {
 			return false, err
 		}
 
-		if f.Less(s) {
+		t := rc.schema.FieldInfo(field).Type
+
+		if f.Less(t, s) {
 			return true, nil
 		}
 	}
