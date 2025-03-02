@@ -118,9 +118,9 @@ func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName st
 	ts := newTableScan(x, idxCatalogTableName, im.l)
 
 	// todo: create fixed size string type
-	size := storage.UnsafeSizeOfStringAsVarlen(idxName) +
-		storage.UnsafeSizeOfStringAsVarlen(tblName) +
-		storage.UnsafeSizeOfStringAsVarlen(fldName)
+	size := storage.SizeOfStringAsVarlen(idxName) +
+		storage.SizeOfStringAsVarlen(tblName) +
+		storage.SizeOfStringAsVarlen(fldName)
 
 	ts.Insert(storage.Offset(size))
 	defer ts.Close()
@@ -162,7 +162,7 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		if table.AsName().UnsafeAsGoString() != tblName {
+		if table.AsName().AsGoString() != tblName {
 			continue
 		}
 
@@ -186,9 +186,9 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		fn := fldName.AsName().UnsafeAsGoString()
+		fn := fldName.AsName().AsGoString()
 
-		ii := newIndexInfo(x, idxName.AsName().UnsafeAsGoString(), fn, *layout.Schema(), stat)
+		ii := newIndexInfo(x, idxName.AsName().AsGoString(), fn, *layout.Schema(), stat)
 		m[fn] = ii
 	}
 

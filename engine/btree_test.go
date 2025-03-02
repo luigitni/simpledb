@@ -36,11 +36,11 @@ func TestBTreePageSplit(t *testing.T) {
 	for i := range 100 {
 		slot := storage.SmallInt(i)
 
-		if err := page.slottedPage.InsertAt(slot, storage.Offset(storage.SizeOfSmallInt)); err != nil {
+		if err := page.slottedPage.InsertAt(slot, storage.SizeOfSmallInt); err != nil {
 			t.Fatalf("unexpected error when inserting record: %s", err)
 		}
 
-		f := storage.UnsafeIntegerToFixedlen(storage.SizeOfSmallInt, storage.SmallInt(i))
+		f := storage.IntegerToFixedLen(storage.SizeOfSmallInt, storage.SmallInt(i))
 
 		if err := page.slottedPage.SetFixedLen(slot, "field", f); err != nil {
 			t.Fatalf("unexpected error when setting field: %s", err)
@@ -86,7 +86,7 @@ func TestBTreePageSplit(t *testing.T) {
 			return fmt.Errorf("unexpected error when getting field: %s", err)
 		}
 
-		if got := storage.UnsafeFixedToInteger[storage.SmallInt](v); got != exp {
+		if got := storage.FixedLenToInteger[storage.SmallInt](v); got != exp {
 
 			return fmt.Errorf("expected %d at %d, got %d", exp, i, got)
 		}
@@ -127,7 +127,7 @@ func TestBTreeFindSlotBefore(t *testing.T) {
 		t.Fatalf("unexpected error when formatting the page: %s", err)
 	}
 
-	size := storage.Offset(layout.FieldSize(indexFieldDataVal))
+	size := layout.FieldSize(indexFieldDataVal)
 	for i := range 50 {
 		val := storage.ValueFromInteger[storage.Long](storage.SizeOfLong, storage.Long(i))
 		slot := storage.SmallInt(i)
@@ -474,7 +474,7 @@ func TestBTreeLeafInsert(t *testing.T) {
 			leaf.key = storage.ValueFromInteger[storage.Long](storage.SizeOfLong, storage.Long(i))
 
 			fits, err := leaf.contents.slottedPage.RecordsFit(
-				storage.Offset(storage.SizeOfLong+storage.SizeOfSmallInt+storage.SizeOfLong),
+				storage.SizeOfLong+storage.SizeOfSmallInt+storage.SizeOfLong,
 				bTreeMaxSizeOfKey,
 			)
 
@@ -668,7 +668,7 @@ func TestBTreeDirInsertEntry(t *testing.T) {
 		for {
 
 			fits, err := page.contents.slottedPage.RecordsFit(
-				storage.Offset(storage.SizeOfLong+storage.SizeOfLong),
+				storage.SizeOfLong+storage.SizeOfLong,
 				bTreeMaxSizeOfKey,
 			)
 

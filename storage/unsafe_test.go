@@ -7,9 +7,9 @@ import (
 func TestUnsafeFixedToInt(t *testing.T) {
 	var i Int = 8
 
-	fixed := UnsafeIntegerToFixedlen[Int](SizeOfInt, i)
+	fixed := IntegerToFixedLen[Int](SizeOfInt, i)
 
-	if v := UnsafeFixedToInteger[Int](fixed); v != i {
+	if v := FixedLenToInteger[Int](fixed); v != i {
 		t.Fatalf("expected %d, got %d", i, v)
 	}
 }
@@ -17,9 +17,9 @@ func TestUnsafeFixedToInt(t *testing.T) {
 func TestUnsafeVarlen(t *testing.T) {
 	t.Run("Varlen to string", func(t *testing.T) {
 		const s = "hello"
-		size := Size(len(s)) + SizeOfInt
+		size := Offset(len(s)) + SizeOfInt
 
-		var v Varlen = UnsafeNewVarlenFromGoString(s)
+		var v Varlen = NewVarlenFromGoString(s)
 
 		if v.Size() != Int(size) {
 			t.Fatalf("expected %d, got %d", size, v.Size())
@@ -29,7 +29,7 @@ func TestUnsafeVarlen(t *testing.T) {
 			t.Fatalf("expected %d, got %d", len(s), v.Len())
 		}
 
-		ss := UnsafeVarlenToGoString(v)
+		ss := VarlenToGoString(v)
 		if ss != s {
 			t.Fatalf("expected %s, got %s", s, ss)
 		}
@@ -37,12 +37,12 @@ func TestUnsafeVarlen(t *testing.T) {
 
 	t.Run("Test serialization", func(t *testing.T) {
 		const s = "hello this is a test"
-		size := Size(len(s)) + SizeOfInt
+		size := Offset(len(s)) + SizeOfInt
 		buf := make([]byte, size)
 
-		UnsafeWriteVarlenToBytes(buf, UnsafeNewVarlenFromGoString(s))
+		WriteVarlenToBytes(buf, NewVarlenFromGoString(s))
 
-		v := UnsafeBytesToVarlen(buf)
+		v := BytesToVarlen(buf)
 		if v.Size() != Int(size) {
 			t.Fatalf("expected %d, got %d", size, v.Size())
 		}
@@ -51,7 +51,7 @@ func TestUnsafeVarlen(t *testing.T) {
 			t.Fatalf("expected %d, got %d", len(s), v.Len())
 		}
 
-		ss := UnsafeVarlenToGoString(v)
+		ss := VarlenToGoString(v)
 		if ss != s {
 			t.Fatalf("expected %s, got %s", s, ss)
 		}
@@ -62,20 +62,20 @@ func TestUnsafeVarlen(t *testing.T) {
 func BenchmarkUnsafeFixedToInt(b *testing.B) {
 	var i Int = 8
 
-	fixed := UnsafeIntegerToFixedlen[Int](SizeOfInt, i)
+	fixed := IntegerToFixedLen[Int](SizeOfInt, i)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		UnsafeFixedToInteger[Int](fixed)
+		FixedLenToInteger[Int](fixed)
 	}
 }
 
 func BenchmarkUnsafeVarlen(b *testing.B) {
 	const s = "hello"
 
-	var v Varlen = UnsafeNewVarlenFromGoString(s)
+	var v Varlen = NewVarlenFromGoString(s)
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		UnsafeVarlenToGoString(v)
+		VarlenToGoString(v)
 	}
 }

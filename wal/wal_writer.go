@@ -87,31 +87,31 @@ func (man *WalWriter) Append(records []byte) int {
 	defer man.Unlock()
 
 	// boundary contains the offset of the most recently added record
-	spaceLeft := man.logpage.UnsafeGetFixedlen(0, storage.SizeOfOffset).UnsafeAsOffset()
+	spaceLeft := man.logpage.GetFixedLen(0, storage.SizeOfOffset).AsOffset()
 
 	recsize := storage.Offset(len(records))
 
-	bytesneeded := recsize + storage.Offset(storage.SizeOfInt)
+	bytesneeded := recsize + storage.SizeOfInt
 
 	// if the bytes needed to insert the record, PLUS the page header, are larger than the space left
 	// the record won't fit.
 	// In this case, flush the current page and move to the next block
-	if bytesneeded+storage.Offset(storage.SizeOfOffset) > spaceLeft {
+	if bytesneeded+storage.SizeOfOffset > spaceLeft {
 		man.flush()
 		man.currentBlock = man.appendNewBlock()
-		spaceLeft = man.logpage.UnsafeGetFixedlen(0, storage.SizeOfOffset).UnsafeAsOffset()
+		spaceLeft = man.logpage.GetFixedLen(0, storage.SizeOfOffset).AsOffset()
 	}
 
 	// compute the leading byte from where the record will start
 	recpos := spaceLeft - bytesneeded
 	// note that the page is writing data starting from the end of the buffer
 	// moving towards the head
-	man.logpage.UnsafeWriteRawVarlen(recpos, records)
+	man.logpage.WriteRawVarlen(recpos, records)
 
 	// update the header with the new position of the record
-	man.logpage.UnsafeSetFixedlen(0,
+	man.logpage.SetFixedlen(0,
 		storage.SizeOfOffset,
-		storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, recpos),
+		storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, recpos),
 	)
 
 	// todo: write the LSN into the record
@@ -127,10 +127,10 @@ func (man *WalWriter) appendNewBlock() storage.Block {
 	block := man.fm.Append(man.logfile)
 
 	// write the size of the block into the page header
-	man.logpage.UnsafeSetFixedlen(
+	man.logpage.SetFixedlen(
 		0,
 		storage.SizeOfOffset,
-		storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, man.fm.BlockSize()),
+		storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, man.fm.BlockSize()),
 	)
 
 	// write the logpage into the newly created block

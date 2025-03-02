@@ -97,7 +97,7 @@ func (idx *StaticHashIndex) DataRID() (RID, error) {
 
 func (idx *StaticHashIndex) Insert(v storage.Value, rid RID) error {
 	idx.BeforeFirst(v)
-	var size storage.Offset = storage.Offset(storage.SizeOfInt * 2)
+	var size storage.Offset = storage.SizeOfInt * 2
 
 	t := idx.scan.layout.schema.ftype("dataval")
 	size += v.Size(t)

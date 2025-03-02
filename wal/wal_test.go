@@ -134,7 +134,6 @@ func populateLogManager(t *testing.T, lm *WalWriter, start, end int) {
 		builder.Reset()
 		builder.WriteString(makeLogEntry(t, i))
 
-		lsn := lm.Append(builder.Bytes())
-		t.Logf("%d", lsn)
+		_ = lm.Append(builder.Bytes())
 	}
 }

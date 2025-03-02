@@ -31,11 +31,11 @@ func newSetVarLenRecord(record *recordBuffer) setVarLenLogRecord {
 	}
 
 	// read the transaction number
-	rec.txnum = storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
+	rec.txnum = storage.FixedLenToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
 	// read the block name
 	rec.block = record.readBlock()
 	// read the block offset
-	rec.offset = storage.Offset(storage.UnsafeFixedToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset)))
+	rec.offset = storage.FixedLenToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset))
 	// read the value
 	rec.val = record.readVarlen()
 
@@ -67,7 +67,7 @@ func (ss setVarLenLogRecord) Undo(tx Transaction) {
 // A string log entry has the following layout:
 // | log type | tx number | filename | block number | offset | value |
 func logSetVarlen(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) int {
-	blocknameSize := storage.UnsafeSizeOfStringAsVarlen(block.FileName())
+	blocknameSize := storage.SizeOfStringAsVarlen(block.FileName())
 
 	l := sizeOfVarlenRecord + int(val.Size()) + int(blocknameSize)
 	buf := make([]byte, l)
@@ -79,11 +79,11 @@ func logSetVarlen(lm logManager, txnum storage.TxID, block storage.Block, offset
 func writeVarlen(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, val storage.Varlen) storage.Offset {
 	rbuf := recordBuffer{bytes: dst}
 
-	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETVARLEN)))
-	rbuf.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum))
+	rbuf.writeFixedLen(storage.SizeOfTinyInt, storage.IntegerToFixedLen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(SETVARLEN)))
+	rbuf.writeFixedLen(storage.SizeOfTxID, storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, txnum))
 	rbuf.writeBlock(block)
 
-	rbuf.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, offset))
+	rbuf.writeFixedLen(storage.SizeOfOffset, storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, offset))
 	rbuf.writeVarLen(val) // write offset
 
 	return rbuf.offset

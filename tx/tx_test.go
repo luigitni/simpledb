@@ -23,8 +23,8 @@ func TestSerialTx(t *testing.T) {
 		expStr1 = "one"
 	)
 
-	intVal1 := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, expInt1)
-	strVal1 := storage.UnsafeNewVarlenFromGoString(expStr1)
+	intVal1 := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, expInt1)
+	strVal1 := storage.NewVarlenFromGoString(expStr1)
 	// the block initially contains unknown bytes
 	// so do not log the values yet
 	if err := tx1.SetFixedlen(block, 80, storage.SizeOfInt, intVal1, false); err != nil {
@@ -46,7 +46,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt1 {
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt1 {
 		t.Fatalf("expected intval to be %d, got %d", expInt1, v)
 	}
 
@@ -55,7 +55,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := storage.UnsafeVarlenToGoString(sval); v != expStr1 {
+	if v := storage.VarlenToGoString(sval); v != expStr1 {
 		t.Fatalf("expected strval to be %s, got %s", expStr1, v)
 	}
 
@@ -64,8 +64,8 @@ func TestSerialTx(t *testing.T) {
 		expInt2 = 45
 		expStr2 = "two"
 	)
-	intVal2 := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, expInt2)
-	strVal2 := storage.UnsafeNewVarlenFromGoString(expStr2)
+	intVal2 := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, expInt2)
+	strVal2 := storage.NewVarlenFromGoString(expStr2)
 
 	if err := tx2.SetFixedlen(block, 80, storage.SizeOfInt, intVal2, true); err != nil {
 		t.Fatal(err)
@@ -86,7 +86,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt2 {
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt2 {
 		t.Fatalf("expected intval to be %d, got %d", expInt2, v)
 	}
 
@@ -95,7 +95,7 @@ func TestSerialTx(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if s := storage.UnsafeVarlenToGoString(sval); s != expStr2 {
+	if s := storage.VarlenToGoString(sval); s != expStr2 {
 		t.Fatalf("expected strval to be %s, got %s", expStr2, s)
 	}
 
@@ -103,7 +103,7 @@ func TestSerialTx(t *testing.T) {
 
 	const expInt3 = 9999
 
-	intVal3 := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, expInt3)
+	intVal3 := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, expInt3)
 	tx3.SetFixedlen(block, 80, storage.SizeOfInt, intVal3, true)
 
 	ival, err = tx3.Fixedlen(block, 80, storage.SizeOfInt)
@@ -112,7 +112,7 @@ func TestSerialTx(t *testing.T) {
 	}
 
 	// expect pre-rollback value to be exactly like the value that has been written by tx3
-	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt3 {
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt3 {
 		t.Fatalf("expected intval to be %d, got %d", expInt3, v)
 	}
 
@@ -127,7 +127,7 @@ func TestSerialTx(t *testing.T) {
 	}
 
 	// test that after rollback of tx3, intval has the value set by tx2
-	if v := storage.UnsafeFixedToInteger[storage.Int](ival); v != expInt2 {
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt2 {
 		t.Fatalf("expected intval to be %d, got %d", expInt2, v)
 	}
 

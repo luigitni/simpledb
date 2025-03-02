@@ -44,7 +44,7 @@ type Transaction interface {
 	// Fixedlen returns the fixedLen value stored at the specified offset of the specified block.
 	// It first attempts to obtrain an Slock on the block and then it calls the buffer to retrieve the value.
 	// Returns ErrLockAcquisitionTimeout if the Slock can't be acquired
-	Fixedlen(blockID storage.Block, offset storage.Offset, size storage.Size) (storage.FixedLen, error)
+	Fixedlen(blockID storage.Block, offset storage.Offset, size storage.Offset) (storage.FixedLen, error)
 
 	// Varlen returns the varlen value stored at offset of the given block.
 	// It first attempts to obtain an S lock on the block, and then retrieves the value from the underlying buffers
@@ -55,7 +55,7 @@ type Transaction interface {
 	// It first obtains an X lock on the block, then creates a SETFIXED log record.
 	// Finally, it writes the value to the underlying buffer, passing in the log sequence number
 	// Returns ErrLockAcquisitionTimeout if the Xlock can't be acquired
-	SetFixedlen(blockID storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen, shouldLog bool) error
+	SetFixedlen(blockID storage.Block, offset storage.Offset, size storage.Offset, val storage.FixedLen, shouldLog bool) error
 
 	// SetVarlen stores a varlen at the specified offset of the given block.
 	// It first attempts to obtain an X lock on the block, then creates a SETVARLEN log record.
@@ -164,7 +164,7 @@ func (tx transactionImpl) Copy(block storage.Block, src storage.Offset, dst stor
 	return nil
 }
 
-func (tx transactionImpl) Fixedlen(block storage.Block, offset storage.Offset, size storage.Size) (storage.FixedLen, error) {
+func (tx transactionImpl) Fixedlen(block storage.Block, offset storage.Offset, size storage.Offset) (storage.FixedLen, error) {
 	if err := tx.concMan.SLock(block); err != nil {
 		return nil, err
 	}
@@ -174,7 +174,7 @@ func (tx transactionImpl) Fixedlen(block storage.Block, offset storage.Offset, s
 		return nil, err
 	}
 
-	v := buf.Contents().UnsafeGetFixedlen(offset, size)
+	v := buf.Contents().GetFixedLen(offset, size)
 	return v, nil
 }
 
@@ -188,11 +188,11 @@ func (tx transactionImpl) Varlen(block storage.Block, offset storage.Offset) (st
 		return storage.Varlen{}, err
 	}
 
-	v := buf.Contents().UnsafeGetVarlen(offset)
+	v := buf.Contents().GetVarlen(offset)
 	return v, nil
 }
 
-func (tx transactionImpl) SetFixedlen(block storage.Block, offset storage.Offset, size storage.Size, val storage.FixedLen, shouldLog bool) error {
+func (tx transactionImpl) SetFixedlen(block storage.Block, offset storage.Offset, size storage.Offset, val storage.FixedLen, shouldLog bool) error {
 	if err := tx.concMan.XLock(block); err != nil {
 		return err
 	}
@@ -207,7 +207,7 @@ func (tx transactionImpl) SetFixedlen(block storage.Block, offset storage.Offset
 		lsn = tx.recoverMan.setFixedLen(buf, offset, size, val)
 	}
 	p := buf.Contents()
-	p.UnsafeSetFixedlen(offset, size, val)
+	p.SetFixedlen(offset, size, val)
 	// flag the underlying buffer as dirty to signal that a flush might be needed
 	buf.SetModified(tx.num, lsn)
 	return nil
@@ -228,7 +228,7 @@ func (tx transactionImpl) SetVarlen(block storage.Block, offset storage.Offset, 
 		lsn = tx.recoverMan.setVarLen(buf, offset, val)
 	}
 	p := buf.Contents()
-	p.UnsafeSetVarlen(offset, val)
+	p.SetVarlen(offset, val)
 	buf.SetModified(tx.num, lsn)
 	return nil
 }

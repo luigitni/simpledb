@@ -26,15 +26,15 @@ func newCopyRecord(record *recordBuffer) copyRecord {
 	}
 
 	// read the transaction number
-	rec.txnum = storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
+	rec.txnum = storage.FixedLenToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID))
 	// read the block name
 	rec.block = record.readBlock()
 	// read the block offset
-	rec.offset = storage.Offset(storage.UnsafeFixedToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset)))
+	rec.offset = storage.FixedLenToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset))
 	// read the size of the data
-	rec.size = storage.UnsafeFixedToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset))
+	rec.size = storage.FixedLenToInteger[storage.Offset](record.readFixedLen(storage.SizeOfOffset))
 	// read the data
-	rec.data = record.readFixedLen(storage.Size(rec.size))
+	rec.data = record.readFixedLen(rec.size)
 
 	return rec
 }
@@ -54,12 +54,12 @@ func (cr copyRecord) String() string {
 
 func (cr copyRecord) Undo(tx Transaction) {
 	tx.Pin(cr.block)
-	tx.SetFixedlen(cr.block, cr.offset, storage.Size(cr.size), storage.UnsafeByteSliceToFixedlen(cr.data), false)
+	tx.SetFixedlen(cr.block, cr.offset, cr.size, storage.ByteSliceToFixedlen(cr.data), false)
 	tx.Unpin(cr.block)
 }
 
 func logCopy(lm logManager, txnum storage.TxID, block storage.Block, offset storage.Offset, data []byte) int {
-	blocknameSize := storage.UnsafeSizeOfStringAsVarlen(block.FileName())
+	blocknameSize := storage.SizeOfStringAsVarlen(block.FileName())
 
 	l := sizeOfCopyRecord + len(data) + int(blocknameSize)
 	buf := make([]byte, l)
@@ -70,15 +70,15 @@ func logCopy(lm logManager, txnum storage.TxID, block storage.Block, offset stor
 
 func writeCopy(dst []byte, txnum storage.TxID, block storage.Block, offset storage.Offset, data []byte) storage.Offset {
 	record := &recordBuffer{bytes: dst}
-	record.writeFixedLen(storage.SizeOfTinyInt, storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(COPY)))
-	record.writeFixedLen(storage.SizeOfTxID, storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum))
+	record.writeFixedLen(storage.SizeOfTinyInt, storage.IntegerToFixedLen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(COPY)))
+	record.writeFixedLen(storage.SizeOfTxID, storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, txnum))
 	record.writeBlock(block)
 
 	// original offset of the data
-	record.writeFixedLen(storage.SizeOfOffset, storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, offset))
+	record.writeFixedLen(storage.SizeOfOffset, storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, offset))
 
 	// write the size of the data
-	record.writeFixedLen(storage.SizeOfSize, storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfSize, storage.Offset((len(data)))))
+	record.writeFixedLen(storage.SizeOfOffset, storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, storage.Offset((len(data)))))
 	// write the raw data
 	record.writeRaw(data)
 

@@ -25,11 +25,11 @@ func TestWriteBlock(t *testing.T) {
 	}
 }
 
-func assertIntegerAtOffset[V storage.Integer](t *testing.T, data []byte, pos storage.Offset, size storage.Size, exp V) {
+func assertIntegerAtOffset[V storage.Integer](t *testing.T, data []byte, pos storage.Offset, size storage.Offset, exp V) {
 	t.Helper()
 	rec := recordBuffer{bytes: data, offset: pos}
 
-	if v := rec.readFixedLen(size); storage.UnsafeFixedToInteger[V](v) != exp {
+	if v := rec.readFixedLen(size); storage.FixedLenToInteger[V](v) != exp {
 		t.Fatalf("expected %v at pos %d. Got %v", exp, pos, v)
 	}
 }
@@ -38,7 +38,7 @@ func assertVarlenAtPos(t *testing.T, data []byte, pos storage.Offset, exp string
 	t.Helper()
 	rec := recordBuffer{bytes: data, offset: pos}
 
-	if v := rec.readVarlen(); storage.UnsafeVarlenToGoString(v) != exp {
+	if v := rec.readVarlen(); storage.VarlenToGoString(v) != exp {
 		t.Fatalf("expected %q at pos %d. Got %q", exp, pos, v)
 	}
 }
@@ -60,7 +60,7 @@ func TestLogStartRecord(t *testing.T) {
 	var offset storage.Offset
 
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(START))
-	offset += storage.Offset(storage.SizeOfTinyInt)
+	offset += storage.SizeOfTinyInt
 
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
 }
@@ -75,7 +75,7 @@ func TestLogRollbackRecord(t *testing.T) {
 	var offset storage.Offset
 
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(ROLLBACK))
-	offset += storage.Offset(storage.SizeOfTinyInt)
+	offset += storage.SizeOfTinyInt
 
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
 }
@@ -89,7 +89,7 @@ func TestLogCommitRecord(t *testing.T) {
 	var offset storage.Offset
 
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(COMMIT))
-	offset += storage.Offset(storage.SizeOfTinyInt)
+	offset += storage.SizeOfTinyInt
 
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
 }
@@ -106,32 +106,32 @@ func TestLogFixedlenRecord(t *testing.T) {
 
 	p := make([]byte, sizeOfFixedLenRecord+int(storage.SizeOfInt))
 
-	writeFixedLen(p, txNum, block, offsetVal, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, val))
+	writeFixedLen(p, txNum, block, offsetVal, storage.SizeOfInt, storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, val))
 
 	var offset storage.Offset
 	// test that the first entry is SETFIXED
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETFIXEDLEN))
-	offset += storage.Offset(storage.SizeOfTinyInt)
+	offset += storage.SizeOfTinyInt
 
 	// tx number
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
-	offset += storage.Offset(storage.SizeOfTxID)
+	offset += storage.SizeOfTxID
 
 	// block name
 	assertVarlenAtPos(t, p, offset, fname)
-	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fname))
+	offset += storage.Offset(storage.SizeOfStringAsVarlen(fname))
 
 	// block number
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfLong, bid)
-	offset += storage.Offset(storage.SizeOfLong)
+	offset += storage.SizeOfLong
 
 	// offset of the record
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, offsetVal)
-	offset += storage.Offset(storage.SizeOfOffset)
+	offset += storage.SizeOfOffset
 
 	// size of the record
-	assertIntegerAtOffset(t, p, offset, storage.SizeOfSize, storage.SizeOfInt)
-	offset += storage.Offset(storage.SizeOfSize)
+	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, storage.SizeOfInt)
+	offset += storage.SizeOfOffset
 
 	// value of the record
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfInt, val)
@@ -151,33 +151,33 @@ func TestLogSetVarlenRecord(t *testing.T) {
 
 	p := make([]byte, sizeOfVarlenRecord+len(val))
 
-	writeVarlen(p, txNum, block, offsetVal, storage.UnsafeNewVarlenFromGoString(val))
+	writeVarlen(p, txNum, block, offsetVal, storage.NewVarlenFromGoString(val))
 
 	var offset storage.Offset
 
 	// test that the first entry is SETSTRING
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(SETVARLEN))
-	offset += storage.Offset(storage.SizeOfTinyInt)
+	offset += storage.SizeOfTinyInt
 
 	// tx number
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
-	offset += storage.Offset(storage.SizeOfTxID)
+	offset += storage.SizeOfTxID
 
 	// block name
 	assertVarlenAtPos(t, p, offset, fname)
-	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fname))
+	offset += storage.Offset(storage.SizeOfStringAsVarlen(fname))
 
 	// block id number
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfLong, bid)
-	offset += storage.Offset(storage.SizeOfLong)
+	offset += storage.SizeOfLong
 
 	// offset of the record
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, offsetVal)
-	offset += storage.Offset(storage.SizeOfOffset)
+	offset += storage.SizeOfOffset
 
 	// value of the record
 	assertVarlenAtPos(t, p, offset, val)
-	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(val))
+	offset += storage.Offset(storage.SizeOfStringAsVarlen(val))
 
 	newSetVarLenRecord(&recordBuffer{bytes: p})
 }
@@ -200,27 +200,27 @@ func TestLogCopy(t *testing.T) {
 
 	// test that the first entry is COPY
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTinyInt, storage.TinyInt(COPY))
-	offset += storage.Offset(storage.SizeOfTinyInt)
+	offset += storage.SizeOfTinyInt
 
 	// tx number
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfTxID, txNum)
-	offset += storage.Offset(storage.SizeOfTxID)
+	offset += storage.SizeOfTxID
 
 	// block name
 	assertVarlenAtPos(t, p, offset, fname)
-	offset += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fname))
+	offset += storage.Offset(storage.SizeOfStringAsVarlen(fname))
 
 	// block id number
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfLong, bid)
-	offset += storage.Offset(storage.SizeOfLong)
+	offset += storage.SizeOfLong
 
 	// offset of the record
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, offsetVal)
-	offset += storage.Offset(storage.SizeOfOffset)
+	offset += storage.SizeOfOffset
 
 	// length of the data
 	assertIntegerAtOffset(t, p, offset, storage.SizeOfOffset, storage.Offset(len(val)))
-	offset += storage.Offset(storage.SizeOfOffset)
+	offset += storage.SizeOfOffset
 
 	got := p[offset : offset+storage.Offset(len(val))]
 

@@ -5,7 +5,7 @@ import "testing"
 func TestValueFromFixed(t *testing.T) {
 	const exp = 42
 
-	fixed := UnsafeIntegerToFixedlen(SizeOfInt, Int(exp))
+	fixed := IntegerToFixedLen(SizeOfInt, Int(exp))
 	val := ValueFromFixedLen(fixed)
 
 	if v := ValueAsInteger[Int](val); v != exp {
@@ -16,7 +16,7 @@ func TestValueFromFixed(t *testing.T) {
 func TestValueFromVarlen(t *testing.T) {
 	const exp = "hello"
 
-	varlen := UnsafeNewVarlenFromGoString(exp)
+	varlen := NewVarlenFromGoString(exp)
 
 	val := ValueFromVarlen(varlen)
 

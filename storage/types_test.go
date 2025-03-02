@@ -10,7 +10,7 @@ func TestName(t *testing.T) {
 		s := "hello world"
 		n := NewNameFromGoString(s)
 
-		if Size(len(n)) != SizeOfName {
+		if Offset(len(n)) != SizeOfName {
 			t.Fatalf("expected %d, got %d", SizeOfName, len(n))
 		}
 
@@ -37,7 +37,7 @@ func TestName(t *testing.T) {
 		s := "hello world"
 		n := NewNameFromGoString(s)
 
-		if got := n.UnsafeAsGoString(); got != s {
+		if got := n.AsGoString(); got != s {
 			t.Fatalf("expected %s, got %s", s, got)
 		}
 	})

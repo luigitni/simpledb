@@ -8,10 +8,10 @@ func TestWriteFixedLen(t *testing.T) {
 	t.Run("write a single tinyint", func(t *testing.T) {
 		const v TinyInt = 77
 
-		page.UnsafeSetFixedlen(0, SizeOfTinyInt, UnsafeIntegerToFixedlen(SizeOfTinyInt, v))
+		page.SetFixedlen(0, SizeOfTinyInt, IntegerToFixedLen(SizeOfTinyInt, v))
 
-		got := page.UnsafeGetFixedlen(0, SizeOfTinyInt)
-		if got := UnsafeFixedToInteger[TinyInt](got); got != v {
+		got := page.GetFixedLen(0, SizeOfTinyInt)
+		if got := FixedLenToInteger[TinyInt](got); got != v {
 			t.Fatalf("expected %d, got %d", v, got)
 		}
 	})
@@ -19,10 +19,10 @@ func TestWriteFixedLen(t *testing.T) {
 	t.Run("write a single smallint", func(t *testing.T) {
 		const v SmallInt = 77
 
-		page.UnsafeSetFixedlen(0, SizeOfSmallInt, UnsafeIntegerToFixedlen(SizeOfSmallInt, v))
-		got := page.UnsafeGetFixedlen(0, SizeOfSmallInt)
+		page.SetFixedlen(0, SizeOfSmallInt, IntegerToFixedLen(SizeOfSmallInt, v))
+		got := page.GetFixedLen(0, SizeOfSmallInt)
 
-		if got := UnsafeFixedToInteger[SmallInt](got); got != v {
+		if got := FixedLenToInteger[SmallInt](got); got != v {
 			t.Fatalf("expected %d, got %d", v, got)
 		}
 	})
@@ -30,11 +30,11 @@ func TestWriteFixedLen(t *testing.T) {
 	t.Run("write a single Int", func(t *testing.T) {
 		const v Int = 77
 
-		page.UnsafeSetFixedlen(0, SizeOfInt, UnsafeIntegerToFixedlen(SizeOfInt, v))
+		page.SetFixedlen(0, SizeOfInt, IntegerToFixedLen(SizeOfInt, v))
 
-		got := page.UnsafeGetFixedlen(0, SizeOfInt)
+		got := page.GetFixedLen(0, SizeOfInt)
 
-		if got := UnsafeFixedToInteger[Int](got); got != v {
+		if got := FixedLenToInteger[Int](got); got != v {
 			t.Fatalf("expected %d, got %d", v, got)
 		}
 	})
@@ -42,10 +42,10 @@ func TestWriteFixedLen(t *testing.T) {
 	t.Run("write a single Long", func(t *testing.T) {
 		const v Long = 77
 
-		page.UnsafeSetFixedlen(0, SizeOfLong, UnsafeIntegerToFixedlen(SizeOfLong, v))
-		got := page.UnsafeGetFixedlen(0, SizeOfLong)
+		page.SetFixedlen(0, SizeOfLong, IntegerToFixedLen(SizeOfLong, v))
+		got := page.GetFixedLen(0, SizeOfLong)
 
-		if got := UnsafeFixedToInteger[Long](got); got != v {
+		if got := FixedLenToInteger[Long](got); got != v {
 			t.Fatalf("expected %d, got %d", v, got)
 		}
 	})
@@ -55,15 +55,15 @@ func TestWriteFixedLen(t *testing.T) {
 
 		var offset Offset = 0
 		for _, v := range nums {
-			page.UnsafeSetFixedlen(offset, SizeOfTinyInt, UnsafeIntegerToFixedlen(SizeOfTinyInt, v))
+			page.SetFixedlen(offset, SizeOfTinyInt, IntegerToFixedLen(SizeOfTinyInt, v))
 			offset += Offset(SizeOfTinyInt)
 		}
 
 		offset = 0
 		for _, v := range nums {
-			got := page.UnsafeGetFixedlen(offset, SizeOfTinyInt)
+			got := page.GetFixedLen(offset, SizeOfTinyInt)
 
-			if got := UnsafeFixedToInteger[TinyInt](got); got != v {
+			if got := FixedLenToInteger[TinyInt](got); got != v {
 				t.Fatalf("expected %d, got %d", v, got)
 			}
 
@@ -76,15 +76,15 @@ func TestWriteFixedLen(t *testing.T) {
 
 		var offset Offset = 0
 		for _, v := range nums {
-			page.UnsafeSetFixedlen(offset, SizeOfSmallInt, UnsafeIntegerToFixedlen(SizeOfSmallInt, v))
+			page.SetFixedlen(offset, SizeOfSmallInt, IntegerToFixedLen(SizeOfSmallInt, v))
 			offset += Offset(SizeOfSmallInt)
 		}
 
 		offset = 0
 		for _, v := range nums {
-			got := page.UnsafeGetFixedlen(offset, SizeOfSmallInt)
+			got := page.GetFixedLen(offset, SizeOfSmallInt)
 
-			if got := UnsafeFixedToInteger[SmallInt](got); got != v {
+			if got := FixedLenToInteger[SmallInt](got); got != v {
 				t.Fatalf("expected %d, got %d", v, got)
 			}
 
@@ -99,16 +99,16 @@ func TestWriteFixedLen(t *testing.T) {
 		for _, v := range nums {
 			v := Int(v)
 
-			page.UnsafeSetFixedlen(offset, SizeOfInt, UnsafeIntegerToFixedlen(SizeOfInt, v))
+			page.SetFixedlen(offset, SizeOfInt, IntegerToFixedLen(SizeOfInt, v))
 			offset += Offset(SizeOfInt)
 		}
 
 		offset = 0
 		for _, v := range nums {
 			v := Int(v)
-			got := page.UnsafeGetFixedlen(offset, SizeOfInt)
+			got := page.GetFixedLen(offset, SizeOfInt)
 
-			if got := UnsafeFixedToInteger[Int](got); got != v {
+			if got := FixedLenToInteger[Int](got); got != v {
 				t.Fatalf("expected %d, got %d", v, got)
 			}
 
@@ -121,15 +121,15 @@ func TestWriteFixedLen(t *testing.T) {
 
 		var offset Offset = 0
 		for _, v := range nums {
-			page.UnsafeSetFixedlen(offset, SizeOfLong, UnsafeIntegerToFixedlen(SizeOfLong, v))
+			page.SetFixedlen(offset, SizeOfLong, IntegerToFixedLen(SizeOfLong, v))
 			offset += Offset(SizeOfLong)
 		}
 
 		offset = 0
 		for _, v := range nums {
-			got := page.UnsafeGetFixedlen(offset, SizeOfLong)
+			got := page.GetFixedLen(offset, SizeOfLong)
 
-			if got := UnsafeFixedToInteger[Long](got); got != v {
+			if got := FixedLenToInteger[Long](got); got != v {
 				t.Fatalf("expected %d, got %d", v, got)
 			}
 
@@ -144,10 +144,10 @@ func TestWriteVarlen(t *testing.T) {
 	t.Run("write a single string", func(t *testing.T) {
 		const v = "this is a test"
 
-		page.UnsafeSetVarlen(0, UnsafeNewVarlenFromGoString(v))
+		page.SetVarlen(0, NewVarlenFromGoString(v))
 
-		got := page.UnsafeGetVarlen(0)
-		if got := UnsafeVarlenToGoString(got); got != v {
+		got := page.GetVarlen(0)
+		if got := VarlenToGoString(got); got != v {
 			t.Fatalf("expected %q, got %q", v, got)
 		}
 	})
@@ -155,11 +155,11 @@ func TestWriteVarlen(t *testing.T) {
 	t.Run("write a raw byte slice", func(t *testing.T) {
 		const v = "this is a test"
 
-		page.UnsafeWriteRawVarlen(0, []byte(v))
+		page.WriteRawVarlen(0, []byte(v))
 
-		got := page.UnsafeGetVarlen(0)
+		got := page.GetVarlen(0)
 
-		if got := UnsafeVarlenToGoString(got); got != v {
+		if got := VarlenToGoString(got); got != v {
 			t.Fatalf("expected %q, got %q", v, got)
 		}
 	})
@@ -168,17 +168,17 @@ func TestWriteVarlen(t *testing.T) {
 		strs := []string{"hello", "world", "this", "is", "a", "test"}
 		var offset Offset = 0
 		for _, v := range strs {
-			page.UnsafeSetVarlen(offset, UnsafeNewVarlenFromGoString(v))
-			offset += Offset(UnsafeSizeOfStringAsVarlen(v))
+			page.SetVarlen(offset, NewVarlenFromGoString(v))
+			offset += Offset(SizeOfStringAsVarlen(v))
 		}
 
 		offset = 0
 		for _, v := range strs {
-			got := page.UnsafeGetVarlen(offset)
-			if got := UnsafeVarlenToGoString(got); got != v {
+			got := page.GetVarlen(offset)
+			if got := VarlenToGoString(got); got != v {
 				t.Fatalf("expected %q, got %q", v, got)
 			}
-			offset += Offset(UnsafeSizeOfStringAsVarlen(v))
+			offset += Offset(SizeOfStringAsVarlen(v))
 		}
 	})
 }

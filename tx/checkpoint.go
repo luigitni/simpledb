@@ -45,6 +45,6 @@ func writeCheckpoint(dst []byte) {
 	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
-		storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(CHECKPOINT)),
+		storage.IntegerToFixedLen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(CHECKPOINT)),
 	)
 }

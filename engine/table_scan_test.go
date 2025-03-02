@@ -34,8 +34,8 @@ func TestTableScan(t *testing.T) {
 		fullName := tag(val)
 
 		var size storage.Offset
-		size += storage.Offset(storage.SizeOfInt)
-		size += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(fullName))
+		size += storage.SizeOfInt
+		size += storage.Offset(storage.SizeOfStringAsVarlen(fullName))
 
 		scan.Insert(size)
 		if err := scan.SetVal("id", storage.ValueFromInteger(storage.SizeOfInt, val)); err != nil {
@@ -69,8 +69,8 @@ func TestTableScan(t *testing.T) {
 			s := fmt.Sprintf("employee_%d", v)
 
 			var size storage.Offset
-			size += storage.Offset(storage.SizeOfInt)
-			size += storage.Offset(storage.UnsafeSizeOfStringAsVarlen(s))
+			size += storage.SizeOfInt
+			size += storage.Offset(storage.SizeOfStringAsVarlen(s))
 
 			scan.Insert(size)
 
@@ -105,7 +105,7 @@ func TestTableScan(t *testing.T) {
 				t.Fatalf("error retrieving id: %s", err)
 			}
 
-			if got := v.AsFixedLen().UnsafeAsInt(); got != id {
+			if got := v.AsFixedLen().AsInt(); got != id {
 				t.Fatalf("expected scanned value to be %d, got %d", id, got)
 			}
 
@@ -114,7 +114,7 @@ func TestTableScan(t *testing.T) {
 				t.Fatalf("error retrieving tag: %s", err)
 			}
 
-			if got := storage.UnsafeVarlenToGoString(s.AsVarlen()); got != tag(id) {
+			if got := storage.VarlenToGoString(s.AsVarlen()); got != tag(id) {
 				t.Fatalf("expected tag %q, got %q", tag(id), got)
 			}
 

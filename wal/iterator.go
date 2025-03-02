@@ -46,7 +46,7 @@ func (it *WalIterator) Next() []byte {
 	}
 
 	// each WAL record is prepended by its size
-	record := it.page.UnsafeGetVarlen(it.currentPos)
+	record := it.page.GetVarlen(it.currentPos)
 	// move the iterator pointer to the next record
 	it.currentPos += storage.Offset(record.Size())
 	return record.Data()
@@ -64,7 +64,7 @@ func (it *WalIterator) moveToBlock(block storage.Block) {
 	it.fm.Read(block, it.page)
 	// boundary contains the offset of the most recently added record
 	// read the boundary from the page
-	it.boundary = it.page.UnsafeGetFixedlen(0, storage.SizeOfOffset).UnsafeAsOffset()
+	it.boundary = it.page.GetFixedLen(0, storage.SizeOfOffset).AsOffset()
 	// position the iterator after the boundary offset
 	it.currentPos = it.boundary
 	it.block = block

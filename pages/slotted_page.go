@@ -33,36 +33,36 @@ const sizeOfHeaderEntry = storage.SizeOfLong
 // - byte 5 to 8 store record flags (whether empty/deleted etc)
 type slottedPageHeaderEntry [8]byte
 
-const sizeOfPageHeaderEntry = storage.Size(len(slottedPageHeaderEntry{}))
+const sizeOfPageHeaderEntry storage.Offset = storage.Offset(len(slottedPageHeaderEntry{}))
 
 func (e slottedPageHeaderEntry) recordOffset() storage.Offset {
-	return storage.UnsafeFixedToInteger[storage.Offset](e[:2])
+	return storage.FixedLenToInteger[storage.Offset](e[:2])
 }
 
 func (e slottedPageHeaderEntry) recordLength() storage.Offset {
-	return storage.UnsafeFixedToInteger[storage.Offset](e[2:4])
+	return storage.FixedLenToInteger[storage.Offset](e[2:4])
 }
 
 // todo: this is not really a bit mask, more of a status flag.
 // We can handle this better
 func (e slottedPageHeaderEntry) flags() flag {
-	return flag(storage.UnsafeFixedToInteger[storage.Int](e[4:6]))
+	return flag(storage.FixedLenToInteger[storage.Int](e[4:6]))
 }
 
 func (e slottedPageHeaderEntry) setOffset(offset storage.Offset) slottedPageHeaderEntry {
-	fixed := storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, offset)
+	fixed := storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, offset)
 	copy(e[:2], fixed)
 	return e
 }
 
 func (e slottedPageHeaderEntry) setLength(length storage.Offset) slottedPageHeaderEntry {
-	fixed := storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, length)
+	fixed := storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, length)
 	copy(e[2:4], fixed)
 	return e
 }
 
 func (e slottedPageHeaderEntry) setFlag(f flag) slottedPageHeaderEntry {
-	fixed := storage.UnsafeIntegerToFixedlen[storage.Int](storage.SizeOfInt, storage.Int(f))
+	fixed := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, storage.Int(f))
 	copy(e[4:], fixed)
 	return e
 }
@@ -86,13 +86,13 @@ const (
 	// blockNumber is a storage.Long that stores the block number of the page
 	blockNumberOffset storage.Offset = 0
 	// numSlots is a storage.SmallInt that stores the number of slots in the page
-	numSlotsOffset storage.Offset = blockNumberOffset + storage.Offset(storage.SizeOfLong)
+	numSlotsOffset storage.Offset = blockNumberOffset + storage.SizeOfLong
 	// freeSpaceEnd is a storage.SmallInt that stores the end of the free space in the page
-	freeSpaceEndOffset storage.Offset = numSlotsOffset + storage.Offset(storage.SizeOfSmallInt)
+	freeSpaceEndOffset storage.Offset = numSlotsOffset + storage.SizeOfSmallInt
 	// specialSpaceStart is a storage.Offset that stores the start of the special space in the page
-	specialSpaceStartOffset storage.Offset = freeSpaceEndOffset + storage.Offset(storage.SizeOfSmallInt)
+	specialSpaceStartOffset storage.Offset = freeSpaceEndOffset + storage.SizeOfSmallInt
 	// entriesOffset is the offset of the first slot entry in the page
-	entriesOffset storage.Offset = specialSpaceStartOffset + storage.Offset(storage.SizeOfSmallInt)
+	entriesOffset storage.Offset = specialSpaceStartOffset + storage.SizeOfSmallInt
 )
 
 func (h slottedPageHeader) freeSpaceStart() storage.Offset {
@@ -100,7 +100,7 @@ func (h slottedPageHeader) freeSpaceStart() storage.Offset {
 }
 
 func (h slottedPageHeader) lastSlotOffset() storage.Offset {
-	return entriesOffset + storage.Offset(h.mustNumSlots())*storage.Offset(sizeOfHeaderEntry)
+	return entriesOffset + storage.Offset(h.mustNumSlots())*sizeOfHeaderEntry
 }
 
 func (h slottedPageHeader) freeSpaceAvailable() storage.Offset {
@@ -112,7 +112,7 @@ func (h slottedPageHeader) setBlockNumber(block storage.Long) error {
 		*h.block,
 		blockNumberOffset,
 		storage.SizeOfLong,
-		storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfLong, block),
+		storage.IntegerToFixedLen[storage.Long](storage.SizeOfLong, block),
 		true,
 	)
 }
@@ -124,7 +124,7 @@ func (h slottedPageHeader) blockNumber() (storage.Long, error) {
 		return 0, err
 	}
 
-	return storage.UnsafeFixedToInteger[storage.Long](v), nil
+	return storage.FixedLenToInteger[storage.Long](v), nil
 }
 
 func (h slottedPageHeader) mustBlockNumber() storage.Long {
@@ -141,7 +141,7 @@ func (h slottedPageHeader) setNumSlots(numSlots storage.SmallInt) error {
 		*h.block,
 		numSlotsOffset,
 		storage.SizeOfSmallInt,
-		storage.UnsafeIntegerToFixedlen[storage.SmallInt](storage.SizeOfSmallInt, numSlots),
+		storage.IntegerToFixedLen[storage.SmallInt](storage.SizeOfSmallInt, numSlots),
 		true,
 	)
 }
@@ -153,7 +153,7 @@ func (h slottedPageHeader) numSlots() (storage.SmallInt, error) {
 		return 0, err
 	}
 
-	return storage.UnsafeFixedToInteger[storage.SmallInt](v), nil
+	return storage.FixedLenToInteger[storage.SmallInt](v), nil
 }
 
 func (p slottedPageHeader) mustNumSlots() storage.SmallInt {
@@ -170,7 +170,7 @@ func (h slottedPageHeader) setFreeSpaceEnd(offset storage.Offset) error {
 		*h.block,
 		freeSpaceEndOffset,
 		storage.SizeOfOffset,
-		storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, offset),
+		storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, offset),
 		true,
 	)
 }
@@ -182,7 +182,7 @@ func (h slottedPageHeader) freeSpaceEnd() (storage.Offset, error) {
 		return 0, err
 	}
 
-	return storage.UnsafeFixedToInteger[storage.Offset](v), nil
+	return storage.FixedLenToInteger[storage.Offset](v), nil
 }
 
 func (h slottedPageHeader) mustFreeSpaceEnd() storage.Offset {
@@ -199,7 +199,7 @@ func (h slottedPageHeader) setSpecialSpaceStart(offset storage.Offset) error {
 		*h.block,
 		specialSpaceStartOffset,
 		storage.SizeOfOffset,
-		storage.UnsafeIntegerToFixedlen[storage.Offset](storage.SizeOfOffset, offset),
+		storage.IntegerToFixedLen[storage.Offset](storage.SizeOfOffset, offset),
 		true,
 	)
 }
@@ -211,7 +211,7 @@ func (h slottedPageHeader) specialSpaceStart() (storage.Offset, error) {
 		return 0, err
 	}
 
-	return storage.UnsafeFixedToInteger[storage.Offset](v), nil
+	return storage.FixedLenToInteger[storage.Offset](v), nil
 }
 
 func (h slottedPageHeader) mustSpecialSpaceStart() storage.Offset {
@@ -228,7 +228,7 @@ func (h slottedPageHeader) mustSpecialSpaceStart() storage.Offset {
 func (header *slottedPageHeader) appendRecordSlot(actualRecordSize storage.Offset) error {
 	available := header.freeSpaceAvailable()
 
-	totalSize := actualRecordSize + storage.Offset(sizeOfHeaderEntry)
+	totalSize := actualRecordSize + sizeOfHeaderEntry
 
 	if totalSize > available {
 		return errNoFreeSpaceAvailable
@@ -246,7 +246,7 @@ func (header *slottedPageHeader) appendRecordSlot(actualRecordSize storage.Offse
 }
 
 func (header *slottedPageHeader) entry(slot storage.SmallInt) (slottedPageHeaderEntry, error) {
-	offset := entriesOffset + storage.Offset(sizeOfHeaderEntry)*storage.Offset(slot)
+	offset := entriesOffset + sizeOfHeaderEntry*storage.Offset(slot)
 	v, err := header.x.Fixedlen(*header.block, offset, sizeOfHeaderEntry)
 	if err != nil {
 		return slottedPageHeaderEntry{}, err
@@ -256,12 +256,12 @@ func (header *slottedPageHeader) entry(slot storage.SmallInt) (slottedPageHeader
 }
 
 func (header *slottedPageHeader) setEntry(slot storage.SmallInt, entry slottedPageHeaderEntry) error {
-	offset := entriesOffset + storage.Offset(sizeOfHeaderEntry)*storage.Offset(slot)
+	offset := entriesOffset + sizeOfHeaderEntry*storage.Offset(slot)
 
 	if err := header.x.SetFixedlen(
 		*header.block,
 		offset,
-		sizeOfHeaderEntry, storage.UnsafeByteSliceToFixedlen(entry[:]),
+		sizeOfHeaderEntry, storage.ByteSliceToFixedlen(entry[:]),
 		true,
 	); err != nil {
 		return fmt.Errorf("set entry: %w", err)
@@ -281,14 +281,14 @@ func (header *slottedPageHeader) appendEntry(entry slottedPageHeaderEntry) error
 		return fmt.Errorf("get numSlots: %w", err)
 	}
 
-	numSlots := storage.UnsafeFixedToInteger[storage.SmallInt](currentSlots)
+	numSlots := storage.FixedLenToInteger[storage.SmallInt](currentSlots)
 	numSlots++
 
-	if err := header.setNumSlots(storage.SmallInt(numSlots)); err != nil {
+	if err := header.setNumSlots(numSlots); err != nil {
 		return fmt.Errorf("set numSlots: %w", err)
 	}
 
-	if err := header.setEntry(storage.SmallInt(numSlots-1), entry); err != nil {
+	if err := header.setEntry(numSlots-1, entry); err != nil {
 
 		return fmt.Errorf("set entry: %w", err)
 	}
@@ -363,7 +363,7 @@ func (h recordHeader) hasFlag(flag recordHeaderFlag) bool {
 }
 
 // recordHeaderSize is the size of the recordHeaderTxInfo struct
-const recordHeaderSize storage.Offset = storage.Offset(2*storage.SizeOfTxID + 2*storage.SizeOfSmallInt)
+const recordHeaderSize storage.Offset = 2*storage.SizeOfTxID + 2*storage.SizeOfSmallInt
 
 // NewSlottedPage creates a new SlottedRecordPage struct
 func NewSlottedPage(tx tx.Transaction, block storage.Block, layout Layout) *SlottedPage {
@@ -391,7 +391,7 @@ func (p *SlottedPage) Block() storage.Block {
 
 // recordSizeIncludingRecordHeader calculates the size of a record on disk including header
 func (p *SlottedPage) recordSizeIncludingRecordHeader(recordSize storage.Offset) storage.Offset {
-	return storage.Offset(recordHeaderSize) + recordSize
+	return recordHeaderSize + recordSize
 }
 
 func (p *SlottedPage) Header() (slottedPageHeader, error) {
@@ -407,43 +407,43 @@ func (p *SlottedPage) writeRecordHeader(offset storage.Offset, recordHeader reco
 		p.block,
 		offset,
 		storage.SizeOfTxID,
-		storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, recordHeader.txinfo.xmin),
+		storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, recordHeader.txinfo.xmin),
 		true,
 	); err != nil {
 		return err
 	}
 
-	offset += storage.Offset(storage.SizeOfTxID)
+	offset += storage.SizeOfTxID
 
 	if err := p.x.SetFixedlen(
 		p.block,
 		offset,
 		storage.SizeOfTxID,
-		storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, recordHeader.txinfo.xmax),
+		storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, recordHeader.txinfo.xmax),
 		true,
 	); err != nil {
 		return err
 	}
 
-	offset += storage.Offset(storage.SizeOfTxID)
+	offset += storage.SizeOfTxID
 
 	if err := p.x.SetFixedlen(
 		p.block,
 		offset,
 		storage.SizeOfInt,
-		storage.UnsafeIntegerToFixedlen[storage.SmallInt](storage.SizeOfSmallInt, recordHeader.txinfo.txop),
+		storage.IntegerToFixedLen[storage.SmallInt](storage.SizeOfSmallInt, recordHeader.txinfo.txop),
 		true,
 	); err != nil {
 		return err
 	}
 
-	offset += storage.Offset(storage.SizeOfSmallInt)
+	offset += storage.SizeOfSmallInt
 
 	if err := p.x.SetFixedlen(
 		p.block,
 		offset,
 		storage.SizeOfSmallInt,
-		storage.UnsafeIntegerToFixedlen[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(recordHeader.txinfo.flags)),
+		storage.IntegerToFixedLen[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(recordHeader.txinfo.flags)),
 		true,
 	); err != nil {
 		return err
@@ -458,21 +458,21 @@ func (p *SlottedPage) readRecordHeader(offset storage.Offset) (recordHeader, err
 		return recordHeader{}, err
 	}
 
-	offset += storage.Offset(storage.SizeOfTxID)
+	offset += storage.SizeOfTxID
 
 	xmax, err := p.x.Fixedlen(p.block, offset, storage.SizeOfTxID)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	offset += storage.Offset(storage.SizeOfTxID)
+	offset += storage.SizeOfTxID
 
 	txop, err := p.x.Fixedlen(p.block, offset, storage.SizeOfSmallInt)
 	if err != nil {
 		return recordHeader{}, err
 	}
 
-	offset += storage.Offset(storage.SizeOfSmallInt)
+	offset += storage.SizeOfSmallInt
 
 	flags, err := p.x.Fixedlen(p.block, offset, storage.SizeOfSmallInt)
 	if err != nil {
@@ -481,17 +481,17 @@ func (p *SlottedPage) readRecordHeader(offset storage.Offset) (recordHeader, err
 
 	return recordHeader{
 		txinfo: recordHeaderTxInfo{
-			xmin:  storage.UnsafeFixedToInteger[storage.TxID](xmin),
-			xmax:  storage.UnsafeFixedToInteger[storage.TxID](xmax),
-			txop:  storage.UnsafeFixedToInteger[storage.SmallInt](txop),
-			flags: recordHeaderFlag(storage.UnsafeFixedToInteger[storage.SmallInt](flags)),
+			xmin:  storage.FixedLenToInteger[storage.TxID](xmin),
+			xmax:  storage.FixedLenToInteger[storage.TxID](xmax),
+			txop:  storage.FixedLenToInteger[storage.SmallInt](txop),
+			flags: recordHeaderFlag(storage.FixedLenToInteger[storage.SmallInt](flags)),
 		},
 	}, nil
 }
 
 // entry returns the entry of the record pointed to by the given slot
 func (p *SlottedPage) entry(slot storage.SmallInt) (slottedPageHeaderEntry, error) {
-	offset := entriesOffset + storage.Offset(sizeOfHeaderEntry)*storage.Offset(slot)
+	offset := entriesOffset + sizeOfHeaderEntry*storage.Offset(slot)
 	v, err := p.x.Fixedlen(p.block, offset, sizeOfHeaderEntry)
 	if err != nil {
 		return slottedPageHeaderEntry{}, err
@@ -501,7 +501,7 @@ func (p *SlottedPage) entry(slot storage.SmallInt) (slottedPageHeaderEntry, erro
 }
 
 func (p *SlottedPage) writeEntry(slot storage.SmallInt, entry slottedPageHeaderEntry) error {
-	offset := entriesOffset + storage.Offset(sizeOfHeaderEntry)*storage.Offset(slot)
+	offset := entriesOffset + sizeOfHeaderEntry*storage.Offset(slot)
 	return p.x.SetFixedlen(p.block, offset, sizeOfHeaderEntry, storage.FixedLen(entry[:]), true)
 }
 
@@ -534,10 +534,10 @@ func (p *SlottedPage) FieldOffset(slot storage.SmallInt, fieldname string) (stor
 				return 0, err
 			}
 
-			offset += storage.UnsafeFixedToInteger[storage.Offset](v)
-			offset += storage.Offset(storage.SizeOfInt)
+			offset += storage.FixedLenToInteger[storage.Offset](v)
+			offset += storage.SizeOfInt
 		} else {
-			offset += storage.Offset(size)
+			offset += size
 		}
 	}
 
@@ -601,7 +601,7 @@ func (p *SlottedPage) SetVarLen(slot storage.SmallInt, fieldname string, val sto
 
 // SetFixedLenAtSpecial sets the value of a fixed len field in the special space.
 // The offset is relative to the start of the special space.
-func (p *SlottedPage) SetFixedLenAtSpecial(offset storage.Offset, size storage.Size, val storage.FixedLen) error {
+func (p *SlottedPage) SetFixedLenAtSpecial(offset storage.Offset, size storage.Offset, val storage.FixedLen) error {
 	header, err := p.Header()
 	if err != nil {
 
@@ -647,7 +647,7 @@ func (p *SlottedPage) VarLenAtSpecial(offset storage.Offset) (storage.Varlen, er
 	return p.x.Varlen(p.block, header.mustSpecialSpaceStart()+offset)
 }
 
-func (p *SlottedPage) FixedLenAtSpecial(offset storage.Offset, size storage.Size) (storage.FixedLen, error) {
+func (p *SlottedPage) FixedLenAtSpecial(offset storage.Offset, size storage.Offset) (storage.FixedLen, error) {
 	header, err := p.Header()
 	if err != nil {
 
@@ -743,8 +743,7 @@ func (p *SlottedPage) RecordsFit(size ...storage.Offset) (bool, error) {
 
 	var tot storage.Offset
 	for _, s := range size {
-		tot += p.recordSizeIncludingRecordHeader(s) +
-			storage.Offset(sizeOfHeaderEntry)
+		tot += p.recordSizeIncludingRecordHeader(s) + sizeOfHeaderEntry
 	}
 
 	available := header.freeSpaceAvailable()
@@ -867,7 +866,7 @@ func (page *SlottedPage) InsertAt(slot storage.SmallInt, recordSize storage.Offs
 		return fmt.Errorf("InsertAt: freeSpaceEnd %w", err)
 	}
 
-	totalSize := recordSize + storage.Offset(sizeOfHeaderEntry)
+	totalSize := recordSize + sizeOfHeaderEntry
 
 	// check if there is enough space to shift the slots
 	if header.freeSpaceStart()+totalSize > freeSpaceEnd {
@@ -881,9 +880,9 @@ func (page *SlottedPage) InsertAt(slot storage.SmallInt, recordSize storage.Offs
 	if numSlots != 0 {
 		if err := header.x.Copy(
 			*header.block,
-			entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot),
-			entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot+1),
-			storage.Offset(numSlots-slot)*storage.Offset(sizeOfPageHeaderEntry),
+			entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot),
+			entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot+1),
+			storage.Offset(numSlots-slot)*sizeOfPageHeaderEntry,
 			true,
 		); err != nil {
 			return fmt.Errorf("ShiftSlotsRight: copy: %w", err)
@@ -924,9 +923,9 @@ func (page *SlottedPage) ShiftSlotsLeft(slot storage.SmallInt) error {
 
 	if err := header.x.Copy(
 		*header.block,
-		entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot),
-		entriesOffset+storage.Offset(sizeOfPageHeaderEntry)*storage.Offset(slot-1),
-		storage.Offset(numSlots-slot)*storage.Offset(sizeOfPageHeaderEntry),
+		entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot),
+		entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot-1),
+		storage.Offset(numSlots-slot)*sizeOfPageHeaderEntry,
 		true,
 	); err != nil {
 

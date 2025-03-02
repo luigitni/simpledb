@@ -20,7 +20,7 @@ func newStartLogRecord(record *recordBuffer) startLogRecord {
 	}
 
 	return startLogRecord{
-		txnum: storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),
+		txnum: storage.FixedLenToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),
 	}
 }
 
@@ -51,10 +51,10 @@ func writeStart(dst []byte, txnum storage.TxID) {
 	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
-		storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(START)),
+		storage.IntegerToFixedLen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(START)),
 	)
 	rbuf.writeFixedLen(
 		storage.SizeOfTxID,
-		storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum),
+		storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, txnum),
 	)
 }

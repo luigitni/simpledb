@@ -19,9 +19,9 @@ const (
 	bTreePageFlagOffset storage.Offset = 0
 	// bTreePageNumRecordsOffset is the byte offset of the records size.
 	// The size is a value of type SmallInt.
-	bTreePageNumRecordsOffset storage.Offset = bTreePageFlagOffset + storage.Offset(storage.SizeOfLong)
+	bTreePageNumRecordsOffset storage.Offset = bTreePageFlagOffset + storage.SizeOfLong
 
-	bTreeSpecialBlockSize storage.Offset = storage.Offset(storage.SizeOfLong + storage.SizeOfSmallInt)
+	bTreeSpecialBlockSize storage.Offset = storage.SizeOfLong + storage.SizeOfSmallInt
 
 	bTreeMaxSizeOfKey storage.Offset = 512
 )
@@ -128,8 +128,8 @@ func (p bTreePage) dataRID(slot storage.SmallInt) (RID, error) {
 	}
 
 	return NewRID(
-		block.UnsafeAsLong(),
-		id.UnsafeAsSmallInt(),
+		block.AsLong(),
+		id.AsSmallInt(),
 	), nil
 }
 
@@ -139,14 +139,14 @@ func (p bTreePage) flag() (storage.Long, error) {
 		return 0, err
 	}
 
-	return storage.UnsafeFixedToInteger[storage.Long](v), nil
+	return storage.FixedLenToInteger[storage.Long](v), nil
 }
 
 func (p bTreePage) setFlag(v storage.Long) error {
 	return p.slottedPage.SetFixedLenAtSpecial(
 		bTreePageFlagOffset,
 		storage.SizeOfLong,
-		storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfLong, v),
+		storage.IntegerToFixedLen[storage.Long](storage.SizeOfLong, v),
 	)
 }
 
@@ -156,14 +156,14 @@ func (p bTreePage) numRecords() (storage.SmallInt, error) {
 		return 0, err
 	}
 
-	return storage.UnsafeFixedToInteger[storage.SmallInt](v), nil
+	return storage.FixedLenToInteger[storage.SmallInt](v), nil
 }
 
 func (p bTreePage) setNumRecords(s storage.SmallInt) error {
 	return p.slottedPage.SetFixedLenAtSpecial(
 		bTreePageNumRecordsOffset,
 		storage.SizeOfSmallInt,
-		storage.UnsafeIntegerToFixedlen[storage.SmallInt](storage.SizeOfSmallInt, s),
+		storage.IntegerToFixedLen[storage.SmallInt](storage.SizeOfSmallInt, s),
 	)
 }
 
@@ -363,12 +363,12 @@ func (page bTreePage) getBlockNumber(slot storage.SmallInt) (storage.Long, error
 		return 0, err
 	}
 
-	return storage.UnsafeFixedToInteger[storage.Long](v), nil
+	return storage.FixedLenToInteger[storage.Long](v), nil
 }
 
 // insertDirectory insert a directory value into the page
 func (page bTreePage) insertDirectoryRecord(slot storage.SmallInt, val storage.Value, blockNumber storage.Long) error {
-	recordSize := val.Size(page.dataValType) + storage.Offset(storage.SizeOfLong)
+	recordSize := val.Size(page.dataValType) + storage.SizeOfLong
 
 	slot, err := page.insert(slot, val, recordSize)
 	if err != nil {
@@ -378,7 +378,7 @@ func (page bTreePage) insertDirectoryRecord(slot storage.SmallInt, val storage.V
 	if err := page.slottedPage.SetFixedLen(
 		slot,
 		indexFieldBlockNumber,
-		storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfLong, blockNumber),
+		storage.IntegerToFixedLen[storage.Long](storage.SizeOfLong, blockNumber),
 	); err != nil {
 		return err
 	}
@@ -388,7 +388,7 @@ func (page bTreePage) insertDirectoryRecord(slot storage.SmallInt, val storage.V
 
 // insertLeaf inserts a leaf value into the page
 func (page bTreePage) insertLeafRecord(slot storage.SmallInt, val storage.Value, rid RID) error {
-	recordSize := val.Size(page.dataValType) + storage.Offset(SizeOfRID)
+	recordSize := val.Size(page.dataValType) + SizeOfRID
 
 	slot, err := page.insert(slot, val, recordSize)
 	if err != nil {
@@ -398,7 +398,7 @@ func (page bTreePage) insertLeafRecord(slot storage.SmallInt, val storage.Value,
 	if err := page.slottedPage.SetFixedLen(
 		slot,
 		indexFieldBlockNumber,
-		storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfLong, rid.Blocknum),
+		storage.IntegerToFixedLen[storage.Long](storage.SizeOfLong, rid.Blocknum),
 	); err != nil {
 		return err
 	}
@@ -406,7 +406,7 @@ func (page bTreePage) insertLeafRecord(slot storage.SmallInt, val storage.Value,
 	if err := page.slottedPage.SetFixedLen(
 		slot,
 		indexFieldRecordID,
-		storage.UnsafeIntegerToFixedlen[storage.SmallInt](storage.SizeOfSmallInt, rid.Slot),
+		storage.IntegerToFixedLen[storage.SmallInt](storage.SizeOfSmallInt, rid.Slot),
 	); err != nil {
 		return err
 	}

@@ -43,7 +43,7 @@ func TestRecoveryManagerLogs(t *testing.T) {
 
 	oldVals := [...]any{
 		12: storage.Int(123),
-		40: storage.UnsafeNewVarlenFromGoString("this is the old val"),
+		40: storage.NewVarlenFromGoString("this is the old val"),
 		80: storage.SmallInt(6),
 	}
 
@@ -51,11 +51,11 @@ func TestRecoveryManagerLogs(t *testing.T) {
 		k := storage.Offset(k)
 		switch v := v.(type) {
 		case storage.Int:
-			buffer.Contents().UnsafeSetFixedlen(k, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfInt, v))
+			buffer.Contents().SetFixedlen(k, storage.SizeOfInt, storage.IntegerToFixedLen(storage.SizeOfInt, v))
 		case storage.Varlen:
-			buffer.Contents().UnsafeSetVarlen(k, v)
+			buffer.Contents().SetVarlen(k, v)
 		case storage.SmallInt:
-			buffer.Contents().UnsafeSetFixedlen(k, storage.SizeOfSmallInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfSmallInt, v))
+			buffer.Contents().SetFixedlen(k, storage.SizeOfSmallInt, storage.IntegerToFixedLen(storage.SizeOfSmallInt, v))
 		}
 	}
 
@@ -135,11 +135,11 @@ func TestDoRollback(t *testing.T) {
 		k := storage.Offset(k)
 		switch v := v.(type) {
 		case storage.SmallInt:
-			x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfSmallInt, v), true)
+			x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.IntegerToFixedLen(storage.SizeOfSmallInt, v), true)
 		case storage.Int:
-			x.SetFixedlen(block, k, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfInt, v), true)
+			x.SetFixedlen(block, k, storage.SizeOfInt, storage.IntegerToFixedLen(storage.SizeOfInt, v), true)
 		case string:
-			vl := storage.UnsafeNewVarlenFromGoString(v)
+			vl := storage.NewVarlenFromGoString(v)
 			x.SetVarlen(block, k, vl, true)
 		}
 	}
@@ -154,11 +154,11 @@ func TestDoRollback(t *testing.T) {
 			k := storage.Offset(k)
 			switch v := v.(type) {
 			case storage.SmallInt:
-				x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfSmallInt, v), true)
+				x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.IntegerToFixedLen(storage.SizeOfSmallInt, v), true)
 			case storage.Int:
-				x.SetFixedlen(block, k, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfInt, v), true)
+				x.SetFixedlen(block, k, storage.SizeOfInt, storage.IntegerToFixedLen(storage.SizeOfInt, v), true)
 			case string:
-				vl := storage.UnsafeNewVarlenFromGoString(v)
+				vl := storage.NewVarlenFromGoString(v)
 				x.SetVarlen(block, k, vl, true)
 			}
 		}
@@ -170,17 +170,17 @@ func TestDoRollback(t *testing.T) {
 			switch v := v.(type) {
 			case storage.SmallInt:
 				val, _ := x.Fixedlen(block, k, storage.SizeOfSmallInt)
-				if got := storage.UnsafeFixedToInteger[storage.SmallInt](val); got != v {
+				if got := storage.FixedLenToInteger[storage.SmallInt](val); got != v {
 					t.Fatalf("expected %d, got %d", v, got)
 				}
 			case storage.Int:
 				val, _ := x.Fixedlen(block, k, storage.SizeOfInt)
-				if got := storage.UnsafeFixedToInteger[storage.Int](val); got != v {
+				if got := storage.FixedLenToInteger[storage.Int](val); got != v {
 					t.Fatalf("expected %d, got %d", v, got)
 				}
 			case string:
 				val, _ := x.Varlen(block, k)
-				if got := storage.UnsafeVarlenToGoString(val); got != v {
+				if got := storage.VarlenToGoString(val); got != v {
 					t.Fatalf("expected %s, got %s", v, got)
 				}
 			}
@@ -188,7 +188,7 @@ func TestDoRollback(t *testing.T) {
 
 		// test the newly inserted value is not in the buffer
 		v, _ := x.Fixedlen(block, 812, storage.SizeOfInt)
-		if got := storage.UnsafeFixedToInteger[storage.Int](v); got != 0 {
+		if got := storage.FixedLenToInteger[storage.Int](v); got != 0 {
 			t.Fatalf("expected 0, got %d", got)
 		}
 	})
@@ -203,11 +203,11 @@ func TestDoRollback(t *testing.T) {
 			k := storage.Offset(k)
 			switch v := v.(type) {
 			case storage.SmallInt:
-				x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfSmallInt, v), true)
+				x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.IntegerToFixedLen(storage.SizeOfSmallInt, v), true)
 			case storage.Int:
-				x.SetFixedlen(block, k, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfInt, v), true)
+				x.SetFixedlen(block, k, storage.SizeOfInt, storage.IntegerToFixedLen(storage.SizeOfInt, v), true)
 			case string:
-				vl := storage.UnsafeNewVarlenFromGoString(v)
+				vl := storage.NewVarlenFromGoString(v)
 				x.SetVarlen(block, k, vl, true)
 			}
 		}
@@ -218,17 +218,17 @@ func TestDoRollback(t *testing.T) {
 			switch v := v.(type) {
 			case storage.SmallInt:
 				val, _ := x.Fixedlen(block, k, storage.SizeOfSmallInt)
-				if got := storage.UnsafeFixedToInteger[storage.SmallInt](val); got != v {
+				if got := storage.FixedLenToInteger[storage.SmallInt](val); got != v {
 					t.Fatalf("expected %d, got %d", v, got)
 				}
 			case storage.Int:
 				val, _ := x.Fixedlen(block, k, storage.SizeOfInt)
-				if got := storage.UnsafeFixedToInteger[storage.Int](val); got != v {
+				if got := storage.FixedLenToInteger[storage.Int](val); got != v {
 					t.Fatalf("expected %d, got %d", v, got)
 				}
 			case string:
 				val, _ := x.Varlen(block, k)
-				if got := storage.UnsafeVarlenToGoString(val); got != v {
+				if got := storage.VarlenToGoString(val); got != v {
 					t.Fatalf("expected %s, got %s", v, got)
 				}
 			}
@@ -256,17 +256,17 @@ func TestDoRollback(t *testing.T) {
 			switch v := v.(type) {
 			case storage.SmallInt:
 				val, _ := x.Fixedlen(block, k, storage.SizeOfSmallInt)
-				if got := storage.UnsafeFixedToInteger[storage.SmallInt](val); got != v {
+				if got := storage.FixedLenToInteger[storage.SmallInt](val); got != v {
 					t.Fatalf("expected %d, got %d", v, got)
 				}
 			case storage.Int:
 				val, _ := x.Fixedlen(block, k, storage.SizeOfInt)
-				if got := storage.UnsafeFixedToInteger[storage.Int](val); got != v {
+				if got := storage.FixedLenToInteger[storage.Int](val); got != v {
 					t.Fatalf("expected %d, got %d", v, got)
 				}
 			case string:
 				val, _ := x.Varlen(block, k)
-				if got := storage.UnsafeVarlenToGoString(val); got != v {
+				if got := storage.VarlenToGoString(val); got != v {
 					t.Fatalf("expected %s, got %s", v, got)
 				}
 			}
@@ -293,11 +293,11 @@ func TestRecoverCopy(t *testing.T) {
 		k := storage.Offset(k)
 		switch v := v.(type) {
 		case storage.SmallInt:
-			x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfSmallInt, v), true)
+			x.SetFixedlen(block, k, storage.SizeOfSmallInt, storage.IntegerToFixedLen(storage.SizeOfSmallInt, v), true)
 		case storage.Int:
-			x.SetFixedlen(block, k, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfInt, v), true)
+			x.SetFixedlen(block, k, storage.SizeOfInt, storage.IntegerToFixedLen(storage.SizeOfInt, v), true)
 		case string:
-			vl := storage.UnsafeNewVarlenFromGoString(v)
+			vl := storage.NewVarlenFromGoString(v)
 			x.SetVarlen(block, k, vl, true)
 		}
 	}
@@ -318,7 +318,7 @@ func TestRecoverCopy(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got := storage.UnsafeFixedToInteger[storage.Int](val); got != 123 {
+		if got := storage.FixedLenToInteger[storage.Int](val); got != 123 {
 			t.Fatalf("expected 123, got %d", got)
 		}
 
@@ -337,7 +337,7 @@ func TestRecoverCopy(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		if got := storage.UnsafeFixedToInteger[storage.Int](val); got != 999 {
+		if got := storage.FixedLenToInteger[storage.Int](val); got != 999 {
 			t.Fatalf("expected 999, got %d", got)
 		}
 	})

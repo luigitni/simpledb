@@ -121,7 +121,7 @@ func (tm *tableManager) tableExists(tblname string, tr tx.Transaction) bool {
 			panic(err)
 		}
 
-		if v.AsName().UnsafeAsGoString() == tblname {
+		if v.AsName().AsGoString() == tblname {
 			return true
 		}
 	}
@@ -139,7 +139,7 @@ func (tm *tableManager) createTable(tblname string, sch Schema, x tx.Transaction
 
 	// add the new table into the table catalog
 	// the table only has one field, the table name
-	if err := tcat.Insert(storage.Offset(sizeOfTableCatalogRecord)); err != nil {
+	if err := tcat.Insert(sizeOfTableCatalogRecord); err != nil {
 		return err
 	}
 
@@ -163,7 +163,7 @@ func (tm *tableManager) createTable(tblname string, sch Schema, x tx.Transaction
 
 	for _, fname := range sch.fields {
 		// scan up to the first available slot and add the field data to the field catalog
-		if err := fcat.Insert(storage.Offset(sizeOfFieldsCatalogRecord)); err != nil {
+		if err := fcat.Insert(sizeOfFieldsCatalogRecord); err != nil {
 			return err
 		}
 
@@ -193,7 +193,7 @@ func (tm *tableManager) createTable(tblname string, sch Schema, x tx.Transaction
 
 		if err := fcat.SetVal(
 			fieldsCatalogSizeField,
-			storage.ValueFromInteger[storage.Size](storage.SizeOfSize, info.Type.Size()),
+			storage.ValueFromInteger[storage.Offset](storage.SizeOfOffset, info.Type.Size()),
 		); err != nil {
 			return err
 		}
@@ -232,7 +232,7 @@ func (tm *tableManager) layout(tblname string, x tx.Transaction) (Layout, error)
 			return empty, err
 		}
 
-		if tname.AsName().UnsafeAsGoString() == tblname {
+		if tname.AsName().AsGoString() == tblname {
 			break
 		}
 	}
@@ -260,7 +260,7 @@ func (tm *tableManager) layout(tblname string, x tx.Transaction) (Layout, error)
 			return empty, err
 		}
 
-		tbl := tname.AsName().UnsafeAsGoString()
+		tbl := tname.AsName().AsGoString()
 
 		if tbl == tblname {
 			// retrieve the field name, type, and index
@@ -280,7 +280,7 @@ func (tm *tableManager) layout(tblname string, x tx.Transaction) (Layout, error)
 			}
 
 			schema.setFieldAtIndex(
-				fldname.AsName().UnsafeAsGoString(),
+				fldname.AsName().AsGoString(),
 				storage.FieldType(storage.ValueAsInteger[storage.SmallInt](fldtype)),
 				storage.ValueAsInteger[storage.SmallInt](fldidx),
 			)

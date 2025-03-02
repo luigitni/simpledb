@@ -81,12 +81,12 @@ func (vm viewManager) viewDefinition(vname string, trans tx.Transaction) (string
 			return "", err
 		}
 
-		if storage.UnsafeVarlenToGoString(s) == vname {
+		if storage.VarlenToGoString(s) == vname {
 			res, err := ts.Varlen("viewdef")
 			if err != nil {
 				return "", err
 			}
-			return storage.UnsafeVarlenToGoString(res), nil
+			return storage.VarlenToGoString(res), nil
 		}
 	}
 

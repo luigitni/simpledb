@@ -20,7 +20,7 @@ func newCommitRecord(record *recordBuffer) commitLogRecord {
 	}
 
 	return commitLogRecord{
-		txnum: storage.UnsafeFixedToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),
+		txnum: storage.FixedLenToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),
 	}
 }
 
@@ -51,10 +51,10 @@ func writeCommit(dst []byte, txnum storage.TxID) {
 	rbuf := recordBuffer{bytes: dst}
 	rbuf.writeFixedLen(
 		storage.SizeOfTinyInt,
-		storage.UnsafeIntegerToFixedlen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(COMMIT)),
+		storage.IntegerToFixedLen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(COMMIT)),
 	)
 	rbuf.writeFixedLen(
 		storage.SizeOfTxID,
-		storage.UnsafeIntegerToFixedlen[storage.TxID](storage.SizeOfTxID, txnum),
+		storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, txnum),
 	)
 }

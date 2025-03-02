@@ -20,7 +20,7 @@ func NewLayout(schema Schema) Layout {
 	for _, f := range schema.fields {
 		fieldIndexes[f] = schema.info[f].Index
 		offsets[f] = s
-		s += storage.Offset(lenInBytes(schema, f))
+		s += lenInBytes(schema, f)
 	}
 
 	return Layout{
@@ -31,7 +31,7 @@ func NewLayout(schema Schema) Layout {
 	}
 }
 
-func lenInBytes(schema Schema, field string) storage.Size {
+func lenInBytes(schema Schema, field string) storage.Offset {
 	return schema.ftype(field).Size()
 }
 
@@ -52,12 +52,12 @@ func (l Layout) FieldIndex(fname string) int {
 	return int(idx)
 }
 
-func (l Layout) FieldSize(fname string) storage.Size {
-	return storage.Size(lenInBytes(l.schema, fname))
+func (l Layout) FieldSize(fname string) storage.Offset {
+	return lenInBytes(l.schema, fname)
 }
 
-func (l Layout) FieldSizeByIndex(idx int) storage.Size {
-	return storage.Size(lenInBytes(l.schema, l.schema.fields[idx]))
+func (l Layout) FieldSizeByIndex(idx int) storage.Offset {
+	return lenInBytes(l.schema, l.schema.fields[idx])
 }
 
 func (l Layout) FieldsCount() int {

@@ -20,13 +20,13 @@ func TestFile(t *testing.T) {
 	const val = "abcdefghilmno"
 	const intv = 352
 
-	varlen := storage.UnsafeNewVarlenFromGoString(val)
+	varlen := storage.NewVarlenFromGoString(val)
 
-	page.UnsafeSetVarlen(offset, varlen)
+	page.SetVarlen(offset, varlen)
 
 	offset2 := offset + storage.Offset(varlen.Size())
 
-	page.UnsafeSetFixedlen(offset2, storage.SizeOfInt, storage.UnsafeIntegerToFixedlen(storage.SizeOfInt, storage.Int(intv)))
+	page.SetFixedlen(offset2, storage.SizeOfInt, storage.IntegerToFixedLen(storage.SizeOfInt, storage.Int(intv)))
 
 	// write the page to the block
 	fman.Write(block, page)
@@ -35,13 +35,13 @@ func TestFile(t *testing.T) {
 	p2 := storage.NewPage()
 	fman.Read(block, p2)
 
-	got := p2.UnsafeGetFixedlen(offset2, storage.SizeOfInt)
-	if got := storage.UnsafeFixedToInteger[storage.Int](got); got != intv {
+	got := p2.GetFixedLen(offset2, storage.SizeOfInt)
+	if got := storage.FixedLenToInteger[storage.Int](got); got != intv {
 		t.Fatalf("expected %d at offset %d. Got %d", intv, offset2, got)
 	}
 
-	sgot := p2.UnsafeGetVarlen(offset)
-	if got := storage.UnsafeVarlenToGoString(sgot); got != val {
+	sgot := p2.GetVarlen(offset)
+	if got := storage.VarlenToGoString(sgot); got != val {
 		t.Fatalf("expected %q at offset %d. Got %q", val, offset, got)
 	}
 }

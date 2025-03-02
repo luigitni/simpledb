@@ -140,7 +140,7 @@ func TestBTreeIndex(t *testing.T) {
 				t.Fatalf("Error getting data value in BTree index at iteration %d: %v", i, err)
 			}
 
-			v := key.AsFixedLen().UnsafeAsLong()
+			v := key.AsFixedLen().AsLong()
 
 			blocknum, err := root.contents.getBlockNumber(i)
 			if err != nil {
@@ -158,7 +158,7 @@ func TestBTreeIndex(t *testing.T) {
 				t.Fatalf("Error dumping node")
 			}
 
-			fv := dump.Datavals[0].AsFixedLen().UnsafeAsLong()
+			fv := dump.Datavals[0].AsFixedLen().AsLong()
 
 			typ := dump.ValType
 
@@ -183,7 +183,6 @@ func TestBTreeIndex(t *testing.T) {
 		}
 
 		for i, v := range inserted {
-			t.Logf("searching for %d", v)
 			val := storage.ValueFromInteger[storage.Long](storage.SizeOfLong, v)
 
 			err := index.BeforeFirst(val)

@@ -13,20 +13,20 @@ func (r *recordBuffer) resetOffset() {
 	r.offset = 0
 }
 
-func (r *recordBuffer) writeFixedLen(size storage.Size, val storage.FixedLen) {
+func (r *recordBuffer) writeFixedLen(size storage.Offset, val storage.FixedLen) {
 	copy(r.bytes[r.offset:], val)
-	r.offset += storage.Offset(size)
+	r.offset += size
 }
 
 func (r *recordBuffer) writeVarLen(v storage.Varlen) {
-	storage.UnsafeWriteVarlenToBytes(r.bytes[r.offset:], v)
+	storage.WriteVarlenToBytes(r.bytes[r.offset:], v)
 	r.offset += storage.Offset(v.Size())
 }
 
 func (r *recordBuffer) writeString(s string) {
-	storage.UnsafeWriteVarlenToBytesFromGoString(r.bytes[r.offset:], s)
+	storage.WriteVarlenToBytesFromGoString(r.bytes[r.offset:], s)
 	r.offset += storage.Offset(
-		storage.UnsafeSizeOfStringAsVarlen(s),
+		storage.SizeOfStringAsVarlen(s),
 	)
 }
 
@@ -37,18 +37,17 @@ func (r *recordBuffer) writeRaw(data []byte) {
 
 func (r *recordBuffer) writeBlock(block storage.Block) {
 	r.writeString(block.FileName())
-	r.writeFixedLen(storage.SizeOfLong, storage.UnsafeIntegerToFixedlen[storage.Long](storage.SizeOfLong, block.Number()))
+	r.writeFixedLen(storage.SizeOfLong, storage.IntegerToFixedLen[storage.Long](storage.SizeOfLong, block.Number()))
 }
 
-func (r *recordBuffer) readFixedLen(size storage.Size) storage.FixedLen {
-	s := storage.Offset(size)
-	v := storage.UnsafeByteSliceToFixedlen(r.bytes[r.offset : r.offset+s])
-	r.offset += s
+func (r *recordBuffer) readFixedLen(size storage.Offset) storage.FixedLen {
+	v := storage.ByteSliceToFixedlen(r.bytes[r.offset : r.offset+size])
+	r.offset += size
 	return v
 }
 
 func (r *recordBuffer) readVarlen() storage.Varlen {
-	v := storage.UnsafeBytesToVarlen(r.bytes[r.offset:])
+	v := storage.BytesToVarlen(r.bytes[r.offset:])
 	r.offset += storage.Offset(v.Size())
 
 	return v
@@ -57,10 +56,10 @@ func (r *recordBuffer) readVarlen() storage.Varlen {
 func (r *recordBuffer) readBlock() storage.Block {
 	fileName := r.readVarlen()
 	fixed := r.readFixedLen(storage.SizeOfLong)
-	blockID := storage.UnsafeFixedToInteger[storage.Long](fixed)
+	blockID := storage.FixedLenToInteger[storage.Long](fixed)
 
 	return storage.NewBlock(
-		storage.UnsafeVarlenToGoString(fileName),
+		storage.VarlenToGoString(fileName),
 		blockID,
 	)
 }
@@ -89,7 +88,7 @@ var txTypeToString = [...]string{
 }
 
 func txTypeFromFixedLen(f storage.FixedLen) txType {
-	return txType(storage.UnsafeFixedToInteger[storage.TinyInt](f))
+	return txType(storage.FixedLenToInteger[storage.TinyInt](f))
 }
 
 func (t txType) String() string {
@@ -108,7 +107,7 @@ const (
 
 func createLogRecord(bytes []byte) logRecord {
 	rbuf := &recordBuffer{bytes: bytes}
-	tt := storage.UnsafeFixedToInteger[storage.TinyInt](
+	tt := storage.FixedLenToInteger[storage.TinyInt](
 		rbuf.readFixedLen(storage.SizeOfTinyInt),
 	)
 

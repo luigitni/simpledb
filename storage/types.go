@@ -18,7 +18,7 @@ const (
 	TEXT
 )
 
-var typeSizes = [...]Size{
+var typeSizes = [...]Offset{
 	TINYINT:  SizeOfTinyInt,
 	SMALLINT: SizeOfSmallInt,
 	INT:      SizeOfInt,
@@ -36,7 +36,7 @@ var typeNames = [...]string{
 	"TEXT",
 }
 
-func (t FieldType) Size() Size {
+func (t FieldType) Size() Offset {
 	return typeSizes[t]
 }
 
@@ -51,7 +51,7 @@ func (t FieldType) String() string {
 type Name FixedLen
 
 const (
-	SizeOfName Size     = 64
+	SizeOfName Offset   = 64
 	NameMaxLen SmallInt = 63
 )
 
@@ -69,7 +69,7 @@ func (n Name) WriteGoString(s string) {
 	bound := SizeOfName
 	size := byte(NameMaxLen)
 	if len(s) < int(NameMaxLen) {
-		bound = Size(len(s))
+		bound = Offset(len(s))
 		size = byte(len(s))
 	}
 
@@ -78,10 +78,10 @@ func (n Name) WriteGoString(s string) {
 	copy(n[1:], s[:bound])
 }
 
-func (f FixedLen) UnsafeAsName() Name {
+func (f FixedLen) AsName() Name {
 	return Name(f)
 }
 
-func (n Name) UnsafeAsGoString() string {
+func (n Name) AsGoString() string {
 	return unsafe.String(&n[1], int(n[0]))
 }

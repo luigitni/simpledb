@@ -24,16 +24,16 @@ func ValueFromName(n Name) Value {
 }
 
 func ValueFromVarlen(v Varlen) Value {
-	return UnsafeVarlenToBytes(v)
+	return VarlenToBytes(v)
 }
 
 func ValueFromGoString(s string) Value {
-	varlen := UnsafeNewVarlenFromGoString(s)
-	return UnsafeVarlenToBytes(varlen)
+	varlen := NewVarlenFromGoString(s)
+	return VarlenToBytes(varlen)
 }
 
-func ValueFromInteger[V Integer](size Size, i V) Value {
-	return Value(UnsafeIntegerToFixedlen(size, i))
+func ValueFromInteger[V Integer](size Offset, i V) Value {
+	return Value(IntegerToFixedLen(size, i))
 }
 
 func (v Value) AsFixedLen() FixedLen {
@@ -49,15 +49,15 @@ func (v Value) AsName() Name {
 }
 
 func ValueAsInteger[V Integer](v Value) V {
-	return UnsafeFixedToInteger[V](v.AsFixedLen())
+	return FixedLenToInteger[V](v.AsFixedLen())
 }
 
 func ValueAsGoString(v Value) string {
-	return UnsafeVarlenToGoString(UnsafeBytesToVarlen(v))
+	return VarlenToGoString(BytesToVarlen(v))
 }
 
 func ValueAsVarlen(v Value) Varlen {
-	return UnsafeBytesToVarlen(v)
+	return BytesToVarlen(v)
 }
 
 func (v Value) Size(t FieldType) Offset {
@@ -105,7 +105,7 @@ var lessFunc = [...]func(Value, Value) bool{
 		return ValueAsInteger[Long](a) < ValueAsInteger[Long](b)
 	},
 	NAME: func(a, b Value) bool {
-		return a.AsName().UnsafeAsGoString() < b.AsName().UnsafeAsGoString()
+		return a.AsName().AsGoString() < b.AsName().AsGoString()
 	},
 	TEXT: func(a, b Value) bool {
 		return ValueAsGoString(a) < ValueAsGoString(b)
@@ -130,7 +130,7 @@ var moreFunc = [...]func(Value, Value) bool{
 		return ValueAsInteger[Long](a) > ValueAsInteger[Long](b)
 	},
 	NAME: func(a, b Value) bool {
-		return a.AsName().UnsafeAsGoString() > b.AsName().UnsafeAsGoString()
+		return a.AsName().AsGoString() > b.AsName().AsGoString()
 	},
 	TEXT: func(a, b Value) bool {
 		return ValueAsGoString(a) > ValueAsGoString(b)
@@ -180,7 +180,7 @@ var stringFunc = [...]func(Value) string{
 		return fmt.Sprintf("%d", ValueAsInteger[Long](v))
 	},
 	NAME: func(v Value) string {
-		return v.AsName().UnsafeAsGoString()
+		return v.AsName().AsGoString()
 	},
 	TEXT: func(v Value) string {
 		return ValueAsGoString(v)
