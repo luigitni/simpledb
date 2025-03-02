@@ -9,8 +9,10 @@ import (
 type Value []byte
 
 func Copy(v Value) Value {
-	var out Value
-	return append(out, v...)
+	cpy := make([]byte, len(v))
+	copy(cpy, v)
+
+	return cpy
 }
 
 func ValueFromFixedLen(i FixedLen) Value {
