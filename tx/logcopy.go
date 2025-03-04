@@ -49,7 +49,7 @@ func (cr copyRecord) TxNumber() storage.TxID {
 
 func (cr copyRecord) String() string {
 	// COPY txnum block offset data
-	return fmt.Sprintf("<COPY %d %s %d %s>", cr.txnum, cr.block.ID(), cr.offset, cr.data)
+	return fmt.Sprintf("<COPY[%d:%d] LEN:%d TX:%d B:%s DATA:%v>", cr.offset, cr.size + cr.offset, cr.size, cr.txnum, cr.block.ID(), cr.data)
 }
 
 func (cr copyRecord) Undo(tx Transaction) {

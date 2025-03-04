@@ -122,10 +122,6 @@ func createLogRecord(bytes []byte) logRecord {
 		return newCommitRecord(rbuf)
 	case ROLLBACK:
 		return newRollbackRecord(rbuf)
-	case SETFIXEDLEN:
-		return newSetFixedLenRecord(rbuf)
-	case SETVARLEN:
-		return newSetVarLenRecord(rbuf)
 	case COPY:
 		return newCopyRecord(rbuf)
 	}

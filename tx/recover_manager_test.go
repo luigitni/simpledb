@@ -2,6 +2,7 @@ package tx
 
 import (
 	"bytes"
+	"fmt"
 	"testing"
 
 	"github.com/luigitni/simpledb/storage"
@@ -65,13 +66,15 @@ func TestRecoveryManagerLogs(t *testing.T) {
 
 		for k, v := range oldVals {
 			k := storage.Offset(k)
-			switch v.(type) {
+			switch v := v.(type) {
 			case storage.SmallInt:
-				man.setFixedLen(buffer, k, storage.SizeOfSmallInt, nil)
+				val := storage.IntegerToFixedLen[storage.SmallInt](storage.SizeOfSmallInt, v)
+				man.setFixedLen(buffer, k, storage.SizeOfSmallInt, val)
 			case storage.Int:
-				man.setFixedLen(buffer, k, storage.SizeOfInt, nil)
+				val := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, v)
+				man.setFixedLen(buffer, k, storage.SizeOfInt, val)
 			case storage.Varlen:
-				man.setVarLen(buffer, k, nil)
+				man.setVarLen(buffer, k, v)
 			}
 		}
 
@@ -84,18 +87,22 @@ func TestRecoveryManagerLogs(t *testing.T) {
 			t.Fatalf("expected <START 2>, got %s", start)
 		}
 
-		exp := "<SETFIXED:4 2 f:blocknameb:7 12 123>"
-		if fixed := newSetFixedLenRecord(rb); fixed.String() != exp {
+		data := storage.IntegerToFixedLen(storage.SizeOfInt, oldVals[12].(storage.Int)).Bytes()
+		exp := fmt.Sprintf("<COPY[%d:%d] LEN:%d TX:%d B:%s DATA:%v>", 12, 16, 4, 2, block.ID(), data)
+		if fixed := newCopyRecord(rb); fixed.String() != exp {
 			t.Fatalf("expected %s, got %s", exp, fixed)
 		}
 
-		exp = "<SETVARLEN 2 f:blocknameb:7 40 this is the old val>"
-		if varlen := newSetVarLenRecord(rb); varlen.String() != exp {
+		vl := oldVals[40].(storage.Varlen)
+		data = vl.Bytes()
+		exp = fmt.Sprintf("<COPY[%d:%d] LEN:%d TX:%d B:%s DATA:%v>", 40, 40 + vl.Size(), vl.Size(), 2, block.ID(), data)
+		if varlen := newCopyRecord(rb); varlen.String() != exp {
 			t.Fatalf("expected %s, got %s", exp, varlen)
 		}
 
-		exp = "<SETFIXED:2 2 f:blocknameb:7 80 6>"
-		if fixed := newSetFixedLenRecord(rb); fixed.String() != exp {
+		data = storage.IntegerToFixedLen(storage.SizeOfSmallInt, oldVals[80].(storage.SmallInt)).Bytes()
+		exp = fmt.Sprintf("<COPY[%d:%d] LEN:%d TX:%d B:%s DATA:%v>", 80, 82, 2, 2, block.ID(), data)
+		if fixed := newCopyRecord(rb); fixed.String() != exp {
 			t.Fatalf("expected %s, got %s", exp, fixed)
 		}
 

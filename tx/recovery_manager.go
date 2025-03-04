@@ -45,9 +45,10 @@ func newRecoveryManagerForTx(tx Transaction, txnum storage.TxID, lm logManager, 
 // val is the value to be written
 // because in this version the recovery is undo-only, we don't need the new value
 func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offset, size storage.Offset, _ storage.FixedLen) int {
-	oldval := buff.Contents().GetFixedLen(offset, size)
+	oldVal := buff.Contents().Slice(offset, offset + size)
 	block := buff.Block()
-	return logSetFixedLen(man.lm, man.txnum, block, offset, size, oldval)
+
+	return logCopy(man.lm, man.txnum, block, offset, oldVal)
 }
 
 // setVarLen writes a SETVARLEN record to the log and return its lsn.
@@ -55,11 +56,12 @@ func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offse
 // offset is the offset of the value within the page
 // newval is the value to be written - because in this version
 // the recovery is undo-only, we don't need the new value
-func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset storage.Offset, _ storage.Varlen) int {
-	oldval := buff.Contents().GetVarlen(offset)
+func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset storage.Offset, vlen storage.Varlen) int {
+	size := storage.Offset(vlen.Size())
+	oldVal := buff.Contents().Slice(offset, offset + size)
 	block := buff.Block()
 
-	return logSetVarlen(man.lm, man.txnum, block, offset, oldval)
+	return logCopy(man.lm, man.txnum, block, offset, oldVal)
 }
 
 func (man recoveryManager) logCopy(buff *buffer.Buffer, _ storage.Offset, dst storage.Offset, size storage.Offset) int {
