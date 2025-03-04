@@ -8,8 +8,10 @@ import (
 )
 
 const (
-	idxCatalogTableName = "idxcat"
-	fieldIdxName        = "indexname"
+	idxCatalogTableName  = "indexes"
+	idxCatalogNameField  = "name"
+	idxCatalogTableField = "table_name"
+	idxCatalogFieldField = "field_name"
 )
 
 type Index interface {
@@ -46,10 +48,9 @@ func newIndexInfo(x tx.Transaction, idxName string, fieldName string, tableSchem
 
 func idxLayout(tableSchema Schema, fieldName string) Layout {
 	schema := newSchema()
-	schema.addField("block", storage.LONG)
-	schema.addField("id", storage.INT)
-
-	schema.addField("dataval", tableSchema.ftype(fieldName))
+	schema.addField(indexFieldDataVal, tableSchema.ftype(fieldName))
+	schema.addField(indexFieldBlockNumber, storage.LONG)
+	schema.addField(indexFieldRecordID, storage.INT)
 
 	return NewLayout(schema)
 }
@@ -93,11 +94,13 @@ type indexManager struct {
 	sm *statManager
 }
 
+const indexCatalogEntrySize = storage.SizeOfName * 3
+
 func indexCatalogSchema() Schema {
 	schema := newSchema()
-	schema.addField(fieldIdxName, storage.NAME)
-	schema.addField(tableCatalogNameField, storage.NAME)
-	schema.addField(fieldsCatalogNameField, storage.NAME)
+	schema.addField(idxCatalogNameField, storage.NAME)
+	schema.addField(idxCatalogTableField, storage.NAME)
+	schema.addField(idxCatalogFieldField, storage.NAME)
 	return schema
 }
 
@@ -117,23 +120,22 @@ func (im indexManager) init(x tx.Transaction) error {
 func (im *indexManager) createIndex(x tx.Transaction, idxName string, tblName string, fldName string) error {
 	ts := newTableScan(x, idxCatalogTableName, im.l)
 
-	// todo: create fixed size string type
-	size := storage.SizeOfStringAsVarlen(idxName) +
-		storage.SizeOfStringAsVarlen(tblName) +
-		storage.SizeOfStringAsVarlen(fldName)
-
-	ts.Insert(storage.Offset(size))
+	ts.Insert(storage.Offset(indexCatalogEntrySize))
 	defer ts.Close()
 
-	if err := ts.SetVal(fieldIdxName, storage.ValueFromGoString(idxName)); err != nil {
+	nameBuf := storage.NewNameFromGoString(idxName)
+
+	if err := ts.SetVal(idxCatalogNameField, storage.ValueFromName(nameBuf)); err != nil {
 		return err
 	}
 
-	if err := ts.SetVal(tableCatalogNameField, storage.ValueFromGoString(tblName)); err != nil {
+	nameBuf.WriteGoString(tblName)
+	if err := ts.SetVal(idxCatalogTableField, storage.ValueFromName(nameBuf)); err != nil {
 		return err
 	}
 
-	if err := ts.SetVal(fieldsCatalogNameField, storage.ValueFromGoString(fldName)); err != nil {
+	nameBuf.WriteGoString(fldName)
+	if err := ts.SetVal(idxCatalogFieldField, storage.ValueFromName(nameBuf)); err != nil {
 		return err
 	}
 
@@ -157,7 +159,7 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
-		table, err := scan.Val(tableCatalogNameField)
+		table, err := scan.Val(idxCatalogTableField)
 		if err != nil {
 			return nil, err
 		}
@@ -166,12 +168,12 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			continue
 		}
 
-		idxName, err := scan.Val(fieldIdxName)
+		idxName, err := scan.Val(idxCatalogNameField)
 		if err != nil {
 			return nil, err
 		}
 
-		fldName, err := scan.Val(fieldsCatalogNameField)
+		fldName, err := scan.Val(idxCatalogFieldField)
 		if err != nil {
 			return nil, err
 		}
@@ -186,9 +188,10 @@ func (im *indexManager) indexInfo(x tx.Transaction, tblName string) (map[string]
 			return nil, err
 		}
 
+		idxn := idxName.AsName().AsGoString()
 		fn := fldName.AsName().AsGoString()
 
-		ii := newIndexInfo(x, idxName.AsName().AsGoString(), fn, *layout.Schema(), stat)
+		ii := newIndexInfo(x, idxn, fn, *layout.Schema(), stat)
 		m[fn] = ii
 	}
 

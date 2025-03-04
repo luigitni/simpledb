@@ -67,7 +67,11 @@ func MakeManagersWithConfig(conf Conf) (*file.FileManager, *wal.WalWriter, *buff
 
 func RandomName() string {
 	const l = 32
-	b := make([]byte, l)
+	return RandomStringOfSize(l)
+}
+
+func RandomStringOfSize(size int) string {
+	b := make([]byte, size)
 	rand.Read(b)
 	return fmt.Sprintf("%x", b)
 }

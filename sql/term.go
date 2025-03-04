@@ -66,13 +66,14 @@ func (t Term) AppliesTo(schema Schema) bool {
 	return t.lhs.AppliesTo(schema) && t.rhs.AppliesTo(schema)
 }
 
+// todo: check why here the index returns nil
 func (t Term) EquatesWithConstant(fieldName string) (bool, storage.Value) {
 	if t.lhs.IsFieldName() && t.lhs.fname == fieldName && !t.rhs.IsFieldName() {
-		return true, t.lhs.AsConstant()
+		return true, t.rhs.AsConstant()
 	}
 
 	if t.rhs.IsFieldName() && t.rhs.fname == fieldName && !t.lhs.IsFieldName() {
-		return true, t.rhs.AsConstant()
+		return true, t.lhs.AsConstant()
 	}
 
 	return false, storage.Value{}

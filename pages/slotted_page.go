@@ -529,12 +529,13 @@ func (p *SlottedPage) FieldOffset(slot storage.SmallInt, fieldname string) (stor
 		size := p.layout.FieldSizeByIndex(i)
 		if size == storage.SizeOfVarlen {
 			// read the varlen size at the offset
-			v, err := p.x.Fixedlen(p.block, offset, storage.SizeOfInt)
+			v, err := p.x.Varlen(p.block, offset)
 			if err != nil {
 				return 0, err
 			}
 
-			offset += storage.FixedLenToInteger[storage.Offset](v)
+			// todo: when out of line storage, we will need to revise this
+			offset += storage.Offset(v.Len())
 			offset += storage.SizeOfInt
 		} else {
 			offset += size

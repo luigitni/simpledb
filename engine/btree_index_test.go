@@ -1,9 +1,9 @@
 package engine
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
-	"slices"
 	"testing"
 
 	"github.com/luigitni/simpledb/storage"
@@ -123,11 +123,6 @@ func TestBTreeIndex(t *testing.T) {
 			inserted = append(inserted, v)
 		}
 
-		cpy := make([]storage.Long, len(inserted))
-		copy(cpy, inserted)
-
-		slices.Sort(cpy)
-
 		root := newBTreeDir(x, index.rootBlock, index.dirLayout)
 		records, err := root.contents.numRecords()
 		if err != nil {
@@ -207,6 +202,122 @@ func TestBTreeIndex(t *testing.T) {
 				t.Fatalf("Expected record ID to be %d, got %d", v, rid.Slot)
 			}
 		}
+	})
+}
 
+func TestBTreeIndexVarlen(t *testing.T) {
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	leafSchema := newSchema()
+	leafSchema.addField(indexFieldDataVal, storage.TEXT)
+	leafSchema.addField(indexFieldBlockNumber, storage.LONG)
+	leafSchema.addField(indexFieldRecordID, storage.INT)
+
+	leafLayout := NewLayout(leafSchema)
+
+	index, err := NewBTreeIndex(x, test.RandomName(), leafLayout)
+	if err != nil {
+		t.Fatalf("Error creating new BTree index: %v", err)
+	}
+
+	t.Run("inserts and finds varlen records in BTree index", func(t *testing.T) {
+		inserted := make([]string, 0, 1000)
+
+		for i := range 1000 {
+			n := rand.Intn(math.MaxUint16)
+			padding := rand.Intn(16)
+
+			str := fmt.Sprintf("%s (record %d)", test.RandomStringOfSize(padding), n)
+
+			val := storage.ValueFromGoString(str)
+
+			rid := NewRID(123, storage.SmallInt(n))
+
+			err := index.Insert(val, rid)
+			if err != nil {
+				t.Fatalf("Error inserting record into BTree index at iteration %d: %v", i, err)
+			}
+
+			inserted = append(inserted, str)
+		}
+
+		root := newBTreeDir(x, index.rootBlock, index.dirLayout)
+		records, err := root.contents.numRecords()
+		if err != nil {
+			t.Fatalf("Error getting number of records in BTree index: %v", err)
+		}
+
+		for i := range records {
+			key, err := root.contents.dataVal(i)
+			if err != nil {
+				t.Fatalf("Error getting data value in BTree index at iteration %d: %v", i, err)
+			}
+
+			v := key.AsVarlen().AsGoString()
+
+			blocknum, err := root.contents.getBlockNumber(i)
+			if err != nil {
+				t.Fatalf("Error getting block number in BTree index at iteration %d: %v", i, err)
+			}
+
+			block := storage.NewBlock(index.leafTable, blocknum)
+			node, err := newBTreeLeaf(x, block, index.leafLayout, storage.ValueFromInteger[storage.Long](storage.SizeOfLong, 0))
+			if err != nil {
+				t.Fatalf("Error creating new BTree leaf in BTree index at iteration %d: %v", i, err)
+			}
+
+			dump, err := node.contents.dump()
+			if err != nil {
+				t.Fatalf("Error dumping node")
+			}
+
+			fv := dump.Datavals[0].AsVarlen().AsGoString()
+
+			typ := dump.ValType
+
+			if i != 0 && fv != v {
+				t.Logf(
+					"First entry in the BTree leaf does not equal the directory. Expected %q, got %q",
+					v,
+					fv,
+				)
+			}
+
+			for i := range dump.Datavals {
+				if i > 0 {
+					prev := dump.Datavals[i-1]
+					curr := dump.Datavals[i]
+
+					if curr.Less(typ, prev) {
+						t.Fatalf("Expected %v to be less than %v", prev, curr)
+					}
+				}
+			}
+		}
+
+		for i, v := range inserted {
+			val := storage.ValueFromGoString(v)
+
+			err := index.BeforeFirst(val)
+			if err != nil {
+				t.Fatalf("Error before first in BTree index at iteration %d: %v", i, err)
+			}
+
+			if err := index.Next(); err != nil {
+				t.Fatalf("Error next in BTree index at iteration %d: %v", i, err)
+			}
+
+			rid, err := index.DataRID()
+			if err != nil {
+				t.Fatalf("Error getting data RID in BTree index at iteration %d: %v", i, err)
+			}
+
+			if rid.Blocknum != 123 {
+				t.Fatalf("Expected block number to be 123, got %d", rid.Blocknum)
+			}
+		}
 	})
 }

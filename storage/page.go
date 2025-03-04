@@ -71,6 +71,10 @@ func (v Varlen) AsGoString() string {
 	return VarlenToGoString(v)
 }
 
+func (v Varlen) Bytes() []byte {
+	return VarlenToBytes(v)
+}
+
 // String returns a string representation of the Varlen value
 // It should only be used for debugging purposes
 // The string is a new string created from the Varlen's data
@@ -142,6 +146,10 @@ type FixedLen []byte
 
 func (f FixedLen) Size() Offset {
 	return Offset(len(f))
+}
+
+func (f FixedLen) Bytes() []byte {
+	return f
 }
 
 func (f FixedLen) AsOffset() Offset {
