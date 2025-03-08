@@ -3,30 +3,35 @@ package tx_test
 import (
 	"testing"
 
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/test"
 	"github.com/luigitni/simpledb/tx"
-	"github.com/luigitni/simpledb/types"
 )
 
 func TestSerialTx(t *testing.T) {
-	const blockname = "testfile"
+	const blockname = "thisisablock"
 
 	fm, lm, bm := test.MakeManagers(t)
 
 	tx1 := tx.NewTx(fm, lm, bm)
 
-	block := types.NewBlock(blockname, 1)
+	block := storage.NewBlock(blockname, 1)
 	tx1.Pin(block)
 
-	const intVal1 = 1
-	const strVal1 = "one"
+	const (
+		expInt1 = 42
+		expStr1 = "one"
+	)
+
+	intVal1 := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, expInt1)
+	strVal1 := storage.NewVarlenFromGoString(expStr1)
 	// the block initially contains unknown bytes
 	// so do not log the values yet
-	if err := tx1.SetInt(block, 80, intVal1, false); err != nil {
+	if err := tx1.SetFixedlen(block, 80, storage.SizeOfInt, intVal1, false); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := tx1.SetString(block, 40, strVal1, false); err != nil {
+	if err := tx1.SetVarlen(block, 40, strVal1, false); err != nil {
 		t.Fatal(err)
 	}
 
@@ -36,70 +41,79 @@ func TestSerialTx(t *testing.T) {
 	tx2 := tx.NewTx(fm, lm, bm)
 	tx2.Pin(block)
 
-	ival, err := tx2.Int(block, 80)
+	ival, err := tx2.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if ival != intVal1 {
-		t.Fatalf("expected intval to be %d, got %d", intVal1, ival)
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt1 {
+		t.Fatalf("expected intval to be %d, got %d", expInt1, v)
 	}
 
-	sval, err := tx2.String(block, 40)
+	sval, err := tx2.Varlen(block, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if sval != strVal1 {
-		t.Fatalf("expected strval to be %s, got %s", strVal1, sval)
+	if v := storage.VarlenToGoString(sval); v != expStr1 {
+		t.Fatalf("expected strval to be %s, got %s", expStr1, v)
 	}
 
-	const intVal2 = intVal1 + 1
-	const strVal2 = strVal1 + "!"
+	// test overriding the same offset location
+	const (
+		expInt2 = 45
+		expStr2 = "two"
+	)
+	intVal2 := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, expInt2)
+	strVal2 := storage.NewVarlenFromGoString(expStr2)
 
-	if err := tx2.SetInt(block, 80, intVal2, true); err != nil {
+	if err := tx2.SetFixedlen(block, 80, storage.SizeOfInt, intVal2, true); err != nil {
 		t.Fatal(err)
 	}
 
-	if err := tx2.SetString(block, 40, strVal2, true); err != nil {
+	if err := tx2.SetVarlen(block, 40, strVal2, true); err != nil {
 		t.Fatal(err)
 	}
 
 	tx2.Commit()
 
-	// transaction 3
+	// read the values again in tx3
 	tx3 := tx.NewTx(fm, lm, bm)
 	tx3.Pin(block)
 
-	ival, err = tx3.Int(block, 80)
+	ival, err = tx3.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if ival != intVal2 {
-		t.Fatalf("expected intval to be %d, got %d", intVal2, ival)
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt2 {
+		t.Fatalf("expected intval to be %d, got %d", expInt2, v)
 	}
 
-	sval, err = tx3.String(block, 40)
+	sval, err = tx3.Varlen(block, 40)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if sval != strVal2 {
-		t.Fatalf("expected strval to be %s, got %s", strVal2, sval)
+	if s := storage.VarlenToGoString(sval); s != expStr2 {
+		t.Fatalf("expected strval to be %s, got %s", expStr2, s)
 	}
 
-	const intVal3 = 9999
-	tx3.SetInt(block, 80, intVal3, true)
+	// test rollback
 
-	v, err := tx3.Int(block, 80)
+	const expInt3 = 9999
+
+	intVal3 := storage.IntegerToFixedLen[storage.Int](storage.SizeOfInt, expInt3)
+	tx3.SetFixedlen(block, 80, storage.SizeOfInt, intVal3, true)
+
+	ival, err = tx3.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// expect pre-rollback value to be exactly like the value that has been written by tx3
-	if v != intVal3 {
-		t.Fatalf("expected intval to be %d, got %d", intVal3, ival)
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt3 {
+		t.Fatalf("expected intval to be %d, got %d", expInt3, v)
 	}
 
 	tx3.Rollback()
@@ -107,14 +121,14 @@ func TestSerialTx(t *testing.T) {
 	tx4 := tx.NewTx(fm, lm, bm)
 	tx4.Pin(block)
 
-	v, err = tx4.Int(block, 80)
+	ival, err = tx4.Fixedlen(block, 80, storage.SizeOfInt)
 	if err != nil {
 		t.Fatal(err)
 	}
 
 	// test that after rollback of tx3, intval has the value set by tx2
-	if v != intVal2 {
-		t.Fatalf("expected intval to be %d, got %d", intVal2, ival)
+	if v := storage.FixedLenToInteger[storage.Int](ival); v != expInt2 {
+		t.Fatalf("expected intval to be %d, got %d", expInt2, v)
 	}
 
 	tx4.Commit()

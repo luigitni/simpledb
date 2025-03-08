@@ -1,11 +1,12 @@
 package tx_test
 
 import (
+	"errors"
 	"os"
 	"testing"
 
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/tx"
-	"github.com/luigitni/simpledb/types"
 )
 
 var lockTable = tx.GetLockTable()
@@ -17,8 +18,7 @@ func TestMain(m *testing.M) {
 }
 
 func TestLockTable(t *testing.T) {
-
-	block := types.NewBlock("test", 1)
+	block := storage.NewBlock("test", 1)
 
 	// test that no wait happens when all clients request Slocks
 	for i := 0; i < 100; i++ {
@@ -38,13 +38,13 @@ func TestLockTable(t *testing.T) {
 	out := make(chan error)
 
 	for i := 0; i < 100; i++ {
-		go func(block types.Block) {
+		go func(block storage.Block) {
 			out <- lockTable.SLock(block)
 		}(block)
 	}
 
 	for i := 0; i < 100; i++ {
-		if e := <-out; e != tx.ErrLockAcquisitionTimeout {
+		if e := <-out; !errors.Is(e, tx.ErrLockAcquisitionTimeout) {
 			t.Fatalf("expected timeout on Slock acquisition when block is Xlocked. got nil")
 		}
 	}
@@ -54,7 +54,7 @@ func TestLockTable(t *testing.T) {
 	t.Log("xlock has been unlocked")
 
 	for i := 0; i < 100; i++ {
-		go func(block types.Block) {
+		go func(block storage.Block) {
 			out <- lockTable.SLock(block)
 		}(block)
 	}
@@ -69,18 +69,18 @@ func TestLockTable(t *testing.T) {
 	if err := lockTable.XLock(block); err != nil {
 		t.Fatal("expected xlock to be successfully acquired after unlocks")
 	}
-
 }
 
 func TestAcquireXLock(t *testing.T) {
-
-	const fname = "tesblock"
+	const fname = "testblock"
 	const howMany = 1000
 
-	blocks := make([]types.Block, howMany)
+	blocks := make([]storage.Block, howMany)
 
-	for i := 0; i < howMany; i++ {
-		block := types.NewBlock(fname, i)
+	var i storage.Long
+	for i = 0; i < howMany; i++ {
+
+		block := storage.NewBlock(fname, i)
 		if e := lockTable.XLock(block); e != nil {
 			t.Fatalf("expected x lock to be acquired on block %d. Got error %s", i, e.Error())
 		}

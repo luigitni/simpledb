@@ -1,118 +1,67 @@
 package tx
 
 import (
-	"encoding/binary"
-	"sync"
-
-	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
-
-type pools struct {
-	tiny1int       sync.Pool
-	small2ints     sync.Pool
-	setInt         sync.Pool
-	setSmallString sync.Pool
-	setLString     sync.Pool
-	setXLString    sync.Pool
-}
-
-const (
-	logUpdateHeaderSize = types.IntSize * 4
-	logSetIntSize       = logUpdateHeaderSize + file.MaxLoggedTableFileNameSize
-)
-
-var logPools = pools{
-	tiny1int: sync.Pool{
-		New: func() interface{} {
-			b := make([]byte, types.IntSize)
-			return &b
-		},
-	},
-	small2ints: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 2*types.IntSize)
-			return &s
-		},
-	},
-	setInt: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, logSetIntSize)
-			return &s
-		},
-	},
-	setSmallString: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 512)
-			return &s
-		},
-	},
-	setLString: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 1024)
-			return &s
-		},
-	},
-	setXLString: sync.Pool{
-		New: func() interface{} {
-			s := make([]byte, 3072)
-			return &s
-		},
-	},
-}
-
-func (p *pools) poolForString(s string) *sync.Pool {
-	l := len(s) + logSetIntSize // account for header size
-	switch {
-	case l < 512:
-		return &p.setSmallString
-	case l < 1024:
-		return &p.setLString
-	default:
-		return &p.setXLString
-	}
-}
 
 type recordBuffer struct {
-	offset int
+	offset storage.Offset
 	bytes  []byte
 }
 
-func (r *recordBuffer) writeInt(v int) {
-	binary.LittleEndian.PutUint64(r.bytes[r.offset:], uint64(v))
-	r.offset += types.IntSize
+func (r *recordBuffer) resetOffset() {
+	r.offset = 0
 }
 
-func (r *recordBuffer) writeString(v string) {
-	l := len(v)
-	r.writeInt(l)
-	copy(r.bytes[r.offset:], []byte(v))
-	r.offset += l
+func (r *recordBuffer) writeFixedLen(size storage.Offset, val storage.FixedLen) {
+	copy(r.bytes[r.offset:], val)
+	r.offset += size
 }
 
-func (r *recordBuffer) writeBlock(block types.Block) {
+func (r *recordBuffer) writeVarLen(v storage.Varlen) {
+	storage.WriteVarlenToBytes(r.bytes[r.offset:], v)
+	r.offset += storage.Offset(v.Size())
+}
+
+func (r *recordBuffer) writeString(s string) {
+	storage.WriteVarlenToBytesFromGoString(r.bytes[r.offset:], s)
+	r.offset += storage.Offset(
+		storage.SizeOfStringAsVarlen(s),
+	)
+}
+
+func (r *recordBuffer) writeRaw(data []byte) {
+	copy(r.bytes[r.offset:], data)
+	r.offset += storage.Offset(len(data))
+}
+
+func (r *recordBuffer) writeBlock(block storage.Block) {
 	r.writeString(block.FileName())
-	r.writeInt(block.Number())
+	r.writeFixedLen(storage.SizeOfLong, storage.IntegerToFixedLen[storage.Long](storage.SizeOfLong, block.Number()))
 }
 
-func (r *recordBuffer) readInt() int {
-	v := binary.LittleEndian.Uint64(r.bytes[r.offset:])
-	r.offset += types.IntSize
-	return int(v)
+func (r *recordBuffer) readFixedLen(size storage.Offset) storage.FixedLen {
+	v := storage.ByteSliceToFixedlen(r.bytes[r.offset : r.offset+size])
+	r.offset += size
+	return v
 }
 
-func (r *recordBuffer) readString() string {
-	length := int(binary.LittleEndian.Uint64(r.bytes[r.offset:]))
-	r.offset += types.IntSize
-	str := string(r.bytes[r.offset : r.offset+length])
-	r.offset += length
-	return str
+func (r *recordBuffer) readVarlen() storage.Varlen {
+	v := storage.BytesToVarlen(r.bytes[r.offset:])
+	r.offset += storage.Offset(v.Size())
+
+	return v
 }
 
-func (r *recordBuffer) readBlock() types.Block {
-	fileName := r.readString()
-	blockID := r.readInt()
-	return types.NewBlock(fileName, blockID)
+func (r *recordBuffer) readBlock() storage.Block {
+	fileName := r.readVarlen()
+	fixed := r.readFixedLen(storage.SizeOfLong)
+	blockID := storage.FixedLenToInteger[storage.Long](fixed)
+
+	return storage.NewBlock(
+		storage.VarlenToGoString(fileName),
+		blockID,
+	)
 }
 
 type logRecord interface {
@@ -120,38 +69,61 @@ type logRecord interface {
 	Op() txType
 
 	// txNumber returns the tx id stored with the log record
-	TxNumber() int
+	TxNumber() storage.TxID
 
 	// undo undoes the operation encoded by this log recod.
 	Undo(tx Transaction)
 }
 
-type txType int
+type txType storage.TinyInt
+
+var txTypeToString = [...]string{
+	CHECKPOINT:  "CHECKPOINT",
+	START:       "START",
+	COMMIT:      "COMMIT",
+	ROLLBACK:    "ROLLBACK",
+	SETFIXEDLEN: "SETFIXED",
+	SETVARLEN:   "SETSTRING",
+	COPY:        "COPY",
+}
+
+func txTypeFromFixedLen(f storage.FixedLen) txType {
+	return txType(storage.FixedLenToInteger[storage.TinyInt](f))
+}
+
+func (t txType) String() string {
+	return txTypeToString[t]
+}
 
 const (
-	CHECKPOINT txType = iota
+	CHECKPOINT txType = 1 + iota
 	START
 	COMMIT
 	ROLLBACK
-	SETINT
-	SETSTRING
+	SETFIXEDLEN
+	SETVARLEN
+	COPY
 )
 
 func createLogRecord(bytes []byte) logRecord {
-	rbuf := recordBuffer{bytes: bytes}
-	switch txType(rbuf.readInt()) {
+	rbuf := &recordBuffer{bytes: bytes}
+	tt := storage.FixedLenToInteger[storage.TinyInt](
+		rbuf.readFixedLen(storage.SizeOfTinyInt),
+	)
+
+	rbuf.resetOffset()
+
+	switch txType(tt) {
 	case CHECKPOINT:
-		return checkpointLogRecord{}
+		return newCheckpointRecord(rbuf)
 	case START:
 		return newStartLogRecord(rbuf)
 	case COMMIT:
 		return newCommitRecord(rbuf)
 	case ROLLBACK:
 		return newRollbackRecord(rbuf)
-	case SETINT:
-		return newSetIntRecord(rbuf)
-	case SETSTRING:
-		return newSetStringRecord(rbuf)
+	case COPY:
+		return newCopyRecord(rbuf)
 	}
 
 	return nil

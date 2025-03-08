@@ -2,15 +2,25 @@ package tx
 
 import (
 	"fmt"
+	"unsafe"
+
+	"github.com/luigitni/simpledb/storage"
 )
 
 type rollbackLogRecord struct {
-	txnum int
+	txnum storage.TxID
 }
 
-func newRollbackRecord(record recordBuffer) rollbackLogRecord {
+const sizeOfRollbackRecord = int(unsafe.Sizeof(rollbackLogRecord{})) + int(storage.SizeOfTinyInt)
+
+func newRollbackRecord(record *recordBuffer) rollbackLogRecord {
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != ROLLBACK {
+		panic(fmt.Sprintf("bad %s record: %s", ROLLBACK, v))
+	}
+
 	return rollbackLogRecord{
-		txnum: record.readInt(),
+		txnum: storage.FixedLenToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),
 	}
 }
 
@@ -18,7 +28,7 @@ func (record rollbackLogRecord) Op() txType {
 	return ROLLBACK
 }
 
-func (record rollbackLogRecord) TxNumber() int {
+func (record rollbackLogRecord) TxNumber() storage.TxID {
 	return record.txnum
 }
 
@@ -30,15 +40,22 @@ func (record rollbackLogRecord) String() string {
 	return fmt.Sprintf("<ROLLBACK %d>", record.txnum)
 }
 
-func logRollback(lm logManager, txnum int) int {
-	p := logPools.small2ints.Get().(*[]byte)
-	defer logPools.small2ints.Put(p)
-	writeRollback(p, txnum)
-	return lm.Append(*p)
+func logRollback(lm logManager, txnum storage.TxID) int {
+	buf := make([]byte, sizeOfRollbackRecord)
+
+	writeRollback(buf, txnum)
+
+	return lm.Append(buf)
 }
 
-func writeRollback(dst *[]byte, txnum int) {
-	rbuf := recordBuffer{bytes: *dst}
-	rbuf.writeInt(int(ROLLBACK))
-	rbuf.writeInt(txnum)
+func writeRollback(dst []byte, txnum storage.TxID) {
+	rbuf := recordBuffer{bytes: dst}
+	rbuf.writeFixedLen(
+		storage.SizeOfTinyInt,
+		storage.IntegerToFixedLen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(ROLLBACK)),
+	)
+	rbuf.writeFixedLen(
+		storage.SizeOfTxID,
+		storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, txnum),
+	)
 }

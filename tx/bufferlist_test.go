@@ -3,8 +3,8 @@ package tx
 import (
 	"testing"
 
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/test"
-	"github.com/luigitni/simpledb/types"
 )
 
 func TestBufferlistPin(t *testing.T) {
@@ -14,7 +14,7 @@ func TestBufferlistPin(t *testing.T) {
 
 	buflist := makeBufferList(bm)
 
-	testBlock := types.NewBlock(conf.BlockFile, 1)
+	testBlock := storage.NewBlock(conf.BlockFile, 1)
 
 	buflist.pin(testBlock)
 
@@ -47,8 +47,9 @@ func TestBufferlistUnpinAll(t *testing.T) {
 
 	buflist := makeBufferList(bm)
 
-	for i := 0; i < 3; i++ {
-		block := types.NewBlock(conf.BlockFile, i)
+	var i storage.Long
+	for i = 0; i < 3; i++ {
+		block := storage.NewBlock(conf.BlockFile, i)
 		buflist.pin(block)
 	}
 

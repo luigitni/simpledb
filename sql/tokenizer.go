@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-type tokenType int
+type tokenType uint16
 
 const (
 	TokenLeftParen tokenType = iota

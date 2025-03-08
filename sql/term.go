@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 type Plan interface {
@@ -32,7 +32,7 @@ func (t Term) IsSatisfied(s Scan) (bool, error) {
 		return false, err
 	}
 
-	return lc == rc, nil
+	return lc.Equals(rc), nil
 }
 
 func (t Term) ReductionFactor(p Plan) int {
@@ -53,7 +53,9 @@ func (t Term) ReductionFactor(p Plan) int {
 		return p.DistinctValues(t.rhs.AsFieldName())
 	}
 
-	if t.lhs.AsConstant() == t.rhs.AsConstant() {
+	lc := t.lhs.AsConstant()
+	rc := t.rhs.AsConstant()
+	if lc.Equals(rc) {
 		return 1
 	}
 
@@ -64,16 +66,17 @@ func (t Term) AppliesTo(schema Schema) bool {
 	return t.lhs.AppliesTo(schema) && t.rhs.AppliesTo(schema)
 }
 
-func (t Term) EquatesWithConstant(fieldName string) (bool, types.Value) {
+// todo: check why here the index returns nil
+func (t Term) EquatesWithConstant(fieldName string) (bool, storage.Value) {
 	if t.lhs.IsFieldName() && t.lhs.fname == fieldName && !t.rhs.IsFieldName() {
-		return true, t.lhs.AsConstant()
-	}
-
-	if t.rhs.IsFieldName() && t.rhs.fname == fieldName && !t.lhs.IsFieldName() {
 		return true, t.rhs.AsConstant()
 	}
 
-	return false, types.Value{}
+	if t.rhs.IsFieldName() && t.rhs.fname == fieldName && !t.lhs.IsFieldName() {
+		return true, t.lhs.AsConstant()
+	}
+
+	return false, storage.Value{}
 }
 
 func (t Term) EquatesWithField(fieldName string) (bool, string) {

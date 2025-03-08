@@ -1,6 +1,6 @@
 package sql
 
-import "github.com/luigitni/simpledb/types"
+import "github.com/luigitni/simpledb/storage"
 
 type CommandType byte
 
@@ -43,10 +43,10 @@ type InsertCommand struct {
 	DMLCommandType
 	TableName string
 	Fields    []string
-	Values    []types.Value
+	Values    []storage.Value
 }
 
-func NewInsertCommand(table string, fields []string, values []types.Value) InsertCommand {
+func NewInsertCommand(table string, fields []string, values []storage.Value) InsertCommand {
 	return InsertCommand{
 		TableName: table,
 		Fields:    fields,
@@ -219,8 +219,8 @@ func (p Parser) fieldList() ([]string, error) {
 	return list, nil
 }
 
-func (p Parser) constantList() ([]types.Value, error) {
-	var list []types.Value
+func (p Parser) constantList() ([]storage.Value, error) {
+	var list []storage.Value
 	c, err := p.constant()
 	if err != nil {
 		return nil, err

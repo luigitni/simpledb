@@ -4,41 +4,44 @@ import (
 	"testing"
 
 	"github.com/luigitni/simpledb/file"
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/test"
-	"github.com/luigitni/simpledb/types"
 )
 
 func TestFile(t *testing.T) {
-
 	conf := test.DefaultConfig(t)
 	fman := file.NewFileManager(conf.DbFolder, conf.BlockSize)
 
-	block := types.NewBlock(conf.BlockFile, 2)
-	page := types.NewPage()
+	block := storage.NewBlock(conf.BlockFile, 2)
+	page := storage.NewPage()
 
-	pos := 88
+	var offset storage.Offset = 88
 
 	const val = "abcdefghilmno"
 	const intv = 352
-	page.SetString(pos, val)
 
-	pos2 := pos + types.StrLength(len(val))
+	varlen := storage.NewVarlenFromGoString(val)
 
-	page.SetInt(pos2, intv)
+	page.SetVarlen(offset, varlen)
 
+	offset2 := offset + storage.Offset(varlen.Size())
+
+	page.SetFixedlen(offset2, storage.SizeOfInt, storage.IntegerToFixedLen(storage.SizeOfInt, storage.Int(intv)))
+
+	// write the page to the block
 	fman.Write(block, page)
 
-	p2 := types.NewPage()
+	// create a new page and read it back from the block
+	p2 := storage.NewPage()
 	fman.Read(block, p2)
 
-	if got := p2.Int(pos2); got != intv {
-		t.Fatalf("expected %d at offset %d. Got %d", intv, pos2, got)
-	}
-	t.Logf("offset %d contains %d", pos2, p2.Int(pos2))
-
-	if got := p2.String(pos); got != val {
-		t.Fatalf("expected %q at offset %d. Got %q", val, pos, got)
+	got := p2.GetFixedLen(offset2, storage.SizeOfInt)
+	if got := storage.FixedLenToInteger[storage.Int](got); got != intv {
+		t.Fatalf("expected %d at offset %d. Got %d", intv, offset2, got)
 	}
 
-	t.Logf("offset %d contains %s", pos, p2.String(pos))
+	sgot := p2.GetVarlen(offset)
+	if got := storage.VarlenToGoString(sgot); got != val {
+		t.Fatalf("expected %q at offset %d. Got %q", val, offset, got)
+	}
 }

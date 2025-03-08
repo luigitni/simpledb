@@ -2,15 +2,25 @@ package tx
 
 import (
 	"fmt"
+	"unsafe"
+
+	"github.com/luigitni/simpledb/storage"
 )
 
 type startLogRecord struct {
-	txnum int
+	txnum storage.TxID
 }
 
-func newStartLogRecord(record recordBuffer) startLogRecord {
+const sizeOfStartRecord = int(unsafe.Sizeof(startLogRecord{})) + int(storage.SizeOfTinyInt)
+
+func newStartLogRecord(record *recordBuffer) startLogRecord {
+	f := record.readFixedLen(storage.SizeOfTinyInt)
+	if v := txTypeFromFixedLen(f); v != START {
+		panic(fmt.Sprintf("bad %s record: %s", START, v))
+	}
+
 	return startLogRecord{
-		txnum: record.readInt(),
+		txnum: storage.FixedLenToInteger[storage.TxID](record.readFixedLen(storage.SizeOfTxID)),
 	}
 }
 
@@ -18,7 +28,7 @@ func (record startLogRecord) Op() txType {
 	return START
 }
 
-func (record startLogRecord) TxNumber() int {
+func (record startLogRecord) TxNumber() storage.TxID {
 	return record.txnum
 }
 
@@ -30,16 +40,21 @@ func (record startLogRecord) String() string {
 	return fmt.Sprintf("<START %d>", record.txnum)
 }
 
-func logStart(lm logManager, txnum int) int {
-	p := logPools.small2ints.Get().(*[]byte)
-	defer logPools.small2ints.Put(p)
+func logStart(lm logManager, txnum storage.TxID) int {
+	buf := make([]byte, sizeOfStartRecord)
+	writeStart(buf, txnum)
 
-	writeStart(p, txnum)
-	return lm.Append(*p)
+	return lm.Append(buf)
 }
 
-func writeStart(dst *[]byte, txnum int) {
-	rbuf := recordBuffer{bytes: *dst}
-	rbuf.writeInt(int(START))
-	rbuf.writeInt(txnum)
+func writeStart(dst []byte, txnum storage.TxID) {
+	rbuf := recordBuffer{bytes: dst}
+	rbuf.writeFixedLen(
+		storage.SizeOfTinyInt,
+		storage.IntegerToFixedLen[storage.TinyInt](storage.SizeOfTinyInt, storage.TinyInt(START)),
+	)
+	rbuf.writeFixedLen(
+		storage.SizeOfTxID,
+		storage.IntegerToFixedLen[storage.TxID](storage.SizeOfTxID, txnum),
+	)
 }

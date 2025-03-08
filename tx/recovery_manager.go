@@ -1,16 +1,15 @@
 package tx
 
 import (
-	"sync/atomic"
-
 	"github.com/luigitni/simpledb/buffer"
-	"github.com/luigitni/simpledb/log"
+	"github.com/luigitni/simpledb/storage"
+	"github.com/luigitni/simpledb/wal"
 )
 
 type logManager interface {
 	Flush(lsn int)
 	Append(record []byte) int
-	Iterator() *log.WalIterator
+	Iterator() *wal.WalIterator
 }
 
 // recoveryManager is the Recovery manager.
@@ -25,11 +24,11 @@ type recoveryManager struct {
 	lm    logManager
 	bm    *buffer.BufferManager
 	tx    Transaction
-	txnum int
+	txnum storage.TxID
 }
 
 // RecoveryManagerForTx returns a recovery manager for the given transaction and txnum
-func newRecoveryManagerForTx(tx Transaction, txnum int, lm logManager, bm *buffer.BufferManager) recoveryManager {
+func newRecoveryManagerForTx(tx Transaction, txnum storage.TxID, lm logManager, bm *buffer.BufferManager) recoveryManager {
 	man := recoveryManager{
 		lm:    lm,
 		bm:    bm,
@@ -40,26 +39,36 @@ func newRecoveryManagerForTx(tx Transaction, txnum int, lm logManager, bm *buffe
 	return man
 }
 
-// setInt writes a SETINT record to the log and returns its lsn.
+// setFixedLen writes a SETFIXED record to the log and returns its lsn.
 // buff is the buffer containing the page
 // offset is the offset of the value within the page
 // val is the value to be written
-// todo: why is the actual implementation passing the oldval?
-func (man recoveryManager) setInt(buff *buffer.Buffer, offset int, val int) int {
-	oldval := buff.Contents().Int(offset)
+// because in this version the recovery is undo-only, we don't need the new value
+func (man recoveryManager) setFixedLen(buff *buffer.Buffer, offset storage.Offset, size storage.Offset, _ storage.FixedLen) int {
+	oldVal := buff.Contents().Slice(offset, offset + size)
 	block := buff.Block()
-	return logSetInt(man.lm, man.txnum, block, offset, oldval)
+
+	return logCopy(man.lm, man.txnum, block, offset, oldVal)
 }
 
-// setString writes a SETSTRING record to the log and return its lsn.
+// setVarLen writes a SETVARLEN record to the log and return its lsn.
 // buff is the buffer containing the page,
 // offset is the offset of the value within the page
-// newval is the value to be written.
-// WHY IS IT PASSING OLDVAL??
-func (man recoveryManager) setString(buff *buffer.Buffer, offset int, val string) int {
-	oldval := buff.Contents().String(offset)
+// newval is the value to be written - because in this version
+// the recovery is undo-only, we don't need the new value
+func (man recoveryManager) setVarLen(buff *buffer.Buffer, offset storage.Offset, vlen storage.Varlen) int {
+	size := storage.Offset(vlen.Size())
+	oldVal := buff.Contents().Slice(offset, offset + size)
 	block := buff.Block()
-	return logSetString(man.lm, man.txnum, block, offset, oldval)
+
+	return logCopy(man.lm, man.txnum, block, offset, oldVal)
+}
+
+func (man recoveryManager) logCopy(buff *buffer.Buffer, _ storage.Offset, dst storage.Offset, size storage.Offset) int {
+	oldval := buff.Contents().Slice(dst, dst+size)
+	block := buff.Block()
+
+	return logCopy(man.lm, man.txnum, block, dst, oldval)
 }
 
 // Write a commit record to the log and flushes it to disk
@@ -79,6 +88,8 @@ func (man recoveryManager) rollback() {
 
 // doRollback rolls the transaction back by iterating through log records
 // until it finds the transaction's START record, calling tx.Undo() for each of the TX log records.
+// The Undo methods write back to the buffer cache the old values of the modified fields
+// before flushing the buffer.
 func (man recoveryManager) doRollback() {
 	reader := man.lm.Iterator()
 	defer reader.Close()
@@ -88,13 +99,15 @@ func (man recoveryManager) doRollback() {
 			break
 		}
 
-		// get the next log entry - remember, the log is written from right to left
 		bytes := reader.Next()
 		record := createLogRecord(bytes)
+
 		if record.TxNumber() == man.txnum {
 			if record.Op() == START {
+
 				return
 			}
+
 			record.Undo(man.tx)
 		}
 	}
@@ -109,7 +122,7 @@ func (man recoveryManager) recover() {
 	man.lm.Flush(lsn)
 
 	// set the next tx number to the max transaction number
-	atomic.StoreInt64(&nextTxNum, int64(maxTx))
+	setLastTxNum(maxTx)
 }
 
 // doRecover does a complete database recovery.
@@ -117,12 +130,12 @@ func (man recoveryManager) recover() {
 // Whenever it finds a log record for an unfinished transaction,
 // it calls undo() on that record.
 // The method stops when it encounters a CHECKPOINT record or the end of the log file
-func (man recoveryManager) doRecover() int {
-	finishedTxs := map[int]struct{}{}
+func (man recoveryManager) doRecover() storage.TxID {
+	finishedTxs := map[storage.TxID]struct{}{}
 	reader := man.lm.Iterator()
 	defer reader.Close()
 
-	maxTxNum := 0
+	var maxTxNum storage.TxID
 
 	for {
 		if !reader.HasNext() {

@@ -3,17 +3,16 @@ package db
 import (
 	"testing"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 func TestRowsString(t *testing.T) {
-
 	t.Run("expect no result", func(t *testing.T) {
 		rows := Rows{
-			cols: []string{
-				"first col",
-				"second col which is very long",
-				"third",
+			cols: []Col{
+				{Name: "first col", Type: storage.INT},
+				{Name: "second col which is very long", Type: storage.TEXT},
+				{Name: "third", Type: storage.TEXT},
 			},
 		}
 
@@ -24,40 +23,39 @@ func TestRowsString(t *testing.T) {
 
 	t.Run("expect correct table", func(t *testing.T) {
 		const expected = "\n" +
-			"| first col | second col which is very long |             third             |\n" +
-			"|-----------|-------------------------------|-------------------------------|\n" +
-			"|    123    |             'abc'             | 'This is a much longer value' |\n" +
-			"|     0     | 'This is a much longer value' |            'short'            |\n" +
+			"| first col | second col which is very long |            third            |\n" +
+			"|-----------|-------------------------------|-----------------------------|\n" +
+			"|    123    |              abc              | This is a much longer value |\n" +
+			"|     0     |  This is a much longer value  |            short            |\n" +
 			"---\n" +
 			"2 records found."
 
 		rows := Rows{
-			cols: []string{
-				"first col",
-				"second col which is very long",
-				"third",
+			cols: []Col{
+				{Name: "first col", Type: storage.INT},
+				{Name: "second col which is very long", Type: storage.TEXT},
+				{Name: "third", Type: storage.TEXT},
 			},
 			rows: []Row{
 				{
-					vals: []types.Value{
-						types.ValueFromInt(123),
-						types.ValueFromString("abc"),
-						types.ValueFromString("This is a much longer value"),
+					vals: []storage.Value{
+						storage.ValueFromInteger[storage.Int](storage.SizeOfInt, 123),
+						storage.ValueFromGoString("abc"),
+						storage.ValueFromGoString("This is a much longer value"),
 					},
 				},
 				{
-					vals: []types.Value{
-						types.ValueFromInt(0),
-						types.ValueFromString("This is a much longer value"),
-						types.ValueFromString("short"),
+					vals: []storage.Value{
+						storage.ValueFromInteger[storage.Int](storage.SizeOfInt, 0),
+						storage.ValueFromGoString("This is a much longer value"),
+						storage.ValueFromGoString("short"),
 					},
 				},
 			},
 		}
 
 		if s := rows.String(); s != expected {
-			t.Fatalf("expected %q, got %q", expected, s)
+			t.Fatalf("expected \n%q \n%q", expected, s)
 		}
 	})
-
 }

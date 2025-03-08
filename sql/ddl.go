@@ -1,10 +1,10 @@
 package sql
 
-import "github.com/luigitni/simpledb/types"
+import "github.com/luigitni/simpledb/storage"
 
 type FieldDef struct {
 	Name string
-	Type types.FieldType
+	Type storage.FieldType
 	Len  int
 }
 
@@ -126,49 +126,28 @@ func (p Parser) fieldDef() ([]FieldDef, error) {
 	return p.fieldType(field)
 }
 
+var fieldNames = map[string]storage.FieldType{
+	"tinyint":  storage.TINYINT,
+	"smallint": storage.SMALLINT,
+	"int":      storage.INT,
+	"long":     storage.LONG,
+	"text":     storage.TEXT,
+}
+
 func (p Parser) fieldType(field string) ([]FieldDef, error) {
 	var fields []FieldDef
-	if p.matchKeyword("int") {
-		p.eatKeyword("int")
-		fields = append(fields, FieldDef{
-			Name: field,
-			Type: types.INTEGER,
-		})
-		return fields, nil
-	}
 
-	if p.matchKeyword("text") {
-		p.eatKeyword("text")
-		fields = append(fields, FieldDef{
-			Name: field,
-			Type: types.STRING,
-		})
-		return fields, nil
-	}
+	for k, v := range fieldNames {
+		if p.matchKeyword(k) {
+			p.eatKeyword(k)
+			fields = append(fields, FieldDef{
+				Name: field,
+				Type: v,
+			})
 
-	// legacy varchar type
-	if err := p.eatKeyword("varchar"); err != nil {
-		return nil, err
+			return fields, nil
+		}
 	}
-
-	if err := p.eatTokenType(TokenLeftParen); err != nil {
-		return nil, err
-	}
-
-	len, err := p.eatIntValue()
-	if err != nil {
-		return nil, err
-	}
-
-	if err := p.eatTokenType(TokenRightParen); err != nil {
-		return nil, err
-	}
-
-	fields = append(fields, FieldDef{
-		Name: field,
-		Type: types.STRING,
-		Len:  len,
-	})
 
 	return fields, nil
 }

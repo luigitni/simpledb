@@ -6,37 +6,37 @@ import (
 	"io"
 
 	"github.com/luigitni/simpledb/buffer"
+	"github.com/luigitni/simpledb/engine"
 	"github.com/luigitni/simpledb/file"
-	"github.com/luigitni/simpledb/log"
-	"github.com/luigitni/simpledb/record"
 	"github.com/luigitni/simpledb/sql"
+	"github.com/luigitni/simpledb/storage"
 	"github.com/luigitni/simpledb/tx"
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/wal"
 )
 
 const (
 	defaultPath      = "../data"
-	defaultLogFile   = "../data/wal"
-	blockSize        = types.PageSize
+	defaultLogFile   = "../data/" + file.WALPath
+	blockSize        = storage.PageSize
 	buffersAvaialble = 500
 )
 
 type DB struct {
 	fm  *file.FileManager
-	lm  *log.WalWriter
+	lm  *wal.WalWriter
 	bm  *buffer.BufferManager
-	mdm *record.MetadataManager
+	mdm *engine.MetadataManager
 }
 
 func NewDB() (*DB, error) {
 	fm := file.NewFileManager(defaultPath, blockSize)
-	lm := log.NewLogManager(fm, defaultLogFile)
+	lm := wal.NewWalWriter(fm, defaultLogFile)
 	bm := buffer.NewBufferManager(fm, lm, buffersAvaialble)
 
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	mdm := record.NewMetadataManager()
+	mdm := engine.NewMetadataManager()
 
 	if fm.IsNew() {
 		fmt.Println("initialising new database")
@@ -55,6 +55,10 @@ func NewDB() (*DB, error) {
 		bm:  bm,
 		mdm: mdm,
 	}, nil
+}
+
+func (db *DB) Close() {
+	db.fm.Close()
 }
 
 func (db *DB) NewTx() tx.Transaction {
@@ -78,7 +82,7 @@ func (db *DB) Exec(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 
 func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
 	run := func() (Rows, error) {
-		planner := record.NewHeuristicsQueryPlanner(db.mdm)
+		planner := engine.NewHeuristicsQueryPlanner(db.mdm)
 
 		plan, err := planner.CreatePlan(q, x)
 		if err != nil {
@@ -94,7 +98,14 @@ func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
 
 		var rows Rows
 
-		rows.cols = append(rows.cols, q.Fields()...)
+		schema := plan.Schema()
+
+		for _, f := range q.Fields() {
+			rows.cols = append(rows.cols, Col{
+				Name: f,
+				Type: schema.FieldInfo(f).Type,
+			})
+		}
 
 		for {
 			err := scan.Next()
@@ -112,6 +123,7 @@ func (db *DB) RunQuery(x tx.Transaction, q sql.Query) (fmt.Stringer, error) {
 				if err != nil {
 					return Rows{}, err
 				}
+
 				row.vals = append(row.vals, v)
 			}
 
@@ -138,9 +150,9 @@ func (r Result) String() string {
 }
 
 func (db *DB) ExecDDL(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
-	planner := record.NewUpdatePlanner(db.mdm)
+	planner := engine.NewUpdatePlanner(db.mdm)
 
-	res, err := record.ExecuteDDLStatement(planner, cmd, x)
+	res, err := engine.ExecuteDDLStatement(planner, cmd, x)
 	if err != nil {
 		return Result{}, err
 	}
@@ -149,9 +161,9 @@ func (db *DB) ExecDDL(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
 }
 
 func (db *DB) ExecDML(x tx.Transaction, cmd sql.Command) (fmt.Stringer, error) {
-	planner := record.NewUpdatePlanner(db.mdm)
+	planner := engine.NewUpdatePlanner(db.mdm)
 
-	res, err := record.ExecuteDMLStatement(planner, cmd, x)
+	res, err := engine.ExecuteDMLStatement(planner, cmd, x)
 	if err != nil {
 		return Result{}, err
 	}

@@ -3,7 +3,7 @@ package buffer
 import (
 	"sync"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 const maxPins = 5
@@ -21,10 +21,10 @@ type Buffer struct {
 	sync.RWMutex
 	fm       fileManager
 	lm       logManager
-	contents *types.Page
-	block    types.Block
+	contents *storage.Page
+	block    storage.Block
 	pins     int
-	txnum    int
+	txnum    storage.TxID
 	lsn      int
 }
 
@@ -32,22 +32,22 @@ func newBuffer(fm fileManager, lm logManager) *Buffer {
 	return &Buffer{
 		fm:       fm,
 		lm:       lm,
-		contents: types.NewPage(),
-		txnum:    -1,
+		contents: storage.NewPage(),
+		txnum:    storage.TxIDInvalid,
 		lsn:      -1,
 	}
 }
 
-func (buf *Buffer) Contents() *types.Page {
+func (buf *Buffer) Contents() *storage.Page {
 	return buf.contents
 }
 
-func (buf *Buffer) Block() types.Block {
+func (buf *Buffer) Block() storage.Block {
 	return buf.block
 }
 
 // SetModified
-func (buf *Buffer) SetModified(txnum int, lsn int) {
+func (buf *Buffer) SetModified(txnum storage.TxID, lsn int) {
 	buf.Lock()
 	defer buf.Unlock()
 
@@ -57,7 +57,7 @@ func (buf *Buffer) SetModified(txnum int, lsn int) {
 	}
 }
 
-func (buf *Buffer) modifyingTxNumber() int {
+func (buf *Buffer) modifyingTxNumber() storage.TxID {
 	buf.RLock()
 	defer buf.RUnlock()
 
@@ -84,7 +84,7 @@ func (buf *Buffer) flush() {
 		buf.lm.Flush(buf.lsn)
 		// persist contents of the buffer to the assigned block
 		buf.fm.Write(buf.block, buf.contents)
-		buf.txnum = -1
+		buf.txnum = storage.TxIDInvalid
 	}
 }
 
@@ -92,7 +92,7 @@ func (buf *Buffer) flush() {
 // The buffer is first flushed so that any modifications to the
 // previous block are preserved.
 // The buffer is then associated with the specified block, reading its contents from disk.
-func (buf *Buffer) assignBlock(block types.Block) {
+func (buf *Buffer) assignBlock(block storage.Block) {
 	buf.Lock()
 	defer buf.Unlock()
 	// flush current contents

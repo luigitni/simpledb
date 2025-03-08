@@ -4,7 +4,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/luigitni/simpledb/types"
+	"github.com/luigitni/simpledb/storage"
 )
 
 const maxRetryTime = 5 * time.Second
@@ -90,7 +90,7 @@ func (man *BufferManager) Available() int {
 
 // FlushAll iterates over the assigned blocks and flush them to disk
 // if and only if they belong to the current transaction
-func (man *BufferManager) FlushAll(txnum int) {
+func (man *BufferManager) FlushAll(txnum storage.TxID) {
 	man.blockMap.Range(func(key, value any) bool {
 		buf := value.(*Buffer)
 		if buf.modifyingTxNumber() == txnum {
@@ -108,7 +108,7 @@ func (man *BufferManager) Unpin(buf *Buffer) {
 // Pin tries to pin a buffer to the given block.
 // If no buffer is available, clients will be put on wait until timeout.
 // If no buffer becomes available until time out, an ErrClientTimeout is returned.
-func (man *BufferManager) Pin(block types.Block) (*Buffer, error) {
+func (man *BufferManager) Pin(block storage.Block) (*Buffer, error) {
 	const maxDelay = 100 * time.Millisecond
 
 	ts := time.Now()
@@ -145,7 +145,7 @@ func (man *BufferManager) Pin(block types.Block) (*Buffer, error) {
 // Otherwise it looks for an unpinned buffer to assign to the block.
 // The unpinned buffer is then flushed
 // Returns nil if no buffer is available
-func (man *BufferManager) tryToPin(block types.Block) *Buffer {
+func (man *BufferManager) tryToPin(block storage.Block) *Buffer {
 	buf := man.findExistingBuffer(block)
 
 	if buf == nil {
@@ -165,7 +165,7 @@ func (man *BufferManager) tryToPin(block types.Block) *Buffer {
 
 // findExistingBuffer tries to find a buffer that has already been assigned the given block.
 // if found, the buffer is returned, otherwise the method returns nil
-func (man *BufferManager) findExistingBuffer(block types.Block) *Buffer {
+func (man *BufferManager) findExistingBuffer(block storage.Block) *Buffer {
 	if v, ok := man.blockMap.Load(block.ID()); ok {
 		return v.(*Buffer)
 	}
@@ -202,7 +202,7 @@ func (man *BufferManager) markAndSweep() {
 	})
 }
 
-func (man *BufferManager) assignBufferToBlock(buf *Buffer, block types.Block) {
+func (man *BufferManager) assignBufferToBlock(buf *Buffer, block storage.Block) {
 	man.blockMap.Store(block.ID(), buf)
 	buf.flush()
 	buf.assignBlock(block)
