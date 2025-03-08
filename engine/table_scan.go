@@ -226,7 +226,7 @@ func (ts *tableScan) moveToNewBlock() error {
 		return err
 	}
 	ts.recordPage = pages.NewSlottedPage(ts.x, block, ts.layout)
-	ts.recordPage.Format(0)
+	ts.recordPage.Format(pages.PageTypeHeap, 0)
 	ts.currentSlot = pages.BeforeFirstSlot
 	return nil
 }

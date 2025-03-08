@@ -103,8 +103,9 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 	schema := selectPlan.Schema()
 
 	type fieldValue struct {
-		field string
-		value storage.Value
+		field    string
+		oldValue storage.Value
+		newValue storage.Value
 	}
 
 	entryFields := make([]fieldValue, len(schema.fields))
@@ -128,7 +129,11 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 			}
 
 			idx := schema.info[fieldName].Index
-			entryFields[idx] = fieldValue{fieldName, val}
+			entryFields[idx] = fieldValue{
+				field:    fieldName,
+				oldValue: val,
+				newValue: val,
+			}
 
 			t := schema.ftype(fieldName)
 
@@ -136,20 +141,21 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 		}
 
 		for _, f := range data.Fields {
-			val, err := f.NewValue.Evaluate(updateScan)
+			newValue, err := f.NewValue.Evaluate(updateScan)
 			if err != nil {
 				return updatedRows, err
 			}
 
 			idx := schema.info[f.Field].Index
 
-			old := entryFields[idx]
+			oldValue := entryFields[idx].oldValue
 
 			t := schema.ftype(f.Field)
-			size -= old.value.Size(t)
+			size -= oldValue.Size(t)
 
-			entryFields[idx] = fieldValue{f.Field, val}
-			size += val.Size(t)
+			entryFields[idx].newValue = newValue
+
+			size += newValue.Size(t)
 		}
 
 		oldRid := updateScan.GetRID()
@@ -161,11 +167,13 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 		newRid := updateScan.GetRID()
 
 		for _, fv := range entryFields {
-			if err := updateScan.SetVal(fv.field, fv.value); err != nil {
+			if err := updateScan.SetVal(fv.field, fv.newValue); err != nil {
 				return updatedRows, err
 			}
 
 			// check if the field is indexed. If it is, save it
+			// we need to do this even if the value that has changed is not indexed
+			// because the new record will have a new rid.
 			info, ok := ii[fv.field]
 			if !ok {
 				continue
@@ -174,11 +182,11 @@ func (planner *IndexUpdatePlanner) executeUpdate(data sql.UpdateCommand, x tx.Tr
 			idx := info.Open()
 			defer idx.Close()
 
-			if err := idx.Delete(fv.value, oldRid); err != nil {
+			if err := idx.Delete(fv.oldValue, oldRid); err != nil {
 				return updatedRows, err
 			}
 
-			if err := idx.Insert(fv.value, newRid); err != nil {
+			if err := idx.Insert(fv.newValue, newRid); err != nil {
 				return updatedRows, err
 			}
 		}

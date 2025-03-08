@@ -565,11 +565,11 @@ func TestBTreeLeafInsert(t *testing.T) {
 				bTreeMaxSizeOfKey,
 			)
 
-			shouldSplit := !fits
-
 			if err != nil {
 				t.Fatalf("unexpected error when checking if record fits: %s", err)
 			}
+
+			shouldSplit := !fits
 
 			leaf.currentSlot, err = leaf.contents.findSlotBefore(leaf.key)
 			if err != nil {
@@ -842,8 +842,7 @@ func TestBTreeDirInsertEntry(t *testing.T) {
 			t.Fatalf("unexpected error when formatting the directory page: %s", err)
 		}
 
-		var i int
-		splitAt := -1
+		var i storage.Long
 		for {
 
 			fits, err := page.contents.slottedPage.RecordsFit(
@@ -855,14 +854,12 @@ func TestBTreeDirInsertEntry(t *testing.T) {
 				t.Fatalf("unexpected error when checking if record fits: %s", err)
 			}
 
-			if !fits && splitAt == -1 {
-				splitAt = i + 1
-			}
+			shouldSplit := !fits
 
-			val := storage.ValueFromInteger[storage.Long](storage.SizeOfLong, storage.Long(i))
+			val := storage.ValueFromInteger[storage.Long](storage.SizeOfLong, i)
 
 			dir := dirEntry{
-				blockNum: storage.Long(i),
+				blockNum: i,
 				value:    val,
 			}
 
@@ -871,11 +868,11 @@ func TestBTreeDirInsertEntry(t *testing.T) {
 				t.Fatalf("unexpected error when inserting record: %s", err)
 			}
 
-			if i != splitAt && !out.empty() {
+			if !shouldSplit && !out.empty() {
 				t.Fatalf("expected empty dir when inserting %dth value, got %v.", i, out)
 			}
 
-			if i == splitAt {
+			if shouldSplit {
 				if out.empty() {
 					t.Fatalf("expected non-empty dir when inserting %dth value, got %v", i, out)
 				}

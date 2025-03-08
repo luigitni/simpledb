@@ -168,7 +168,7 @@ func (p bTreePage) setNumRecords(s storage.SmallInt) error {
 }
 
 func (p bTreePage) format(flag storage.Long) error {
-	if err := p.slottedPage.Format(bTreeSpecialBlockSize); err != nil {
+	if err := p.slottedPage.Format(pages.PageTypeBTree, bTreeSpecialBlockSize); err != nil {
 		return err
 	}
 

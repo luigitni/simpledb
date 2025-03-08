@@ -46,8 +46,8 @@ func TestSlottedPageHeaderEntry(t *testing.T) {
 	)
 
 	var e slottedPageHeaderEntry
-	e = e.setOffset(offset)
-	e = e.setLength(length)
+	e = e.setRecordOffset(offset)
+	e = e.setRecordLength(length)
 	e = e.setFlag(flag)
 
 	if v := e.recordOffset(); v != offset {
@@ -78,14 +78,11 @@ func TestSlottedPageAppendRecordSlot(t *testing.T) {
 	}
 
 	page := NewSlottedPage(x, block, layout)
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
-	header, err := page.Header()
-	if err != nil {
-		t.Fatalf("error reading header: %v", err)
-	}
+	header := page.Header()
 
 	t.Run("record is too large", func(t *testing.T) {
 		if err := header.appendRecordSlot(defaultFreeSpaceEnd + 1); err != errNoFreeSpaceAvailable {
@@ -138,7 +135,7 @@ func TestSlottedPageWriteHeader(t *testing.T) {
 	}
 
 	page := NewSlottedPage(x, block, layout)
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
@@ -147,10 +144,7 @@ func TestSlottedPageWriteHeader(t *testing.T) {
 		for i, v := range []storage.Offset{255, 1024, 512, 323, 8} {
 			recordsSize += v
 
-			header, err := page.Header()
-			if err != nil {
-				t.Fatalf("error reading header before write: %v", err)
-			}
+			header := page.Header()
 
 			if err := header.appendRecordSlot(v); err != nil {
 				t.Fatalf("error appending record slot: %v", err)
@@ -191,47 +185,79 @@ func TestSlottedPageReadHeader(t *testing.T) {
 	x.Append(block.FileName())
 
 	entries := []slottedPageHeaderEntry{
-		slottedPageHeaderEntry{}.setOffset(0).setLength(256).setFlag(flagInUseRecord),
-		slottedPageHeaderEntry{}.setOffset(512).setLength(512).setFlag(flagEmptyRecord),
-		slottedPageHeaderEntry{}.setOffset(1024).setLength(1024).setFlag(flagInUseRecord),
+		slottedPageHeaderEntry{}.setRecordOffset(0).setRecordLength(256).setFlag(flagInUseRecord),
+		slottedPageHeaderEntry{}.setRecordOffset(512).setRecordLength(512).setFlag(flagEmptyRecord),
+		slottedPageHeaderEntry{}.setRecordOffset(1024).setRecordLength(1024).setFlag(flagInUseRecord),
 	}
 
 	page := NewSlottedPage(x, block, nil)
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
-	header, err := page.Header()
-	if err != nil {
-		t.Fatal(err)
-	}
+	header := page.Header()
 
 	for _, e := range entries {
 		header.appendEntry(e)
 	}
 
-	if got := header.mustBlockNumber(); got != blockNumber {
-		t.Errorf("expected block number %d, got %d", blockNumber, got)
-	}
-
-	if got := header.mustNumSlots(); got != storage.SmallInt(len(entries)) {
-		t.Errorf("expected numSlots %d, got %d", len(entries), got)
-	}
-
-	if got := header.mustFreeSpaceEnd(); got != freeSpaceEnd {
-		t.Errorf("expected freeSpaceEnd %d, got %d", freeSpaceEnd, got)
-	}
-
-	for i, want := range entries {
-		got, err := header.entry(storage.SmallInt(i))
+	t.Run("successfully reads blocknumber", func(t *testing.T) {
+		got, err := header.blockNumber()
 		if err != nil {
-			t.Fatalf("error getting entry %d: %v", i, err)
+			t.Fatalf("error getting block number: %v", err)
 		}
 
-		if got != want {
-			t.Errorf("expected entry %d to be %v, got %v", i, want, got)
+		if got != blockNumber {
+			t.Errorf("expected block number %d, got %d", blockNumber, got)
 		}
-	}
+	})
+
+	t.Run("successfully reads page type", func(t *testing.T) {
+		got, err := header.pageType()
+		if err != nil {
+			t.Fatalf("error getting page type: %v", err)
+		}
+
+		if got != PageTypeHeap {
+			t.Errorf("expected page type %d, got %d", PageTypeHeap, got)
+		}
+	})
+
+	t.Run("successfully reads numSlots", func(t *testing.T) {
+		got, err := header.numSlots()
+
+		if err != nil {
+			t.Fatalf("error getting numSlots: %v", err)
+		}
+
+		if got != storage.SmallInt(len(entries)) {
+			t.Errorf("expected numSlots %d, got %d", len(entries), got)
+		}
+	})
+
+	t.Run("successfully reads freeSpaceEnd", func(t *testing.T) {
+		got, err := header.freeSpaceEnd()
+		if err != nil {
+			t.Fatalf("error getting freeSpaceEnd: %v", err)
+		}
+
+		if got != freeSpaceEnd {
+			t.Errorf("expected freeSpaceEnd %d, got %d", freeSpaceEnd, got)
+		}
+	})
+
+	t.Run("successfully reads entries", func(t *testing.T) {
+		for i, want := range entries {
+			got, err := header.entry(storage.SmallInt(i))
+			if err != nil {
+				t.Fatalf("error getting entry %d: %v", i, err)
+			}
+
+			if got != want {
+				t.Errorf("expected entry %d to be %v, got %v", i, want, got)
+			}
+		}
+	})
 }
 
 func TestSlottedPageSearchAfter(t *testing.T) {
@@ -250,7 +276,7 @@ func TestSlottedPageSearchAfter(t *testing.T) {
 
 	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
@@ -295,7 +321,7 @@ func TestSlottedPageInsertAfter(t *testing.T) {
 
 	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
@@ -345,7 +371,7 @@ func TestSlottedPageSet(t *testing.T) {
 	}
 
 	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
@@ -362,15 +388,14 @@ func TestSlottedPageSet(t *testing.T) {
 		storage.TinyInt(12), "This is a variable string", storage.Int(4567890), "This is another string",
 	}
 
-	catalog := []string{"field1", "field2", "field3", "field4"}
-
 	var recordLength storage.Offset
-	for i, v := range record {
-		column := catalog[i]
+	for _, v := range record {
 
 		switch val := v.(type) {
-		case storage.TinyInt, storage.Int:
-			recordLength += storage.Offset(layout.indexes[column])
+		case storage.TinyInt:
+			recordLength += storage.SizeOfTinyInt
+		case storage.Int:
+			recordLength += storage.SizeOfInt
 		case string:
 			recordLength += storage.Offset(storage.SizeOfStringAsVarlen(val))
 		default:
@@ -466,14 +491,11 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 
 		page := NewSlottedPage(x, block, nil)
 
-		if err := page.Format(specialSpaceSize); err != nil {
+		if err := page.Format(PageTypeHeap, specialSpaceSize); err != nil {
 			t.Fatalf("error formatting page: %v", err)
 		}
 
-		header, err := page.Header()
-		if err != nil {
-			t.Fatalf("error reading header: %v", err)
-		}
+		header := page.Header()
 
 		if got := header.mustBlockNumber(); got != 1 {
 			t.Fatalf("expected block number to be 1, got %d", got)
@@ -501,7 +523,7 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 
 		page := NewSlottedPage(x, block, nil)
 
-		if err := page.Format(specialSpaceSize); err != nil {
+		if err := page.Format(PageTypeHeap, specialSpaceSize); err != nil {
 			t.Fatalf("error formatting page: %v", err)
 		}
 
@@ -531,7 +553,7 @@ func TestSlottedPageSetAtSpecial(t *testing.T) {
 
 		page := NewSlottedPage(x, block, nil)
 
-		if err := page.Format(specialSpaceSize); err != nil {
+		if err := page.Format(PageTypeHeap, specialSpaceSize); err != nil {
 			t.Fatalf("error formatting page: %v", err)
 		}
 
@@ -570,7 +592,7 @@ func TestSlottedPageDelete(t *testing.T) {
 
 	page := NewSlottedPage(x, block, layout)
 
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
@@ -602,7 +624,7 @@ func TestSlottedPageInsertAt(t *testing.T) {
 	x := tx.NewTx(fm, lm, bm)
 	defer x.Commit()
 
-	block := storage.NewBlock("shift_right", 0)
+	block := storage.NewBlock(test.RandomName(), 0)
 	x.Append(block.FileName())
 
 	layout := mockLayout{
@@ -612,7 +634,7 @@ func TestSlottedPageInsertAt(t *testing.T) {
 
 	page := NewSlottedPage(x, block, layout)
 
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeBTree, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
@@ -629,10 +651,7 @@ func TestSlottedPageInsertAt(t *testing.T) {
 			t.Fatalf("error setting fixedlen: %v", err)
 		}
 
-		header, err := page.Header()
-		if err != nil {
-			t.Fatalf("error reading header: %v", err)
-		}
+		header := page.Header()
 
 		if got := header.mustNumSlots(); got != storage.SmallInt(i+1) {
 			t.Fatalf("expected num slots to be %d, got %d at iteration %d", i+1, got, i)
@@ -666,10 +685,7 @@ func TestSlottedPageInsertAt(t *testing.T) {
 		return nil
 	}
 
-	header, err := page.Header()
-	if err != nil {
-		t.Fatalf("error reading header: %v", err)
-	}
+	header := page.Header()
 
 	slots := int(header.mustNumSlots())
 	if slots != 101 {
@@ -711,15 +727,15 @@ func TestSlottedPageShiftSlotsLeft(t *testing.T) {
 
 	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeBTree, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
 	const numRecords = 100
-	slot := BeforeFirstSlot
 	for i := 0; i < numRecords; i++ {
-		slot, err := page.InsertAfter(slot, storage.SizeOfSmallInt, false)
-		if err != nil {
+		slot := storage.SmallInt(i)
+
+		if err := page.InsertAt(slot, storage.SizeOfSmallInt); err != nil {
 			t.Fatalf("error inserting record: %v", err)
 		}
 
@@ -750,10 +766,7 @@ func TestSlottedPageShiftSlotsLeft(t *testing.T) {
 		return nil
 	}
 
-	header, err := page.Header()
-	if err != nil {
-		t.Fatalf("error reading header: %v", err)
-	}
+	header := page.Header()
 
 	slots := int(header.mustNumSlots())
 	if slots != 99 {
@@ -794,7 +807,7 @@ func TestSlottedPageCompact(t *testing.T) {
 
 		page := NewSlottedPage(tx, block, layout)
 
-		if err := page.Format(0); err != nil {
+		if err := page.Format(PageTypeHeap, 0); err != nil {
 			t.Fatalf("error formatting page: %v", err)
 		}
 
@@ -826,10 +839,7 @@ func TestSlottedPageCompact(t *testing.T) {
 		// test that the first record is at offset 0 from the end.
 		// test that the second record is at offset storage.SizeOfInt from the end.
 		// test that the third record is at offset storage.SizeOfInt*2 from the end.
-		header, err := page.Header()
-		if err != nil {
-			t.Fatalf("error reading header: %v", err)
-		}
+		header := page.Header()
 
 		for i, num := range []storage.Offset{1, 2, 3} {
 			want := defaultFreeSpaceEnd - num*recordSize
@@ -859,9 +869,6 @@ func TestSlottedPageCompact(t *testing.T) {
 
 		// test that the first record is still at offset 0 from the end.
 		// test the the third record is now at offset storage.SizeOfInt from the end.
-		if err != nil {
-			t.Fatalf("error reading header: %v", err)
-		}
 
 		if got := header.mustFreeSpaceEnd(); got != defaultFreeSpaceEnd-2*recordSize {
 			t.Fatalf("expected free space end to be %d, got %d", defaultFreeSpaceEnd-(2*storage.SizeOfInt), got)
@@ -912,7 +919,7 @@ func TestSlottedPageCompact(t *testing.T) {
 
 		page := NewSlottedPage(tx, block, layout)
 
-		if err := page.Format(0); err != nil {
+		if err := page.Format(PageTypeHeap, 0); err != nil {
 			t.Fatalf("error formatting page: %v", err)
 		}
 
@@ -934,10 +941,7 @@ func TestSlottedPageCompact(t *testing.T) {
 		}
 
 		// delete all records
-		header, err := page.Header()
-		if err != nil {
-			t.Fatalf("error reading header: %v", err)
-		}
+		header := page.Header()
 
 		for i := range header.mustNumSlots() {
 			if err := page.Delete(storage.SmallInt(i)); err != nil {
@@ -977,7 +981,7 @@ func TestSlottedPageTruncate(t *testing.T) {
 
 	page := NewSlottedPage(x, storage.NewBlock("file", 1), layout)
 
-	if err := page.Format(0); err != nil {
+	if err := page.Format(PageTypeHeap, 0); err != nil {
 		t.Fatalf("error formatting page: %v", err)
 	}
 
@@ -999,10 +1003,7 @@ func TestSlottedPageTruncate(t *testing.T) {
 		t.Fatalf("error truncating page: %v", err)
 	}
 
-	header, err := page.Header()
-	if err != nil {
-		t.Fatalf("error reading header: %v", err)
-	}
+	header := page.Header()
 
 	got := header.mustNumSlots()
 	if got != 50 {
@@ -1054,7 +1055,7 @@ func BenchmarkSlottedPageCompact(b *testing.B) {
 
 		page := NewSlottedPage(x, block, layout)
 
-		if err := page.Format(0); err != nil {
+		if err := page.Format(PageTypeHeap, 0); err != nil {
 			b.Fatalf("error formatting page: %v", err)
 		}
 
@@ -1076,10 +1077,7 @@ func BenchmarkSlottedPageCompact(b *testing.B) {
 		}
 
 		// delete all records
-		header, err := page.Header()
-		if err != nil {
-			b.Fatalf("error reading header: %v", err)
-		}
+		header := page.Header()
 
 		for i := range header.mustNumSlots() {
 			if err := page.Delete(storage.SmallInt(i)); err != nil {
