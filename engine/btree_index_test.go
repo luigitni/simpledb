@@ -2,6 +2,7 @@ package engine
 
 import (
 	"fmt"
+	"io"
 	"math"
 	"math/rand"
 	"testing"
@@ -54,7 +55,7 @@ func TestCreateNewBTreeIndex(t *testing.T) {
 	})
 }
 
-func TestBTreeIndex(t *testing.T) {
+func TestBTreeIndexInsertFixedLen(t *testing.T) {
 	fm, lm, bm := test.MakeManagers(t)
 
 	x := tx.NewTx(fm, lm, bm)
@@ -205,7 +206,7 @@ func TestBTreeIndex(t *testing.T) {
 	})
 }
 
-func TestBTreeIndexVarlen(t *testing.T) {
+func TestBTreeIndexInsertVarlen(t *testing.T) {
 	fm, lm, bm := test.MakeManagers(t)
 
 	x := tx.NewTx(fm, lm, bm)
@@ -318,6 +319,69 @@ func TestBTreeIndexVarlen(t *testing.T) {
 			if rid.Blocknum != 123 {
 				t.Fatalf("Expected block number to be 123, got %d", rid.Blocknum)
 			}
+		}
+	})
+}
+
+func TestBTreeIndexDelete(t *testing.T) {
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	leafSchema := newSchema()
+	leafSchema.addField(indexFieldDataVal, storage.LONG)
+	leafSchema.addField(indexFieldBlockNumber, storage.LONG)
+	leafSchema.addField(indexFieldRecordID, storage.INT)
+
+	leafLayout := NewLayout(leafSchema)
+
+	index, err := NewBTreeIndex(x, test.RandomName(), leafLayout)
+	if err != nil {
+		t.Fatalf("Error creating new BTree index: %v", err)
+	}
+
+	t.Run("deletes a record in BTree index", func(t *testing.T) {
+		v := storage.Long(123)
+		val := storage.ValueFromInteger[storage.Long](storage.SizeOfLong, v)
+
+		rid := NewRID(123, storage.SmallInt(v))
+
+		if err := index.Insert(val, rid); err != nil {
+			t.Fatalf("Error inserting record into BTree index: %v", err)
+		}
+
+		if err := index.BeforeFirst(val); err != nil {
+			t.Fatalf("Error before first in BTree index: %v", err)
+		}
+
+		if err := index.Next(); err != nil {
+			t.Fatalf("Error next in BTree index: %v", err)
+		}
+
+		rid, err = index.DataRID()
+		if err != nil {
+			t.Fatalf("Error getting data RID in BTree index: %v", err)
+		}
+
+		if rid.Blocknum != 123 {
+			t.Fatalf("Expected block number to be 123, got %d", rid.Blocknum)
+		}
+
+		if rid.Slot != storage.SmallInt(v) {
+			t.Fatalf("Expected record ID to be %d, got %d", v, rid.Slot)
+		}
+
+		if err := index.Delete(val, rid); err != nil {
+			t.Fatalf("Error deleting record from BTree index: %v", err)
+		}
+
+		if err := index.BeforeFirst(val); err != nil {
+			t.Fatalf("Error before first in BTree index: %v", err)
+		}
+
+		if err := index.Next(); err != io.EOF {
+			t.Fatalf("Expected EOF, got %v", err)
 		}
 	})
 }

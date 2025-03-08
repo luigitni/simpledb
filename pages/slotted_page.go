@@ -805,7 +805,7 @@ func (p *SlottedPage) InsertAfter(slot storage.SmallInt, recordSize storage.Offs
 	return nextSlot, nil
 }
 
-// searchFrom searches for the next empty slot starting from the given one with the provided flag such that the record fits.
+// searchAfter searches for the next empty slot starting from the given one with the provided flag such that the record fits.
 // A slot can be empty because the record was deleted and the space reclaimed, or because it was never used.
 // If such a slot cannot be found within the block, it returns an ErrNoFreeSlot error.
 // Otherwise it returns the slot index
@@ -909,28 +909,37 @@ func (page *SlottedPage) InsertAt(slot storage.SmallInt, recordSize storage.Offs
 	return nil
 }
 
-// ShiftSlotsLeft shifts the record slots one position to the left starting from the given slot
+// ShiftSlotsLeft shifts the record slots one position to the left, overriding the given slot
 func (page *SlottedPage) ShiftSlotsLeft(slot storage.SmallInt) error {
-	if slot == 0 {
-		return nil
-	}
-
 	header, err := page.Header()
 	if err != nil {
 		return fmt.Errorf("ShiftSlotsLeft: header %w", err)
 	}
 
-	numSlots := header.mustNumSlots()
+	numSlots, err := header.numSlots()
+	if err != nil {
+		return fmt.Errorf("ShiftSlotsLeft: numSlots %w", err)
+	}
 
-	if err := header.x.Copy(
-		*header.block,
-		entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot),
-		entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot-1),
-		storage.Offset(numSlots-slot)*sizeOfPageHeaderEntry,
-		true,
-	); err != nil {
 
-		return fmt.Errorf("ShiftSlotsLeft: copy: %w", err)
+	if slot >= numSlots {
+		return fmt.Errorf("ShiftSlotsLeft: slot %d out of bounds", slot)
+	}
+
+	// copy the slots to the left only if the slot is not the last one
+	// otherwise, we just decrease the number of slots
+	// and the record is effectively deleted
+	if slot < numSlots-1 {
+		if err := header.x.Copy(
+			*header.block,
+			entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot + 1),
+			entriesOffset+sizeOfPageHeaderEntry*storage.Offset(slot),
+			storage.Offset(numSlots-slot - 1)*sizeOfPageHeaderEntry,
+			true,
+		); err != nil {
+
+			return fmt.Errorf("ShiftSlotsLeft: copy: %w", err)
+		}
 	}
 
 	if err := header.setNumSlots(numSlots - 1); err != nil {

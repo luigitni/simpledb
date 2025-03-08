@@ -245,25 +245,25 @@ func (p bTreePage) split(splitpos storage.SmallInt, flag storage.Long) (storage.
 	return block, nil
 }
 
-func (page bTreePage) insert(slot storage.SmallInt, val storage.Value, size storage.Offset) (storage.SmallInt, error) {
+func (page bTreePage) insert(slot storage.SmallInt, val storage.Value, size storage.Offset) error {
 	if err := page.slottedPage.InsertAt(slot, size); err != nil {
-		return pages.InvalidSlot, fmt.Errorf("BTreePage: insert ShiftSlotsRight: %w", err)
+		return fmt.Errorf("BTreePage: insert ShiftSlotsRight: %w", err)
 	}
 
 	if err := page.setVal(slot, indexFieldDataVal, val); err != nil {
-		return pages.InvalidSlot, err
+		return err
 	}
 
 	recs, err := page.numRecords()
 	if err != nil {
-		return pages.InvalidSlot, err
+		return err
 	}
 
 	if err := page.setNumRecords(recs + 1); err != nil {
-		return pages.InvalidSlot, err
+		return err
 	}
 
-	return slot, nil
+	return nil
 }
 
 // delete assumes that the current slot of the page has already been set
@@ -273,13 +273,13 @@ func (page bTreePage) insert(slot storage.SmallInt, val storage.Value, size stor
 // When the page is compacted, all the existing records will be shifted at the end of the free space,
 // and the overwritten record will be ignored.
 func (page bTreePage) delete(slot storage.SmallInt) error {
-	if err := page.slottedPage.ShiftSlotsLeft(slot); err != nil {
-		return fmt.Errorf("delete: slottedPage.ShiftSlotsLeft: %w", err)
-	}
-
 	recs, err := page.numRecords()
 	if err != nil {
 		return err
+	}
+
+	if err := page.slottedPage.ShiftSlotsLeft(slot); err != nil {
+		return fmt.Errorf("delete: slottedPage.ShiftSlotsLeft: %w", err)
 	}
 
 	if err := page.setNumRecords(recs - 1); err != nil {
@@ -370,8 +370,7 @@ func (page bTreePage) getBlockNumber(slot storage.SmallInt) (storage.Long, error
 func (page bTreePage) insertDirectoryRecord(slot storage.SmallInt, val storage.Value, blockNumber storage.Long) error {
 	recordSize := val.Size(page.dataValType) + storage.SizeOfLong
 
-	slot, err := page.insert(slot, val, recordSize)
-	if err != nil {
+	if err := page.insert(slot, val, recordSize); err != nil {
 		return err
 	}
 
@@ -390,8 +389,7 @@ func (page bTreePage) insertDirectoryRecord(slot storage.SmallInt, val storage.V
 func (page bTreePage) insertLeafRecord(slot storage.SmallInt, val storage.Value, rid RID) error {
 	recordSize := val.Size(page.dataValType) + SizeOfRID
 
-	slot, err := page.insert(slot, val, recordSize)
-	if err != nil {
+	if err := page.insert(slot, val, recordSize); err != nil {
 		return err
 	}
 
@@ -562,7 +560,7 @@ func (leaf *bTreeLeaf) tryOverflow() (bool, error) {
 		return false, err
 	}
 
-	if !leaf.key.Equals(firstKey) || flag == flagUnset {
+	if flag == flagUnset || !leaf.key.Equals(firstKey) {
 		return false, nil
 	}
 

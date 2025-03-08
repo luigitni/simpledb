@@ -731,8 +731,8 @@ func TestSlottedPageShiftSlotsLeft(t *testing.T) {
 
 	// ShiftSlotsLeft will shift the records to the left by 1 slot
 	// starting from the pivot slot, which is 50 in this case.
-	// So, the records from 50 to 99 will be shifted to the left by 1 slot.
-	// Record 50 will be moved to slot 49, record 51 will be moved to slot 50, and so on.
+	// Record 50 will be deleted and records from 51 to 99 will be shifted to the left by 1 slot:
+	// Record 51 will be moved to slot 50, record 52 will be moved to slot 51, and so on.
 	if err := page.ShiftSlotsLeft(50); err != nil {
 		t.Fatalf("error shifting slots left: %v", err)
 	}
@@ -761,15 +761,17 @@ func TestSlottedPageShiftSlotsLeft(t *testing.T) {
 	}
 
 	// test that before the pivot, the records are in the correct position
-	for i := 0; i < 49; i++ {
+	for i := 0; i < 50; i++ {
 		if err := test(storage.SmallInt(i), storage.SmallInt(i)); err != nil {
 			t.Fatal(err)
 		}
 	}
 
 	// test that after the pivot, the records are in shifted to the left
-	for i := 49; i < slots; i++ {
-		if err := test(storage.SmallInt(i), storage.SmallInt(i+1)); err != nil {
+	for i := 50; i < slots; i++ {
+		slot := storage.SmallInt(i)
+		exp := storage.SmallInt(i + 1)
+		if err := test(slot, exp); err != nil {
 			t.Fatal(err)
 		}
 	}

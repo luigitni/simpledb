@@ -109,6 +109,93 @@ func TestBTreePageSplit(t *testing.T) {
 	}
 }
 
+func TestBTreeDelete(t *testing.T) {
+	fm, lm, bm := test.MakeManagers(t)
+
+	x := tx.NewTx(fm, lm, bm)
+	defer x.Commit()
+
+	schema := newSchema()
+	schema.addField("field", storage.SMALLINT)
+	layout := NewLayout(schema)
+
+	block := storage.NewBlock("testfile", 0)
+	x.Append(block.FileName())
+
+	page := newBTreePage(x, block, layout)
+	if err := page.format(flagUnset); err != nil {
+		t.Fatalf("unexpected error when formatting the page: %s", err)
+	}
+
+	for i := range 100 {
+		slot := storage.SmallInt(i)
+		val := storage.ValueFromInteger[storage.SmallInt](storage.SizeOfSmallInt, storage.SmallInt(i))
+
+		if err := page.insert(slot, val, storage.SizeOfSmallInt); err != nil {
+			t.Fatalf("unexpected error when inserting record: %s", err)
+		}
+	}
+
+	t.Run("delete a record at random position", func(t *testing.T) {
+
+		if err := page.delete(17); err != nil {
+			t.Fatalf("unexpected error when deleting record: %s", err)
+		}
+
+		numRecords, err := page.numRecords()
+		if err != nil {
+			t.Fatalf("unexpected error when getting number of records: %s", err)
+		}
+
+		if numRecords != 99 {
+			t.Fatalf("expected 99 records, got %d", numRecords)
+		}
+
+		for i := 0; i < 17; i++ {
+			v, err := page.slottedPage.FixedLen(storage.SmallInt(i), "field")
+			if err != nil {
+				t.Fatalf("unexpected error when getting field: %s", err)
+			}
+
+			if got := storage.FixedLenToInteger[storage.SmallInt](v); got != storage.SmallInt(i) {
+				t.Fatalf("expected %d, got %d", i, got)
+			}
+		}
+
+		for i := 17; i < 99; i++ {
+			v, err := page.slottedPage.FixedLen(storage.SmallInt(i), "field")
+			if err != nil {
+				t.Fatalf("unexpected error when getting field: %s", err)
+			}
+
+			if got := storage.FixedLenToInteger[storage.SmallInt](v); got != storage.SmallInt(i+1) {
+				t.Fatalf("expected %d, got %d", i+1, got)
+			}
+		}
+	})
+
+	t.Run("delete all records", func(t *testing.T) {
+		for i, err := page.numRecords(); i > 0; i, err = page.numRecords() {
+			if err != nil {
+				t.Fatalf("unexpected error when getting number of records: %s", err)
+			}
+
+			if err := page.delete(0); err != nil {
+				t.Fatalf("unexpected error when deleting record at iteration %d: %s", i, err)
+			}
+		}
+
+		numRecords, err := page.numRecords()
+		if err != nil {
+			t.Fatalf("unexpected error when getting number of records: %s", err)
+		}
+
+		if numRecords != 0 {
+			t.Fatalf("expected 0 records, got %d", numRecords)
+		}
+	})
+}
+
 func TestBTreeFindSlotBefore(t *testing.T) {
 	fm, lm, bm := test.MakeManagers(t)
 
@@ -132,7 +219,7 @@ func TestBTreeFindSlotBefore(t *testing.T) {
 		val := storage.ValueFromInteger[storage.Long](storage.SizeOfLong, storage.Long(i))
 		slot := storage.SmallInt(i)
 
-		if _, err := page.insert(slot, val, size); err != nil {
+		if err := page.insert(slot, val, size); err != nil {
 			t.Fatalf("unexpected error when inserting record: %s", err)
 		}
 	}
@@ -509,6 +596,98 @@ func TestBTreeLeafInsert(t *testing.T) {
 
 			i++
 		}
+	})
+}
+
+func TestBTreeLeafDelete(t *testing.T) {
+	fm, lm, bm := test.MakeManagers(t)
+
+	t.Run("delete a record from a leaf page", func(t *testing.T) {
+		schema := newSchema()
+		schema.addField(indexFieldDataVal, storage.INT)
+		schema.addField(indexFieldBlockNumber, storage.LONG)
+		schema.addField(indexFieldRecordID, storage.SMALLINT)
+
+		layout := NewLayout(schema)
+
+		x := tx.NewTx(fm, lm, bm)
+		defer x.Commit()
+
+		block := storage.NewBlock(test.RandomName(), 0)
+		x.Append(block.FileName())
+
+		leaf, err := newBTreeLeaf(
+			x,
+			block,
+			layout,
+			storage.ValueFromInteger[storage.Int](storage.SizeOfInt, 0),
+		)
+
+		if err != nil {
+			t.Fatalf("unexpected error when creating the leaf page: %s", err)
+		}
+
+		if err := leaf.contents.format(flagUnset); err != nil {
+			t.Fatalf("unexpected error when formatting the leaf page: %s", err)
+		}
+
+		for i := 0; i < 100; i++ {
+			i := storage.Int(i)
+
+			leaf.key = storage.ValueFromInteger[storage.Int](storage.SizeOfInt, i)
+
+			rid := NewRID(block.Number(), storage.SmallInt(i))
+
+			leaf.currentSlot, err = leaf.contents.findSlotBefore(leaf.key)
+			if err != nil {
+				t.Fatalf("unexpected error when finding slot before: %s", err)
+			}
+
+			if _, err := leaf.insert(rid); err != nil {
+				t.Fatalf("unexpected error when inserting record: %s", err)
+			}
+		}
+
+		t.Run("delete a record", func(t *testing.T) {
+			rid := NewRID(block.Number(), 17)
+
+			leaf.key = storage.ValueFromInteger[storage.Int](storage.SizeOfInt, 17)
+			leaf.currentSlot, err = leaf.contents.findSlotBefore(leaf.key)
+			if err != nil {
+				t.Fatalf("unexpected error when finding slot before: %s", err)
+			}
+
+			if err := leaf.delete(rid); err != nil {
+				t.Fatalf("unexpected error when deleting record: %s", err)
+			}
+
+			// test that the records are in the correct position
+			for i := 0; i < 17; i++ {
+				slot := storage.SmallInt(i)
+				v, err := leaf.contents.dataVal(slot)
+				if err != nil {
+					t.Fatalf("unexpected error when getting data value: %s", err)
+				}
+
+				exp := storage.Int(i)
+				if got := storage.ValueAsInteger[storage.Int](v); got != exp {
+					t.Fatalf("expected %d, got %d", i, got)
+				}
+			}
+
+			for i := 17; i < 99; i++ {
+				slot := storage.SmallInt(i)
+				v, err := leaf.contents.dataVal(slot)
+				if err != nil {
+					t.Fatalf("unexpected error when getting data value: %s", err)
+				}
+
+				exp := storage.Int(i + 1)
+				if got := storage.ValueAsInteger[storage.Int](v); got != exp {
+					t.Fatalf("expected %d, got %d", i+1, got)
+				}
+			}
+		})
 	})
 }
 
