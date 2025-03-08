@@ -1,6 +1,7 @@
 package sql
 
 import (
+	"slices"
 	"testing"
 
 	"github.com/luigitni/simpledb/storage"
@@ -77,8 +78,39 @@ func TestQuery(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if qs := qd.String(); qs != src {
-		t.Fatalf("unexpected query %q", qs)
+	if !slices.Equal(qd.Tables(), []string{"atable"}) {
+		t.Fatalf("unexpected tables %v", qd.Tables())
+	}
+
+	if !slices.Equal(qd.Fields(), []string{"first", "second"}) {
+		t.Fatalf("unexpected fields %v", qd.Fields())
+	}
+
+	predicate := qd.Predicate()
+	if len(predicate.terms) != 2 {
+		t.Fatalf("expected 2 terms, got %d", len(predicate.terms))
+	}
+
+	feq1 := predicate.terms[0]
+	if feq1.lhs.fname != "first" {
+		t.Fatalf("expected field to be %q, got %q", "first", feq1.lhs.fname)
+	}
+
+	if got := feq1.rhs.AsConstant().AsFixedLen().AsInt(); got != 1 {
+		t.Fatalf("expected value to be %d, got %d", 1, got)
+	}
+
+	feq2 := predicate.terms[1]
+	if feq2.lhs.fname != "second" {
+		t.Fatalf("expected field to be %q, got %q", "second", feq2.lhs.fname)
+	}
+
+	if got := feq2.rhs.AsConstant().AsVarlen().AsGoString(); got != "second" {
+		t.Fatalf("expected value to be %q, got %q", "second", got)
+	}
+
+	if !slices.Equal(qd.OrderByFields(), []string{"second"}) {
+		t.Fatalf("unexpected order by fields %v", qd.OrderByFields())
 	}
 }
 
@@ -135,8 +167,17 @@ func TestUpdateCommandPredicate(t *testing.T) {
 		t.Fatalf("expected newValue to be %d, got %d", 5, v)
 	}
 
-	if s := upd.Predicate.String(); s != "anothercol = 3" {
-		t.Fatalf("expected predicate to be %q, got %q", "anothercol = 3", s)
+	aeq3 := upd.Predicate.terms
+	if len(aeq3) != 1 {
+		t.Fatalf("expected 1 term, got %d", len(aeq3))
+	}
+
+	if aeq3[0].lhs.fname != "anothercol" {
+		t.Fatalf("expected field to be %q, got %q", "anothercol", aeq3[0].lhs.fname)
+	}
+
+	if v := aeq3[0].rhs.AsConstant().AsFixedLen().AsInt(); v != 3 {
+		t.Fatalf("expected value to be %d, got %d", 3, v)
 	}
 }
 
@@ -192,8 +233,17 @@ func TestUpdateCommandMultipleFields(t *testing.T) {
 		}
 	}
 
-	if s := upd.Predicate.String(); s != "anothercol = 3" {
-		t.Fatalf("expected predicate to be %q, got %q", "anothercol = 3", s)
+	aeq3 := upd.Predicate.terms
+	if len(aeq3) != 1 {
+		t.Fatalf("expected 1 term, got %d", len(aeq3))
+	}
+
+	if aeq3[0].lhs.fname != "anothercol" {
+		t.Fatalf("expected field to be %q, got %q", "anothercol", aeq3[0].lhs.fname)
+	}
+
+	if v := aeq3[0].rhs.AsConstant().AsFixedLen().AsInt(); v != 3 {
+		t.Fatalf("expected value to be %d, got %d", 3, v)
 	}
 }
 
@@ -213,8 +263,17 @@ func TestDeleteCommand(t *testing.T) {
 		t.Fatalf("expected target table to be %q, got %q", "atable", del.TableName)
 	}
 
-	if v := del.Predicate.String(); v != "acol = 5" {
-		t.Fatalf("expected predicate to be %q, got %q", "acol = 5", v)
+	if len(del.Predicate.terms) != 1 {
+		t.Fatalf("expected 1 term, got %d", len(del.Predicate.terms))
+	}
+
+	term := del.Predicate.terms[0]
+	if term.lhs.fname != "acol" {
+		t.Fatalf("expected field to be %q, got %q", "acol", term.lhs.fname)
+	}
+
+	if v := term.rhs.AsConstant().AsFixedLen().AsInt(); v != 5 {
+		t.Fatalf("expected value to be %d, got %d", 5, v)
 	}
 }
 
