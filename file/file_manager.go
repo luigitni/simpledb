@@ -36,10 +36,8 @@ func NewFileManager(root string, blockSize storage.Long) *FileManager {
 	_, err := os.Stat(root)
 
 	isNew := os.IsNotExist(err)
-	// if the folder does not exists, create one
 	if isNew {
 		os.MkdirAll(root, os.ModeSticky|os.ModePerm)
-		// create the wal folder
 		wp := path.Join(root, walFolder)
 		os.MkdirAll(wp, os.ModeSticky|os.ModePerm)
 	}
@@ -48,7 +46,6 @@ func NewFileManager(root string, blockSize storage.Long) *FileManager {
 		panic(err)
 	}
 
-	// clear all tmp files in the folder
 	entries, err := os.ReadDir(root)
 	if err != nil {
 		panic(err)
@@ -88,6 +85,17 @@ func (manager *FileManager) getFile(fname string) *os.File {
 
 	return f
 }
+
+func (manager *FileManager) Close() error {
+	for _, f := range manager.openFiles {
+		if err := f.Close(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 
 func (manager *FileManager) openFile(fullPath string) (*os.File, error) {
 	if fullPath == WALPath {

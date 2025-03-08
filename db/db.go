@@ -57,6 +57,10 @@ func NewDB() (*DB, error) {
 	}, nil
 }
 
+func (db *DB) Close() {
+	db.fm.Close()
+}
+
 func (db *DB) NewTx() tx.Transaction {
 	return tx.NewTx(db.fm, db.lm, db.bm)
 }

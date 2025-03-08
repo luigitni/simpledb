@@ -31,10 +31,23 @@ func main() {
 		}
 	}
 
-	db, err := db.NewDB()
-	if err != nil {
+	if err := run(); err != nil {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
+	}
+
+	for _, h := range hooks {
+		h.OnEnd()
+	}
+	fmt.Println("shutting down...")
+}
+
+func run() error {
+	db, err := db.NewDB()
+	defer db.Close()
+
+	if err != nil {
+		return err
 	}
 
 	quit := make(chan os.Signal, 1)
@@ -44,14 +57,12 @@ func main() {
 	go func() {
 		if err := conn.Listen(ctx, port, db); err != nil {
 			fmt.Fprintf(os.Stderr, "connection error: %s\n", err)
-			os.Exit(1)
+			quit <- syscall.SIGTERM
 		}
 	}()
 
 	<-quit
 	canc()
-	for _, h := range hooks {
-		h.OnEnd()
-	}
-	fmt.Println("shutting down...")
+
+	return nil
 }
