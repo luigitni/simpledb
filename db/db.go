@@ -16,7 +16,7 @@ import (
 
 const (
 	defaultPath      = "../data"
-	defaultLogFile   = "../data/wal"
+	defaultLogFile   = "../data/" + file.WALPath
 	blockSize        = storage.PageSize
 	buffersAvaialble = 500
 )

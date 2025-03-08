@@ -14,6 +14,9 @@ import (
 const (
 	tmpTablePrefix = "__tmp_"
 	TmpTablePrefix = tmpTablePrefix + "%d"
+
+	walFolder = "wal"
+	WALPath   = "wal/log"
 )
 
 // Implements methods that read and write pages to disk blocks.
@@ -29,13 +32,16 @@ type FileManager struct {
 	sync.Mutex
 }
 
-func NewFileManager(path string, blockSize storage.Long) *FileManager {
-	_, err := os.Stat(path)
+func NewFileManager(root string, blockSize storage.Long) *FileManager {
+	_, err := os.Stat(root)
 
 	isNew := os.IsNotExist(err)
 	// if the folder does not exists, create one
 	if isNew {
-		os.MkdirAll(path, os.ModeSticky|os.ModePerm)
+		os.MkdirAll(root, os.ModeSticky|os.ModePerm)
+		// create the wal folder
+		wp := path.Join(root, walFolder)
+		os.MkdirAll(wp, os.ModeSticky|os.ModePerm)
 	}
 
 	if !isNew && err != nil {
@@ -43,14 +49,14 @@ func NewFileManager(path string, blockSize storage.Long) *FileManager {
 	}
 
 	// clear all tmp files in the folder
-	entries, err := os.ReadDir(path)
+	entries, err := os.ReadDir(root)
 	if err != nil {
 		panic(err)
 	}
 
 	for _, v := range entries {
 		if strings.HasPrefix(v.Name(), tmpTablePrefix) {
-			fn := filepath.Join(path, v.Name())
+			fn := filepath.Join(root, v.Name())
 			if err := os.Remove(fn); err != nil {
 				panic(err)
 			}
@@ -58,7 +64,7 @@ func NewFileManager(path string, blockSize storage.Long) *FileManager {
 	}
 
 	return &FileManager{
-		folder:    path,
+		folder:    root,
 		blockSize: blockSize,
 		isNew:     isNew,
 		openFiles: make(map[string]*os.File),
@@ -69,15 +75,26 @@ func (manager *FileManager) getFile(fname string) *os.File {
 	f, ok := manager.openFiles[fname]
 	if !ok {
 		p := path.Join(manager.folder, fname)
-		table, err := os.OpenFile(p, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0o755)
+
+		table, err := manager.openFile(p)
 		if err != nil {
 			panic(err)
 		}
+
 		manager.openFiles[fname] = table
+
 		return table
 	}
 
 	return f
+}
+
+func (manager *FileManager) openFile(fullPath string) (*os.File, error) {
+	if fullPath == WALPath {
+		return os.OpenFile(fullPath, os.O_CREATE|os.O_RDWR|os.O_SYNC, 0o755)
+	}
+
+	return os.OpenFile(fullPath, os.O_CREATE|os.O_RDWR, 0o755)
 }
 
 func (manager *FileManager) IsNew() bool {
